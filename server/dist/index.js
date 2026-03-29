@@ -74,7 +74,9 @@ app.use((0, express_session_1.default)({
     resave: false,
     saveUninitialized: false,
     cookie: {
-        secure: env_1.env.isProduction,
+        secure: env_1.env.cookieSecure,
+        sameSite: 'lax',
+        httpOnly: true,
         maxAge: 1000 * 60 * 60 * 24 // 24 hours
     }
 }));

@@ -5,7 +5,7 @@ import { ServerTable } from '../components/ServerTable';
 import { ServerDrawer } from '../components/ServerDrawer';
 import { AddServerModal } from '../components/AddServerModal';
 import type { CustomColumn, Server } from '../types';
-import api from '../lib/api';
+import api, { getApiErrorMessage } from '../lib/api';
 
 type ApiListResponse<T> = { success: boolean; data: T };
 
@@ -19,16 +19,26 @@ export const Servers = () => {
 
   const load = useCallback(async () => {
     try {
-      const [sRes, cRes] = await Promise.all([
+      const [sRes, cRes] = await Promise.allSettled([
         api.get<ApiListResponse<Server[]>>('/servers'),
         api.get<ApiListResponse<CustomColumn[]>>('/custom-columns'),
       ]);
-      setServers(sRes.data);
-      setCustomColumns(cRes.data);
+
+      if (sRes.status === 'fulfilled') {
+        const rows = sRes.value?.data;
+        setServers(Array.isArray(rows) ? rows : []);
+      } else {
+        toast.error(getApiErrorMessage(sRes.reason, 'Failed to load servers'));
+      }
+
+      if (cRes.status === 'fulfilled') {
+        const cols = cRes.value?.data;
+        setCustomColumns(Array.isArray(cols) ? cols : []);
+      } else {
+        toast.error(getApiErrorMessage(cRes.reason, 'Failed to load custom columns'));
+      }
     } catch (e: unknown) {
-      const msg =
-        typeof e === 'object' && e && 'message' in e ? String((e as { message: string }).message) : 'Failed to load servers';
-      toast.error(msg);
+      toast.error(getApiErrorMessage(e, 'Failed to load servers'));
     } finally {
       setLoading(false);
     }

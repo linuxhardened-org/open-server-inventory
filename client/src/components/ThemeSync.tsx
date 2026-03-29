@@ -1,15 +1,12 @@
 import { useEffect } from 'react';
-import { useThemeStore } from '../store/useThemeStore';
 
-/** Keeps `document.documentElement` in sync with persisted theme (incl. after rehydration). */
+/** Force single light paper theme globally. */
 export function ThemeSync() {
-  const theme = useThemeStore((s) => s.theme);
-
   useEffect(() => {
     const root = document.documentElement;
-    root.classList.toggle('dark', theme === 'dark');
-    root.setAttribute('data-bs-theme', theme === 'dark' ? 'dark' : 'light');
-  }, [theme]);
+    root.classList.remove('dark');
+    root.setAttribute('data-bs-theme', 'light');
+  }, []);
 
   return null;
 }

@@ -2,65 +2,30 @@
 @tailwind components;
 @tailwind utilities;
 
-/*
-  Theme inspired by Vuexy admin (Pixinvent): soft gray canvas, purple primary,
-  elevated cards, vertical nav with soft active state.
-*/
+/* Pure white canvas + cool blue accent (no warm tones). */
 @layer base {
   :root {
-    /* #F8F7FA-style canvas */
-    --background: 240 11% 97%;
-    --foreground: 225 15% 20%;
+    --background: 0 0% 100%;
+    --foreground: 222 47% 11%;
     --surface: 0 0% 100%;
-    --surface-lighter: 240 9% 96%;
-    --border: 220 13% 91%;
-    /* Vuexy primary ~ #7367F0 */
-    --primary: 251 83% 60%;
-    --primary-hover: 251 83% 52%;
+    --surface-lighter: 210 40% 98%;
+    /* Clearer structure: default + emphasis borders */
+    --border: 220 13% 86%;
+    --border-strong: 220 13% 74%;
+    /* Blue-600 scale */
+    --primary: 221 83% 53%;
+    --primary-hover: 221 83% 45%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 215 18% 35%;
-    --success: 160 84% 35%;
-    --warning: 38 92% 42%;
-    --danger: 0 72% 48%;
-    --sidebar-shadow: 0 0 24px -4px rgba(47, 43, 61, 0.08);
-    --sv-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
-    /* Align Bootstrap / AdminKit chrome with app primary */
-    --bs-primary: hsl(var(--primary));
-    --bs-primary-rgb: 115, 103, 240;
-    --bs-secondary: hsl(var(--secondary));
-    --bs-secondary-rgb: 85, 100, 122;
-    --bs-success: hsl(var(--success));
-    --bs-warning: hsl(var(--warning));
-    --bs-danger: hsl(var(--danger));
-    --bs-border-color: hsl(var(--border));
-    --bs-body-bg: hsl(var(--background));
-    --bs-body-color: hsl(var(--foreground));
-    --bs-card-bg: hsl(var(--surface));
-    --bs-card-border-color: hsl(var(--border));
-    --bs-tertiary-bg: hsl(var(--surface-lighter));
-    --bs-link-color: hsl(var(--primary));
-    --bs-link-hover-color: hsl(var(--primary-hover));
-  }
-
-  .dark {
-    --background: 240 10% 6%;
-    --foreground: 210 20% 98%;
-    --surface: 240 6% 10%;
-    --surface-lighter: 240 5% 14%;
-    --border: 240 4% 18%;
-    --primary: 251 83% 67%;
-    --primary-hover: 251 83% 58%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 215 18% 65%;
-    --success: 160 84% 39%;
+    --secondary: 215 16% 47%;
+    --success: 142 71% 36%;
     --warning: 38 92% 50%;
-    --danger: 0 72% 55%;
-    --sidebar-shadow: none;
+    --danger: 0 72% 51%;
+    --sidebar-shadow: 0 0 0 1px hsl(214 32% 91% / 0.6);
     --sv-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
     --bs-primary: hsl(var(--primary));
-    --bs-primary-rgb: 167, 155, 255;
+    --bs-primary-rgb: 37, 99, 235;
     --bs-secondary: hsl(var(--secondary));
-    --bs-secondary-rgb: 149, 162, 182;
+    --bs-secondary-rgb: 100, 116, 139;
     --bs-success: hsl(var(--success));
     --bs-warning: hsl(var(--warning));
     --bs-danger: hsl(var(--danger));
@@ -80,6 +45,7 @@
 
   body {
     @apply bg-background text-foreground antialiased font-sans overflow-x-hidden text-[15px] leading-relaxed;
+    text-rendering: optimizeLegibility;
   }
 
   h1,
@@ -88,11 +54,11 @@
   h4,
   h5,
   h6 {
-    @apply text-foreground;
+    @apply text-foreground font-semibold tracking-tight;
   }
 
   #root {
-    @apply min-h-screen text-foreground;
+    @apply relative z-[1] min-h-screen text-foreground;
   }
 
   .wrapper {
@@ -129,19 +95,59 @@
     border-left-color: hsl(var(--primary)) !important;
     background: linear-gradient(
       90deg,
-      hsl(var(--primary) / 0.14),
-      hsl(var(--primary) / 0.08) 55%,
+      hsl(var(--primary) / 0.12),
+      hsl(var(--primary) / 0.06) 55%,
       transparent
     ) !important;
   }
 
   .card,
-  .table,
   .dropdown-menu,
   .modal-content {
     background-color: hsl(var(--surface));
-    border-color: hsl(var(--border));
+    border: 1px solid hsl(var(--border));
     color: hsl(var(--foreground));
+  }
+
+  .table {
+    color: hsl(var(--foreground));
+    border: 1px solid hsl(var(--border));
+    border-collapse: separate;
+    border-spacing: 0;
+    border-radius: 0.5rem;
+    overflow: hidden;
+  }
+
+  .table thead th {
+    border-bottom: 1px solid hsl(var(--border-strong));
+    background-color: hsl(var(--surface-lighter));
+    font-weight: 600;
+  }
+
+  .table tbody tr + tr td {
+    border-top: 1px solid hsl(var(--border));
+  }
+
+  .table td,
+  .table th {
+    border-color: hsl(var(--border));
+    vertical-align: middle;
+  }
+
+  .dropdown-menu {
+    border: 1px solid hsl(var(--border-strong));
+    box-shadow: 0 4px 16px hsl(220 14% 46% / 0.12);
+  }
+
+  .form-control,
+  .form-select {
+    border: 1px solid hsl(var(--border));
+    background-color: hsl(var(--surface));
+  }
+
+  .form-control:focus,
+  .form-select:focus {
+    border-color: hsl(var(--primary));
   }
 
   ::-webkit-scrollbar {
@@ -177,13 +183,12 @@
 }
 
 @layer components {
-  /* Prefixed so Bootstrap 5 + AdminKit `.card` / `.btn` do not clash */
   .sv-btn {
     @apply inline-flex items-center justify-center rounded-lg px-4 py-2 font-medium transition-all active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50;
   }
 
   .sv-btn-primary {
-    @apply sv-btn bg-primary text-primary-foreground shadow-md shadow-primary/25 hover:bg-primary-hover;
+    @apply sv-btn bg-primary text-primary-foreground shadow-md shadow-primary/20 hover:bg-primary-hover;
   }
 
   .sv-btn-ghost {
@@ -195,7 +200,11 @@
   }
 
   .sv-card {
-    @apply rounded-2xl border border-border/80 bg-surface p-6 shadow-[0_2px_6px_0_rgba(67,89,113,0.12)] dark:shadow-lg dark:shadow-black/20;
+    @apply rounded-xl border border-border/90 bg-surface p-6;
+    box-shadow:
+      0 1px 0 hsl(0 0% 100% / 0.9) inset,
+      0 1px 3px hsl(220 14% 46% / 0.08),
+      0 8px 24px -10px hsl(220 20% 40% / 0.1);
   }
 
   .sv-input {
@@ -206,9 +215,8 @@
     @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium;
   }
 
-  /* Admin shell: page title block */
   .page-header {
-    @apply mb-8 border-b border-border/60 pb-6;
+    @apply mb-8 border-b border-border/70 pb-6;
   }
 
   .page-header h1 {
@@ -219,7 +227,6 @@
     @apply mt-1.5 max-w-2xl text-[15px] text-secondary;
   }
 
-  /* UI micro-interactions inspired by modern dashboard kits */
   .sv-interactive {
     transition: transform 180ms var(--sv-ease), box-shadow 180ms var(--sv-ease), background-color 180ms var(--sv-ease), color 180ms var(--sv-ease), border-color 180ms var(--sv-ease), opacity 180ms var(--sv-ease);
     will-change: transform;
@@ -260,7 +267,6 @@
   }
 }
 
-/* Global motion for Bootstrap/AdminKit shell elements */
 .main .content > .container-fluid {
   animation: sv-fade-up 220ms var(--sv-ease);
 }
@@ -291,7 +297,10 @@
 .sv-card:hover,
 .card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 10px 22px -12px rgba(40, 53, 79, 0.28);
+  box-shadow:
+    0 1px 0 hsl(0 0% 100% / 0.85) inset,
+    0 4px 14px hsl(220 14% 46% / 0.1),
+    0 12px 28px -12px hsl(220 25% 35% / 0.14);
 }
 
 .sidebar-link:hover {
@@ -299,7 +308,7 @@
 }
 
 .sidebar-item.active > .sidebar-link {
-  box-shadow: inset 0 0 0 1px rgba(var(--bs-primary-rgb), 0.08);
+  box-shadow: inset 0 0 0 1px rgba(var(--bs-primary-rgb), 0.1);
 }
 
 .form-control:focus,

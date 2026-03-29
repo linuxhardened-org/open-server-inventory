@@ -25,6 +25,56 @@ const loginSchema = zod_1.z.object({
     password: zod_1.z.string().min(1),
     totpToken: zod_1.z.string().optional(),
 });
+const setupSchema = zod_1.z.object({
+    username: zod_1.z.string().trim().min(3),
+    password: zod_1.z.string().min(8),
+});
+router.post('/setup', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const parsed = setupSchema.safeParse(req.body);
+    if (!parsed.success)
+        return (0, response_1.sendError)(res, 'Invalid input');
+    try {
+        const countResult = yield db_1.default.query('SELECT COUNT(*)::int AS count FROM users');
+        const existingUsers = countResult.rows[0].count;
+        if (existingUsers > 0) {
+            return (0, response_1.sendError)(res, 'Setup already completed', 409);
+        }
+        const { username, password } = parsed.data;
+        const passwordHash = yield (0, crypto_1.hashPassword)(password);
+        const created = yield db_1.default.query('INSERT INTO users (username, password_hash, role) VALUES ($1, $2, $3) RETURNING id, username, role, totp_enabled', [username, passwordHash, 'admin']);
+        const user = created.rows[0];
+        req.session.regenerate((regErr) => {
+            if (regErr) {
+                console.error('session regenerate:', regErr);
+                return (0, response_1.sendError)(res, 'Could not create session', 500);
+            }
+            req.session.userId = user.id;
+            req.session.username = user.username;
+            req.session.role = user.role;
+            (0, response_1.sendSuccess)(res, {
+                id: user.id,
+                username: user.username,
+                role: user.role,
+                totpEnabled: !!user.totp_enabled,
+            }, 201);
+        });
+    }
+    catch (err) {
+        if ((err === null || err === void 0 ? void 0 : err.code) === '23505')
+            return (0, response_1.sendError)(res, 'Username already exists', 409);
+        (0, response_1.sendError)(res, err.message || 'Setup failed');
+    }
+}));
+router.get('/setup-status', (_req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        const result = yield db_1.default.query('SELECT COUNT(*)::int AS count FROM users');
+        const count = result.rows[0].count;
+        (0, response_1.sendSuccess)(res, { isSetupCompleted: count > 0 });
+    }
+    catch (err) {
+        (0, response_1.sendError)(res, err.message || 'Could not check setup status', 500);
+    }
+}));
 router.post('/login', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const parseResult = loginSchema.safeParse(req.body);
     if (!parseResult.success)

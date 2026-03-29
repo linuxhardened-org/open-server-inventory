@@ -1,4 +1,5 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
 import { ThemeSync } from './components/ThemeSync';
 import { Login } from './pages/Login';
 import { Dashboard } from './pages/Dashboard';
@@ -12,8 +13,44 @@ import { Settings } from './pages/Settings';
 import { Setup } from './pages/Setup';
 import { Layout } from './components/Layout';
 import { Toaster } from 'react-hot-toast';
+import api from './lib/api';
+import { useAuthStore } from './store/useAuthStore';
+
+type SetupStatusResponse = {
+  success: boolean;
+  data: {
+    isSetupCompleted: boolean;
+  };
+};
 
 function App() {
+  const [setupChecked, setSetupChecked] = useState(false);
+  const isSetupCompleted = useAuthStore((state) => state.isSetupCompleted);
+  const setSetupCompletedInStore = useAuthStore((state) => state.setSetupCompleted);
+
+  useEffect(() => {
+    let mounted = true;
+    const load = async () => {
+      try {
+        const res = (await api.get('/auth/setup-status')) as SetupStatusResponse;
+        if (!mounted) return;
+        const completed = !!res.data?.isSetupCompleted;
+        setSetupCompletedInStore(completed);
+      } catch {
+        if (!mounted) return;
+        setSetupCompletedInStore(true);
+      } finally {
+        if (mounted) setSetupChecked(true);
+      }
+    };
+    void load();
+    return () => {
+      mounted = false;
+    };
+  }, [setSetupCompletedInStore]);
+
+  if (!setupChecked) return null;
+
   return (
     <Router>
       <ThemeSync />
@@ -29,8 +66,8 @@ function App() {
         }}
       />
       <Routes>
-        <Route path="/login" element={<Login />} />
-        <Route path="/setup" element={<Setup />} />
+        <Route path="/login" element={isSetupCompleted ? <Login /> : <Navigate to="/setup" replace />} />
+        <Route path="/setup" element={isSetupCompleted ? <Navigate to="/login" replace /> : <Setup />} />
 
         <Route path="/" element={<Layout />}>
           <Route index element={<Navigate to="/dashboard" replace />} />
@@ -44,7 +81,7 @@ function App() {
           <Route path="settings" element={<Settings />} />
         </Route>
 
-        <Route path="*" element={<Navigate to="/dashboard" replace />} />
+        <Route path="*" element={<Navigate to={isSetupCompleted ? '/dashboard' : '/setup'} replace />} />
       </Routes>
     </Router>
   );

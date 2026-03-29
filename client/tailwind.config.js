@@ -13,6 +13,7 @@ export default {
         surface: 'hsl(var(--surface) / <alpha-value>)',
         'surface-lighter': 'hsl(var(--surface-lighter) / <alpha-value>)',
         border: 'hsl(var(--border) / <alpha-value>)',
+        'border-strong': 'hsl(var(--border-strong) / <alpha-value>)',
         primary: {
           DEFAULT: 'hsl(var(--primary) / <alpha-value>)',
           hover: 'hsl(var(--primary-hover) / <alpha-value>)',
@@ -24,7 +25,7 @@ export default {
         danger: 'hsl(var(--danger) / <alpha-value>)',
       },
       fontFamily: {
-        sans: ['"Plus Jakarta Sans"', 'system-ui', 'sans-serif'],
+        sans: ['Inter', 'system-ui', 'Segoe UI', 'Roboto', 'Helvetica Neue', 'Arial', 'sans-serif'],
         mono: ['"JetBrains Mono"', 'ui-monospace', 'monospace'],
       },
     },

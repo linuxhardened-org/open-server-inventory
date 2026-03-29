@@ -9,11 +9,6 @@ export const Layout = () => {
   const location = useLocation();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
-  const isSetupCompleted = useAuthStore((state) => state.isSetupCompleted);
-
-  if (!isSetupCompleted) {
-    return <Navigate to="/setup" replace />;
-  }
 
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;

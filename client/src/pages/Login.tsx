@@ -21,6 +21,7 @@ export const Login = () => {
   const [password, setPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const setAuth = useAuthStore((state) => state.setAuth);
+  const setSetupCompleted = useAuthStore((state) => state.setSetupCompleted);
   const navigate = useNavigate();
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -42,6 +43,7 @@ export const Login = () => {
         },
         'session'
       );
+      setSetupCompleted(true);
       toast.success('Signed in');
       navigate('/dashboard');
     } catch (err: unknown) {

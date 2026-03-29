@@ -1,7 +1,6 @@
 import { Search, Bell, User, ChevronDown } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useAuthStore } from '../store/useAuthStore';
-import { ThemeToggle } from './ThemeToggle';
 
 type TopBarProps = {
   onMenuClick: () => void;
@@ -41,7 +40,6 @@ export const TopBar = ({ onMenuClick }: TopBarProps) => {
         </div>
 
         <div className="navbar-nav ms-auto flex-row align-items-center gap-1 gap-md-2">
-          <ThemeToggle />
           <button
             type="button"
             className="btn btn-link text-secondary position-relative p-2 rounded-circle"

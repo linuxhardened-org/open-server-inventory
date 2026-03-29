@@ -17,11 +17,16 @@ function requireSessionSecret(): string {
   return s || 'servervault-dev-only-secret-not-for-production';
 }
 
+/** Set `COOKIE_SECURE=true` only when the app is served over HTTPS (reverse proxy TLS). */
+const cookieSecure = process.env.COOKIE_SECURE === 'true';
+
 export const env = {
   isProduction,
   port: parseInt(process.env.PORT || '3001', 10),
   clientUrl: process.env.CLIENT_URL || 'http://localhost:5173',
   sessionSecret: requireSessionSecret(),
+  /** If false, session cookies work on plain HTTP (Docker/local). */
+  cookieSecure,
   postgres: {
     host: process.env.POSTGRES_HOST || 'localhost',
     port: parseInt(process.env.POSTGRES_PORT || '5432', 10),

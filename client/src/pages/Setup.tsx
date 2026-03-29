@@ -2,15 +2,63 @@ import { useNavigate } from 'react-router-dom';
 import { ShieldCheck, Mail, Lock, User, ArrowRight } from 'lucide-react';
 import { useAuthStore } from '../store/useAuthStore';
 import { motion } from 'framer-motion';
+import { useState } from 'react';
+import toast from 'react-hot-toast';
+import api from '../lib/api';
+
+type SetupResponse = {
+  success: boolean;
+  data: {
+    id: number;
+    username: string;
+    role: string;
+    totpEnabled: boolean;
+  };
+};
 
 export const Setup = () => {
   const setSetupCompleted = useAuthStore((state) => state.setSetupCompleted);
+  const setAuth = useAuthStore((state) => state.setAuth);
   const navigate = useNavigate();
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
-  const handleComplete = (e: React.FormEvent) => {
+  const handleComplete = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSetupCompleted(true);
-    navigate('/login');
+    setSubmitting(true);
+    try {
+      const derivedUsername =
+        username.trim() ||
+        email.split('@')[0]?.trim() ||
+        name.trim().toLowerCase().replace(/\s+/g, '.') ||
+        'admin';
+      const res = (await api.post('/auth/setup', {
+        username: derivedUsername,
+        password,
+      })) as SetupResponse;
+      const u = res.data;
+      setAuth(
+        {
+          id: u.id,
+          username: u.username,
+          role: u.role as 'admin' | 'operator',
+          totp_enabled: u.totpEnabled,
+          created_at: new Date().toISOString(),
+        },
+        'session'
+      );
+      setSetupCompleted(true);
+      toast.success('Setup completed');
+      navigate('/dashboard');
+    } catch (err: unknown) {
+      const e = err as { error?: string };
+      toast.error(e?.error || 'Setup failed');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -39,6 +87,8 @@ export const Setup = () => {
               <input 
                 type="text" 
                 required 
+                value={name}
+                onChange={(e) => setName(e.target.value)}
                 className="sv-input pl-10" 
                 placeholder="John Doe" 
               />
@@ -52,8 +102,30 @@ export const Setup = () => {
               <input 
                 type="email" 
                 required 
+                value={email}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setEmail(val);
+                  if (!username.trim()) setUsername(val.split('@')[0] || '');
+                }}
                 className="sv-input pl-10" 
                 placeholder="admin@servervault.com" 
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-secondary mb-2">Username</label>
+            <div className="relative">
+              <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-secondary" />
+              <input
+                type="text"
+                required
+                minLength={3}
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                className="sv-input pl-10"
+                placeholder="admin"
               />
             </div>
           </div>
@@ -65,6 +137,9 @@ export const Setup = () => {
               <input 
                 type="password" 
                 required 
+                minLength={8}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
                 className="sv-input pl-10" 
                 placeholder="••••••••••••" 
               />
@@ -72,8 +147,8 @@ export const Setup = () => {
           </div>
 
           <div className="pt-2">
-            <button type="submit" className="sv-btn-primary w-full py-3 gap-2">
-              Finish Setup <ArrowRight className="w-4 h-4" />
+            <button type="submit" disabled={submitting} className="sv-btn-primary w-full py-3 gap-2">
+              {submitting ? 'Creating admin…' : 'Finish Setup'} <ArrowRight className="w-4 h-4" />
             </button>
           </div>
         </form>

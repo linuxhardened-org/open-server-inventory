@@ -8,12 +8,6 @@ const instance = axios.create({
 instance.interceptors.response.use(
   (response) => response.data,
   (error) => {
-    const status = error.response?.status;
-    const url = String(error.config?.url ?? '');
-    // Failed login returns 401 — do not redirect (stay on login and show error).
-    if (status === 401 && !url.includes('/auth/login')) {
-      window.location.href = '/login';
-    }
     const payload = error.response?.data;
     return Promise.reject(
       typeof payload === 'object' && payload !== null ? payload : { error: String(error.message || 'Request failed') }
@@ -33,5 +27,15 @@ export interface ApiClient {
 }
 
 const api = instance as unknown as ApiClient;
+
+/** API errors use `{ error: string }`; network errors may use `message`. */
+export function getApiErrorMessage(err: unknown, fallback = 'Request failed'): string {
+  if (typeof err === 'object' && err !== null) {
+    const o = err as { error?: unknown; message?: unknown };
+    if (typeof o.error === 'string' && o.error) return o.error;
+    if (typeof o.message === 'string' && o.message) return o.message;
+  }
+  return fallback;
+}
 
 export default api;
