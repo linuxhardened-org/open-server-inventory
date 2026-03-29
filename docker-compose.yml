@@ -14,14 +14,15 @@ services:
 
   server:
     build:
-      context: ./server
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: server/Dockerfile
     ports:
       # Host 3001 avoids conflict when host:3000 is already used (e.g. Grafana)
       - "3001:3000"
     environment:
       - PORT=3000
       - NODE_ENV=production
+      - CLIENT_URL=http://localhost:3001
       - POSTGRES_HOST=db
       - POSTGRES_PORT=5432
       - POSTGRES_USER=postgres
@@ -32,16 +33,6 @@ services:
       - db
     volumes:
       - server-data:/app/data
-
-  client:
-    build:
-      context: ./client
-      dockerfile: Dockerfile
-    ports:
-      # Host 8081 avoids conflict when host:8080 is already in use
-      - "8081:80"
-    depends_on:
-      - server
 
 volumes:
   postgres-data:

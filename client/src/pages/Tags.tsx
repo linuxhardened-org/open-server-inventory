@@ -59,12 +59,12 @@ export const Tags = () => {
       <div className="space-y-6">
         <header className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold">Labels & Tags</h1>
+            <h1 className="text-3xl font-bold text-foreground">Labels & Tags</h1>
             <p className="text-secondary">Categorize and filter your servers</p>
           </div>
           <button 
             onClick={() => setIsAdding(true)}
-            className="btn-primary flex items-center gap-2"
+            className="sv-btn-primary flex items-center gap-2"
           >
             <Plus className="w-4 h-4" /> Add Tag
           </button>
@@ -75,7 +75,7 @@ export const Tags = () => {
           <input 
             type="text" 
             placeholder="Search tags..." 
-            className="input pl-10 h-11 w-full"
+            className="sv-input pl-10 h-11 w-full"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
@@ -85,23 +85,23 @@ export const Tags = () => {
           <motion.div 
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="card bg-primary/5 border-primary/20"
+            className="sv-card bg-primary/5 border-primary/20"
           >
             <form onSubmit={handleAddTag} className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium mb-1">Tag Name</label>
+                  <label className="mb-1 block text-sm font-medium text-foreground">Tag Name</label>
                   <input 
                     type="text" 
                     required 
-                    className="input h-10 w-full" 
+                    className="sv-input h-10 w-full" 
                     value={newTagName}
                     onChange={(e) => setNewTagName(e.target.value)}
                     placeholder="e.g. Production"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-2">Color</label>
+                  <label className="mb-2 block text-sm font-medium text-foreground">Color</label>
                   <div className="flex flex-wrap gap-2">
                     {colors.map(color => (
                       <button
@@ -123,7 +123,7 @@ export const Tags = () => {
               </div>
               <div className="flex justify-end gap-3">
                 <button type="button" onClick={() => setIsAdding(false)} className="px-4 py-2 text-secondary transition-colors hover:text-foreground">Cancel</button>
-                <button type="submit" className="btn-primary px-6 h-10">Create Tag</button>
+                <button type="submit" className="sv-btn-primary px-6 h-10">Create Tag</button>
               </div>
             </form>
           </motion.div>
@@ -134,14 +134,14 @@ export const Tags = () => {
             <motion.div 
               key={tag.id}
               layout
-              className="card p-4 group flex items-center justify-between border-l-4"
+              className="sv-card p-4 group flex items-center justify-between border-l-4"
               style={{ borderLeftColor: tag.color }}
             >
               <div className="flex items-center gap-3">
                 <div className="p-1.5 rounded-lg bg-surface" style={{ color: tag.color }}>
                   <TagIcon className="w-4 h-4" />
                 </div>
-                <span className="font-medium text-sm">{tag.name}</span>
+                <span className="text-sm font-medium text-foreground">{tag.name}</span>
               </div>
               <button 
                 onClick={() => handleDeleteTag(tag.id)}

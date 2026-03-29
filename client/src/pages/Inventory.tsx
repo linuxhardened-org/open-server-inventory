@@ -82,8 +82,8 @@ export default function Inventory() {
             transition={{ type: 'spring', damping: 25, stiffness: 200 }}
             className="w-96 bg-white border-l shadow-2xl absolute right-0 top-0 bottom-0 p-6 z-10"
           >
-            <button onClick={() => setSelectedServer(null)} className="text-gray-500 float-right">Close</button>
-            <h2 className="text-2xl font-bold mb-4">{selectedServer.name}</h2>
+            <button onClick={() => setSelectedServer(null)} className="float-right text-secondary hover:text-foreground">Close</button>
+            <h2 className="mb-4 text-2xl font-bold text-foreground">{selectedServer.name}</h2>
             <div className="space-y-4">
               <p><strong>IP Address:</strong> {selectedServer.ip}</p>
               <p><strong>Status:</strong> {selectedServer.status}</p>
@@ -98,12 +98,12 @@ export default function Inventory() {
         {showWizard && (
           <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center z-20">
             <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="bg-white p-8 rounded shadow-xl w-[500px]">
-              <h2 className="text-2xl font-bold mb-4">Add New Server Wizard</h2>
+              <h2 className="mb-4 text-2xl font-bold text-foreground">Add New Server Wizard</h2>
               <form className="space-y-4">
                 <input className="w-full p-2 border rounded" placeholder="Server Name" />
                 <input className="w-full p-2 border rounded" placeholder="IP Address" />
                 <div className="flex justify-end space-x-4 mt-6">
-                  <button type="button" onClick={() => setShowWizard(false)} className="px-4 py-2 text-gray-600">Cancel</button>
+                  <button type="button" onClick={() => setShowWizard(false)} className="px-4 py-2 text-secondary hover:text-foreground">Cancel</button>
                   <button type="button" onClick={() => setShowWizard(false)} className="px-4 py-2 bg-blue-600 text-white rounded">Save</button>
                 </div>
               </form>

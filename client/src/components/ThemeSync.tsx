@@ -6,7 +6,9 @@ export function ThemeSync() {
   const theme = useThemeStore((s) => s.theme);
 
   useEffect(() => {
-    document.documentElement.classList.toggle('dark', theme === 'dark');
+    const root = document.documentElement;
+    root.classList.toggle('dark', theme === 'dark');
+    root.setAttribute('data-bs-theme', theme === 'dark' ? 'dark' : 'light');
   }, [theme]);
 
   return null;

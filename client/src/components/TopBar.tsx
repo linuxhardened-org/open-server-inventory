@@ -3,54 +3,77 @@ import { Link } from 'react-router-dom';
 import { useAuthStore } from '../store/useAuthStore';
 import { ThemeToggle } from './ThemeToggle';
 
-export const TopBar = () => {
+type TopBarProps = {
+  onMenuClick: () => void;
+};
+
+export const TopBar = ({ onMenuClick }: TopBarProps) => {
   const user = useAuthStore((state) => state.user);
 
   return (
-    <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center justify-between gap-4 border-b border-border bg-background/90 px-4 backdrop-blur-md md:h-16 md:px-8">
-      <div className="relative max-w-xl flex-1">
-        <label htmlFor="global-search" className="sr-only">
-          Search inventory
-        </label>
-        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-secondary" aria-hidden />
-        <input
-          id="global-search"
-          type="search"
-          placeholder="Search servers, groups, tags…"
-          className="h-10 w-full rounded-lg border border-border bg-surface-lighter py-2 pl-10 pr-4 text-sm text-foreground placeholder:text-secondary/80 outline-none transition-colors focus:border-primary focus:ring-2 focus:ring-primary/25"
-          autoComplete="off"
-        />
-      </div>
+    <nav className="navbar navbar-expand navbar-light navbar-bg px-3 px-lg-4" aria-label="Top">
+      <button
+        type="button"
+        className="sidebar-toggle btn btn-link text-secondary border-0 p-0 shadow-none"
+        onClick={onMenuClick}
+        aria-label="Toggle sidebar"
+      >
+        <span className="hamburger align-self-center" />
+      </button>
 
-      <div className="flex items-center gap-2 md:gap-4">
-        <ThemeToggle />
-        <button
-          type="button"
-          className="relative rounded-lg p-2 text-secondary transition-colors hover:bg-foreground/[0.06] hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
-          aria-label="Notifications"
-        >
-          <Bell className="h-5 w-5" />
-          <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full border-2 border-background bg-primary" aria-hidden />
-        </button>
+      <div className="navbar-collapse collapse show flex-grow-1 align-items-center">
+        <div className="position-relative flex-grow-1 mx-2 mx-md-4" style={{ maxWidth: 480 }}>
+          <label htmlFor="global-search" className="visually-hidden">
+            Search inventory
+          </label>
+          <Search
+            className="position-absolute top-50 start-0 translate-middle-y ms-3 text-secondary"
+            size={18}
+            aria-hidden
+          />
+          <input
+            id="global-search"
+            type="search"
+            placeholder="Search servers, groups, tags…"
+            className="form-control ps-5 rounded-pill"
+            autoComplete="off"
+          />
+        </div>
 
-        <div className="hidden h-8 w-px bg-border sm:block" aria-hidden />
+        <div className="navbar-nav ms-auto flex-row align-items-center gap-1 gap-md-2">
+          <ThemeToggle />
+          <button
+            type="button"
+            className="btn btn-link text-secondary position-relative p-2 rounded-circle"
+            aria-label="Notifications"
+          >
+            <Bell size={20} />
+            <span
+              className="position-absolute top-0 end-0 translate-middle p-1 bg-primary border border-light rounded-circle"
+              style={{ width: 8, height: 8 }}
+              aria-hidden
+            />
+          </button>
 
-        <Link
-          to="/profile"
-          className="flex items-center gap-2 rounded-xl py-1.5 pl-1.5 pr-2 transition-colors hover:bg-foreground/[0.06] focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 md:gap-3 md:pr-3"
-        >
-          <span className="flex h-8 w-8 items-center justify-center rounded-lg border border-primary/25 bg-primary/10">
-            <User className="h-4 w-4 text-primary" aria-hidden />
-          </span>
-          <span className="hidden text-left sm:block">
-            <span className="block text-sm font-semibold text-foreground">{user?.username ?? 'User'}</span>
-            <span className="block text-[11px] font-medium uppercase tracking-wide text-secondary">
-              {user?.role ?? 'operator'}
+          <div className="vr mx-1 d-none d-sm-block text-secondary opacity-25" />
+
+          <Link
+            to="/profile"
+            className="nav-link d-flex align-items-center gap-2 py-1 px-2 rounded-pill text-decoration-none text-body"
+          >
+            <span className="rounded-circle bg-primary bg-opacity-10 p-2 text-primary d-inline-flex">
+              <User size={18} aria-hidden />
             </span>
-          </span>
-          <ChevronDown className="hidden h-4 w-4 text-secondary sm:block" aria-hidden />
-        </Link>
+            <span className="d-none d-sm-block text-start">
+              <span className="d-block small fw-semibold lh-1">{user?.username ?? 'User'}</span>
+              <span className="d-block text-secondary text-capitalize" style={{ fontSize: 11 }}>
+                {user?.role ?? 'operator'}
+              </span>
+            </span>
+            <ChevronDown size={16} className="text-secondary d-none d-sm-block" aria-hidden />
+          </Link>
+        </div>
       </div>
-    </header>
+    </nav>
   );
 };

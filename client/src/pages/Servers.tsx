@@ -76,12 +76,12 @@ export const Servers = () => {
           <h1 className="text-3xl font-bold text-foreground">Servers</h1>
           <p className="mt-1 text-secondary">Manage and monitor your infrastructure nodes.</p>
         </div>
-        <button type="button" onClick={() => setIsModalOpen(true)} className="btn-primary flex items-center gap-2">
+        <button type="button" onClick={() => setIsModalOpen(true)} className="sv-btn-primary flex items-center gap-2">
           <Plus className="h-4 w-4" /> Add Server
         </button>
       </div>
 
-      <div className="card space-y-4">
+      <div className="sv-card space-y-4">
         <div className="flex flex-wrap items-start gap-4 border-b border-border pb-4">
           <div className="flex min-w-0 flex-1 flex-col gap-2">
             <div className="flex items-center gap-2 text-sm font-medium text-secondary">
@@ -94,11 +94,11 @@ export const Servers = () => {
                 value={newColumnName}
                 onChange={(e) => setNewColumnName(e.target.value)}
                 placeholder="e.g. Rack, Owner, Cost center"
-                className="input h-10 min-w-[200px] max-w-md flex-1"
+                className="sv-input h-10 min-w-[200px] max-w-md flex-1"
                 maxLength={200}
                 autoComplete="off"
               />
-              <button type="submit" className="btn-primary h-10 px-4">
+              <button type="submit" className="sv-btn-primary h-10 px-4">
                 Add column
               </button>
             </form>
@@ -133,13 +133,13 @@ export const Servers = () => {
             <input
               type="text"
               placeholder="Search by hostname, IP, or tag..."
-              className="input h-11 w-full pl-10"
+              className="sv-input h-11 w-full pl-10"
             />
           </div>
-          <button type="button" className="btn-ghost flex h-11 items-center gap-2 border border-border px-4">
+          <button type="button" className="sv-btn-ghost flex h-11 items-center gap-2 border border-border px-4">
             <Filter className="h-4 w-4" /> Filters
           </button>
-          <button type="button" className="btn-ghost flex h-11 items-center gap-2 border border-border px-4">
+          <button type="button" className="sv-btn-ghost flex h-11 items-center gap-2 border border-border px-4">
             <Download className="h-4 w-4" /> Export
           </button>
         </div>

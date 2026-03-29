@@ -48,7 +48,7 @@ const QrSetup: React.FC<QrSetupProps> = ({ qrCodeUrl, secret, onVerify, isLoadin
         <button
           disabled={token.length !== 6 || isLoading}
           onClick={() => onVerify(token)}
-          className="btn-primary w-full py-3"
+          className="sv-btn-primary w-full py-3"
         >
           {isLoading ? 'Verifying...' : 'Enable 2FA'}
         </button>

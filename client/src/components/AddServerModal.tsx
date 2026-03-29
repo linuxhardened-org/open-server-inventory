@@ -142,7 +142,7 @@ export const AddServerModal = ({ isOpen, onClose, customColumns, onServerCreated
               required
               value={serverName}
               onChange={(e) => setServerName(e.target.value)}
-              className="input"
+              className="sv-input"
               placeholder="e.g. prod-web-01"
               autoComplete="off"
             />
@@ -157,7 +157,7 @@ export const AddServerModal = ({ isOpen, onClose, customColumns, onServerCreated
               required
               value={hostname}
               onChange={(e) => setHostname(e.target.value)}
-              className="input"
+              className="sv-input"
               placeholder="node01.example.com"
               autoComplete="off"
             />
@@ -171,7 +171,7 @@ export const AddServerModal = ({ isOpen, onClose, customColumns, onServerCreated
               id="srv-ip"
               value={ip}
               onChange={(e) => setIp(e.target.value)}
-              className="input"
+              className="sv-input"
               placeholder="10.0.0.1"
               autoComplete="off"
             />
@@ -185,7 +185,7 @@ export const AddServerModal = ({ isOpen, onClose, customColumns, onServerCreated
               id="srv-notes"
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              className="input min-h-[88px] resize-y"
+              className="sv-input min-h-[88px] resize-y"
               placeholder="Rack, owner, purpose…"
             />
           </div>
@@ -203,7 +203,7 @@ export const AddServerModal = ({ isOpen, onClose, customColumns, onServerCreated
                       id={`srv-custom-${col.id}`}
                       value={customValues[col.id] ?? ''}
                       onChange={(e) => setCustomValues((prev) => ({ ...prev, [col.id]: e.target.value }))}
-                      className="input"
+                      className="sv-input"
                       placeholder="—"
                       autoComplete="off"
                     />
@@ -226,7 +226,7 @@ export const AddServerModal = ({ isOpen, onClose, customColumns, onServerCreated
               id="srv-ssh"
               value={sshKeyId}
               onChange={(e) => setSshKeyId(e.target.value)}
-              className="input appearance-none bg-surface-lighter"
+              className="sv-input appearance-none bg-surface-lighter"
             >
               <option value="">None — inventory only</option>
               {/* Populated when wired to API */}
@@ -234,10 +234,10 @@ export const AddServerModal = ({ isOpen, onClose, customColumns, onServerCreated
           </div>
 
           <div className="flex justify-end gap-3 border-t border-border pt-4">
-            <button type="button" onClick={onClose} className="btn-ghost px-4" disabled={submitting}>
+            <button type="button" onClick={onClose} className="sv-btn-ghost px-4" disabled={submitting}>
               Cancel
             </button>
-            <button type="submit" className="btn-primary px-6" disabled={submitting}>
+            <button type="submit" className="sv-btn-primary px-6" disabled={submitting}>
               {submitting ? 'Saving…' : 'Save to inventory'}
             </button>
           </div>

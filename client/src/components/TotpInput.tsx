@@ -55,7 +55,7 @@ const TotpInput: React.FC<TotpInputProps> = ({ value, onChange, onComplete }) =>
           value={value[i] || ''}
           onChange={(e) => handleChange(e, i)}
           onKeyDown={(e) => handleKeyDown(e, i)}
-          className="w-12 h-14 text-center text-2xl font-bold bg-surface border-2 border-border rounded-lg focus:border-primary focus:outline-none transition-colors"
+          className="h-14 w-12 rounded-lg border-2 border-border bg-surface text-center text-2xl font-bold text-foreground transition-colors focus:border-primary focus:outline-none"
         />
       ))}
     </div>

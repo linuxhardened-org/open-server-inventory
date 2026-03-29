@@ -10,6 +10,7 @@ function applyDomTheme(mode: ThemeMode) {
   } else {
     root.classList.remove('dark');
   }
+  root.setAttribute('data-bs-theme', mode === 'dark' ? 'dark' : 'light');
 }
 
 export const useThemeStore = create<{

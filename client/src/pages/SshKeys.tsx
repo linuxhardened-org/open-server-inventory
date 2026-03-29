@@ -63,12 +63,12 @@ export const SshKeys = () => {
       <div className="space-y-6">
         <header className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold">SSH Keys</h1>
+            <h1 className="text-3xl font-bold text-foreground">SSH Keys</h1>
             <p className="text-secondary">Manage public keys for server authentication</p>
           </div>
           <button 
             onClick={() => setIsAdding(true)}
-            className="btn-primary gap-2"
+            className="sv-btn-primary gap-2"
           >
             <Plus className="w-4 h-4" /> Add Key
           </button>
@@ -79,7 +79,7 @@ export const SshKeys = () => {
           <input 
             type="text" 
             placeholder="Search keys..." 
-            className="input pl-10"
+            className="sv-input pl-10"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
@@ -89,15 +89,15 @@ export const SshKeys = () => {
           <motion.div 
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="card bg-primary/5 border-primary/20"
+            className="sv-card bg-primary/5 border-primary/20"
           >
             <form onSubmit={handleAddKey} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium mb-1">Key Name</label>
+                <label className="mb-1 block text-sm font-medium text-foreground">Key Name</label>
                 <input 
                   type="text" 
                   required 
-                  className="input" 
+                  className="sv-input" 
                   value={newKeyName}
                   onChange={(e) => setNewKeyName(e.target.value)}
                   placeholder="e.g. My MacBook Pro"
@@ -108,7 +108,7 @@ export const SshKeys = () => {
                 <textarea 
                   required 
                   rows={4}
-                  className="input font-mono text-xs" 
+                  className="sv-input font-mono text-xs" 
                   value={newPublicKey}
                   onChange={(e) => setNewPublicKey(e.target.value)}
                   placeholder="ssh-rsa AAAA..."
@@ -116,7 +116,7 @@ export const SshKeys = () => {
               </div>
               <div className="flex justify-end gap-3">
                 <button type="button" onClick={() => setIsAdding(false)} className="px-4 py-2 text-secondary">Cancel</button>
-                <button type="submit" className="btn-primary px-6">Add Key</button>
+                <button type="submit" className="sv-btn-primary px-6">Add Key</button>
               </div>
             </form>
           </motion.div>
@@ -127,7 +127,7 @@ export const SshKeys = () => {
             <motion.div 
               key={key.id}
               layout
-              className="card group"
+              className="sv-card group"
             >
               <div className="flex items-center justify-between gap-4">
                 <div className="flex items-center gap-4 flex-1 overflow-hidden">
@@ -135,7 +135,7 @@ export const SshKeys = () => {
                     <Key className="w-5 h-5 text-primary" />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <h3 className="font-bold truncate">{key.name}</h3>
+                    <h3 className="truncate font-bold text-foreground">{key.name}</h3>
                     <div className="flex items-center gap-2 text-xs text-secondary font-mono truncate">
                       {key.fingerprint || 'No fingerprint available'}
                     </div>
@@ -145,7 +145,7 @@ export const SshKeys = () => {
                 <div className="flex items-center gap-6">
                   <div className="hidden md:block text-right">
                     <div className="text-xs text-secondary uppercase font-bold tracking-wider">Created</div>
-                    <div className="text-sm">{format(new Date(key.created_at), 'MMM d, yyyy')}</div>
+                    <div className="text-sm text-foreground">{format(new Date(key.created_at), 'MMM d, yyyy')}</div>
                   </div>
                   <div className="flex gap-2">
                     <button 

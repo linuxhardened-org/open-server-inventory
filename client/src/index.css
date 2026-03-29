@@ -2,39 +2,146 @@
 @tailwind components;
 @tailwind utilities;
 
+/*
+  Theme inspired by Vuexy admin (Pixinvent): soft gray canvas, purple primary,
+  elevated cards, vertical nav with soft active state.
+*/
 @layer base {
   :root {
-    --background: 220 20% 97%;
-    --foreground: 222 47% 11%;
+    /* #F8F7FA-style canvas */
+    --background: 240 11% 97%;
+    --foreground: 225 15% 20%;
     --surface: 0 0% 100%;
-    --surface-lighter: 220 14% 96%;
-    --border: 214 32% 88%;
-    --primary: 239 84% 52%;
-    --primary-hover: 239 84% 44%;
+    --surface-lighter: 240 9% 96%;
+    --border: 220 13% 91%;
+    /* Vuexy primary ~ #7367F0 */
+    --primary: 251 83% 60%;
+    --primary-hover: 251 83% 52%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 215 16% 42%;
+    --secondary: 215 18% 35%;
     --success: 160 84% 35%;
     --warning: 38 92% 42%;
     --danger: 0 72% 48%;
+    --sidebar-shadow: 0 0 24px -4px rgba(47, 43, 61, 0.08);
+    --sv-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+    /* Align Bootstrap / AdminKit chrome with app primary */
+    --bs-primary: hsl(var(--primary));
+    --bs-primary-rgb: 115, 103, 240;
+    --bs-secondary: hsl(var(--secondary));
+    --bs-secondary-rgb: 85, 100, 122;
+    --bs-success: hsl(var(--success));
+    --bs-warning: hsl(var(--warning));
+    --bs-danger: hsl(var(--danger));
+    --bs-border-color: hsl(var(--border));
+    --bs-body-bg: hsl(var(--background));
+    --bs-body-color: hsl(var(--foreground));
+    --bs-card-bg: hsl(var(--surface));
+    --bs-card-border-color: hsl(var(--border));
+    --bs-tertiary-bg: hsl(var(--surface-lighter));
+    --bs-link-color: hsl(var(--primary));
+    --bs-link-hover-color: hsl(var(--primary-hover));
   }
 
   .dark {
-    --background: 240 10% 4%;
+    --background: 240 10% 6%;
     --foreground: 210 20% 98%;
-    --surface: 240 6% 8%;
-    --surface-lighter: 240 5% 12%;
-    --border: 240 4% 20%;
-    --primary: 239 84% 67%;
-    --primary-hover: 239 84% 57%;
+    --surface: 240 6% 10%;
+    --surface-lighter: 240 5% 14%;
+    --border: 240 4% 18%;
+    --primary: 251 83% 67%;
+    --primary-hover: 251 83% 58%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 215 20% 58%;
+    --secondary: 215 18% 65%;
     --success: 160 84% 39%;
     --warning: 38 92% 50%;
     --danger: 0 72% 55%;
+    --sidebar-shadow: none;
+    --sv-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+    --bs-primary: hsl(var(--primary));
+    --bs-primary-rgb: 167, 155, 255;
+    --bs-secondary: hsl(var(--secondary));
+    --bs-secondary-rgb: 149, 162, 182;
+    --bs-success: hsl(var(--success));
+    --bs-warning: hsl(var(--warning));
+    --bs-danger: hsl(var(--danger));
+    --bs-border-color: hsl(var(--border));
+    --bs-body-bg: hsl(var(--background));
+    --bs-body-color: hsl(var(--foreground));
+    --bs-card-bg: hsl(var(--surface));
+    --bs-card-border-color: hsl(var(--border));
+    --bs-tertiary-bg: hsl(var(--surface-lighter));
+    --bs-link-color: hsl(var(--primary));
+    --bs-link-hover-color: hsl(var(--primary-hover));
+  }
+
+  html {
+    @apply bg-background text-foreground;
   }
 
   body {
     @apply bg-background text-foreground antialiased font-sans overflow-x-hidden text-[15px] leading-relaxed;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    @apply text-foreground;
+  }
+
+  #root {
+    @apply min-h-screen text-foreground;
+  }
+
+  .wrapper {
+    background: hsl(var(--surface)) !important;
+  }
+
+  .main {
+    background: hsl(var(--background)) !important;
+    color: hsl(var(--foreground));
+  }
+
+  .navbar-bg {
+    background: hsl(var(--surface)) !important;
+    border-bottom: 1px solid hsl(var(--border));
+  }
+
+  .sidebar,
+  .sidebar-content,
+  .sidebar-link,
+  a.sidebar-link {
+    background: hsl(var(--surface)) !important;
+  }
+
+  .sidebar-brand,
+  .sidebar-header,
+  .sidebar-link,
+  a.sidebar-link {
+    color: hsl(var(--secondary)) !important;
+  }
+
+  .sidebar-item.active > .sidebar-link,
+  .sidebar-item.active .sidebar-link:hover {
+    color: hsl(var(--primary)) !important;
+    border-left-color: hsl(var(--primary)) !important;
+    background: linear-gradient(
+      90deg,
+      hsl(var(--primary) / 0.14),
+      hsl(var(--primary) / 0.08) 55%,
+      transparent
+    ) !important;
+  }
+
+  .card,
+  .table,
+  .dropdown-menu,
+  .modal-content {
+    background-color: hsl(var(--surface));
+    border-color: hsl(var(--border));
+    color: hsl(var(--foreground));
   }
 
   ::-webkit-scrollbar {
@@ -57,35 +164,73 @@
     -webkit-box-shadow: 0 0 0px 1000px hsl(var(--surface-lighter)) inset;
     transition: background-color 5000s ease-in-out 0s;
   }
+
+  select {
+    color: hsl(var(--foreground));
+    background-color: hsl(var(--surface-lighter));
+  }
+
+  select option {
+    background-color: hsl(var(--surface));
+    color: hsl(var(--foreground));
+  }
 }
 
 @layer components {
-  .btn {
-    @apply inline-flex items-center justify-center px-4 py-2 rounded-lg font-medium transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed;
+  /* Prefixed so Bootstrap 5 + AdminKit `.card` / `.btn` do not clash */
+  .sv-btn {
+    @apply inline-flex items-center justify-center rounded-lg px-4 py-2 font-medium transition-all active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50;
   }
 
-  .btn-primary {
-    @apply btn bg-primary text-primary-foreground hover:bg-primary-hover shadow-lg shadow-primary/20;
+  .sv-btn-primary {
+    @apply sv-btn bg-primary text-primary-foreground shadow-md shadow-primary/25 hover:bg-primary-hover;
   }
 
-  .btn-ghost {
-    @apply btn text-secondary hover:bg-foreground/[0.06] hover:text-foreground;
+  .sv-btn-ghost {
+    @apply sv-btn text-secondary hover:bg-foreground/[0.06] hover:text-foreground;
   }
 
-  .btn-danger {
-    @apply btn bg-danger/10 text-danger hover:bg-danger hover:text-white;
+  .sv-btn-danger {
+    @apply sv-btn bg-danger/10 text-danger hover:bg-danger hover:text-primary-foreground;
   }
 
-  .card {
-    @apply bg-surface border border-border rounded-xl p-6 shadow-xl shadow-foreground/[0.03];
+  .sv-card {
+    @apply rounded-2xl border border-border/80 bg-surface p-6 shadow-[0_2px_6px_0_rgba(67,89,113,0.12)] dark:shadow-lg dark:shadow-black/20;
   }
 
-  .input {
-    @apply w-full bg-surface-lighter border border-border rounded-lg px-4 py-2.5 text-foreground placeholder:text-secondary/70 outline-none focus:border-primary transition-colors;
+  .sv-input {
+    @apply w-full rounded-lg border border-border bg-surface-lighter px-4 py-2.5 text-foreground placeholder:text-secondary/70 outline-none transition-colors focus:border-primary focus:ring-2 focus:ring-primary/20;
   }
 
   .badge {
-    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+    @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium;
+  }
+
+  /* Admin shell: page title block */
+  .page-header {
+    @apply mb-8 border-b border-border/60 pb-6;
+  }
+
+  .page-header h1 {
+    @apply text-2xl font-semibold tracking-tight text-foreground md:text-3xl;
+  }
+
+  .page-header p {
+    @apply mt-1.5 max-w-2xl text-[15px] text-secondary;
+  }
+
+  /* UI micro-interactions inspired by modern dashboard kits */
+  .sv-interactive {
+    transition: transform 180ms var(--sv-ease), box-shadow 180ms var(--sv-ease), background-color 180ms var(--sv-ease), color 180ms var(--sv-ease), border-color 180ms var(--sv-ease), opacity 180ms var(--sv-ease);
+    will-change: transform;
+  }
+
+  .sv-interactive:hover {
+    transform: translateY(-1px);
+  }
+
+  .sv-interactive:active {
+    transform: translateY(0) scale(0.985);
   }
 }
 
@@ -101,5 +246,80 @@
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+@keyframes sv-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Global motion for Bootstrap/AdminKit shell elements */
+.main .content > .container-fluid {
+  animation: sv-fade-up 220ms var(--sv-ease);
+}
+
+.btn,
+.sv-btn,
+.card,
+.sv-card,
+.form-control,
+.form-select,
+.sidebar-link,
+.nav-link,
+.navbar .btn {
+  transition: transform 180ms var(--sv-ease), box-shadow 180ms var(--sv-ease), background-color 180ms var(--sv-ease), color 180ms var(--sv-ease), border-color 180ms var(--sv-ease), opacity 180ms var(--sv-ease);
+}
+
+.btn:hover,
+.sv-btn:hover,
+.nav-link:hover {
+  transform: translateY(-1px);
+}
+
+.btn:active,
+.sv-btn:active {
+  transform: translateY(0) scale(0.985);
+}
+
+.sv-card:hover,
+.card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 22px -12px rgba(40, 53, 79, 0.28);
+}
+
+.sidebar-link:hover {
+  transform: translateX(2px);
+}
+
+.sidebar-item.active > .sidebar-link {
+  box-shadow: inset 0 0 0 1px rgba(var(--bs-primary-rgb), 0.08);
+}
+
+.form-control:focus,
+.form-select:focus {
+  box-shadow: 0 0 0 0.2rem rgba(var(--bs-primary-rgb), 0.15);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .main .content > .container-fluid {
+    animation: none !important;
+  }
+  .btn,
+  .sv-btn,
+  .card,
+  .sv-card,
+  .form-control,
+  .form-select,
+  .sidebar-link,
+  .nav-link,
+  .navbar .btn {
+    transition: none !important;
   }
 }

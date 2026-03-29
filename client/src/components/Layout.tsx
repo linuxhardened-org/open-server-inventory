@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Outlet, Navigate, useLocation } from 'react-router-dom';
 import { Sidebar } from './Sidebar';
 import { TopBar } from './TopBar';
@@ -6,6 +7,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 export const Layout = () => {
   const location = useLocation();
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const isSetupCompleted = useAuthStore((state) => state.isSetupCompleted);
 
@@ -18,22 +20,24 @@ export const Layout = () => {
   }
 
   return (
-    <div className="flex min-h-screen bg-background text-foreground">
-      <Sidebar />
-      <div className="flex min-w-0 flex-1 flex-col">
-        <TopBar />
-        <main id="main-content" className="flex-1 overflow-auto p-6 md:p-8" tabIndex={-1}>
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={location.pathname}
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-              transition={{ duration: 0.18, ease: [0.25, 0.1, 0.25, 1] }}
-            >
-              <Outlet />
-            </motion.div>
-          </AnimatePresence>
+    <div className="wrapper">
+      <Sidebar collapsed={sidebarCollapsed} />
+      <div className="main">
+        <TopBar onMenuClick={() => setSidebarCollapsed((c) => !c)} />
+        <main id="main-content" className="content" tabIndex={-1}>
+          <div className="container-fluid p-0 px-3 px-lg-4 py-4">
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={location.pathname}
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -6 }}
+                transition={{ duration: 0.16, ease: [0.25, 0.1, 0.25, 1] }}
+              >
+                <Outlet />
+              </motion.div>
+            </AnimatePresence>
+          </div>
         </main>
       </div>
     </div>

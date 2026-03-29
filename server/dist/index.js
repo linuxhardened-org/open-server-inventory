@@ -55,6 +55,7 @@ const users_1 = __importDefault(require("./routes/users"));
 const sessionAuth_1 = require("./middleware/sessionAuth");
 const bearerAuth_1 = require("./middleware/bearerAuth");
 const db_1 = __importStar(require("./db"));
+const spaStatic_1 = require("./spaStatic");
 const PgSession = (0, connect_pg_simple_1.default)(express_session_1.default);
 const app = (0, express_1.default)();
 const PORT = env_1.env.port;
@@ -95,6 +96,7 @@ app.use('/api/ssh-keys', authMiddleware, sshKeys_1.default);
 app.use('/api/stats', authMiddleware, stats_1.default);
 app.use('/api/export-import', sessionAuth_1.sessionAuth, exportImport_1.default);
 app.use('/api/users', users_1.default);
+(0, spaStatic_1.attachClientSpa)(app);
 // Error handling
 app.use((err, req, res, next) => {
     console.error(err.stack);

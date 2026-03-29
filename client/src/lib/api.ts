@@ -8,10 +8,16 @@ const instance = axios.create({
 instance.interceptors.response.use(
   (response) => response.data,
   (error) => {
-    if (error.response?.status === 401) {
+    const status = error.response?.status;
+    const url = String(error.config?.url ?? '');
+    // Failed login returns 401 — do not redirect (stay on login and show error).
+    if (status === 401 && !url.includes('/auth/login')) {
       window.location.href = '/login';
     }
-    return Promise.reject(error.response?.data || error.message);
+    const payload = error.response?.data;
+    return Promise.reject(
+      typeof payload === 'object' && payload !== null ? payload : { error: String(error.message || 'Request failed') }
+    );
   }
 );
 

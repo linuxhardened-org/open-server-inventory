@@ -72,7 +72,7 @@ export const Settings = () => {
         <p className="mb-8 text-secondary">System-wide configuration, data portability, and maintenance.</p>
 
         <div className="space-y-6">
-          <section className="card">
+          <section className="sv-card">
             <h2 className="mb-4 flex items-center gap-2 text-xl font-semibold text-foreground">
               <Download className="h-5 w-5 text-primary" />
               Data Export
@@ -98,7 +98,7 @@ export const Settings = () => {
             </div>
           </section>
 
-          <section className="card">
+          <section className="sv-card">
             <h2 className="mb-4 flex items-center gap-2 text-xl font-semibold text-foreground">
               <Upload className="h-5 w-5 text-success" />
               Data Import
@@ -131,7 +131,7 @@ export const Settings = () => {
             <div className="flex items-center justify-between gap-8">
               <div>
                 <div className="font-semibold">Reset System Database</div>
-                <div className="text-sm text-gray-400 mt-1">
+                <div className="mt-1 text-sm text-secondary">
                   Wipe all inventory data. User accounts and API tokens will be preserved.
                 </div>
               </div>

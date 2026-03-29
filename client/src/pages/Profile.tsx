@@ -83,7 +83,7 @@ export const Profile = () => {
       <div className="mx-auto max-w-4xl space-y-8">
         <header className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold">Profile Settings</h1>
+            <h1 className="text-3xl font-bold text-foreground">Profile Settings</h1>
             <p className="text-secondary">Manage your account security and access</p>
           </div>
           <button 
@@ -105,7 +105,7 @@ export const Profile = () => {
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           <div className="md:col-span-1 space-y-6">
-            <div className="card text-center p-8">
+            <div className="sv-card text-center p-8">
               <div className="w-24 h-24 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4 border-2 border-primary/20">
                 <User className="w-12 h-12 text-primary" />
               </div>
@@ -113,11 +113,13 @@ export const Profile = () => {
               <p className="text-secondary text-sm capitalize">{user?.role}</p>
               <div className="mt-6 pt-6 border-t border-border">
                 <p className="text-xs text-secondary uppercase font-bold tracking-wider mb-2">Member Since</p>
-                <p className="text-sm">{user?.created_at ? new Date(user.created_at).toLocaleDateString() : 'N/A'}</p>
+                <p className="text-sm text-foreground">
+                  {user?.created_at ? new Date(user.created_at).toLocaleDateString() : 'N/A'}
+                </p>
               </div>
             </div>
 
-            <div className="card space-y-4">
+            <div className="sv-card space-y-4">
               <div className="flex items-center gap-3 text-lg font-bold">
                 <Shield className="w-5 h-5 text-primary" />
                 Security
@@ -125,7 +127,7 @@ export const Profile = () => {
               <div className="space-y-3">
                 <div className="flex items-center justify-between p-3 bg-surface rounded-lg border border-border">
                   <div className="text-sm">
-                    <div className="font-medium">2FA Status</div>
+                    <div className="font-medium text-foreground">2FA Status</div>
                     <div className="text-secondary text-xs">{user?.totp_enabled ? 'Enabled' : 'Disabled'}</div>
                   </div>
                   {!user?.totp_enabled && (
@@ -145,16 +147,16 @@ export const Profile = () => {
           <div className="md:col-span-2 space-y-8">
             <motion.div 
               layout
-              className="card"
+              className="sv-card"
             >
               <div className="flex items-center justify-between mb-6">
-                <div className="flex items-center gap-3 text-xl font-bold">
-                  <Key className="w-6 h-6 text-primary" />
+                <div className="flex items-center gap-3 text-xl font-bold text-foreground">
+                  <Key className="h-6 w-6 text-primary" />
                   API Tokens
                 </div>
                 <button 
                   onClick={handleCreateToken}
-                  className="btn-primary py-2 px-4 text-sm gap-2"
+                  className="sv-btn-primary py-2 px-4 text-sm gap-2"
                 >
                   <Plus className="w-4 h-4" /> New Token
                 </button>
@@ -186,10 +188,10 @@ export const Profile = () => {
               <motion.div 
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
-                className="card border-2 border-primary/30"
+                className="sv-card border-2 border-primary/30"
               >
                 <div className="flex items-center justify-between mb-6">
-                  <h3 className="text-xl font-bold">Setup Two-Factor Authentication</h3>
+                  <h3 className="text-xl font-bold text-foreground">Setup Two-Factor Authentication</h3>
                   <button 
                     onClick={() => setShowQrSetup(false)}
                     className="text-secondary hover:text-foreground"

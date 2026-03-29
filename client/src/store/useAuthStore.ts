@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { User } from '../types';
+import api from '../lib/api';
 
 interface AuthState {
   user: User | null;
@@ -20,7 +21,10 @@ export const useAuthStore = create<AuthState>()(
       isAuthenticated: false,
       isSetupCompleted: false,
       setAuth: (user, token) => set({ user, token, isAuthenticated: true }),
-      logout: () => set({ user: null, token: null, isAuthenticated: false }),
+      logout: () => {
+        void api.post('/auth/logout').catch(() => {});
+        set({ user: null, token: null, isAuthenticated: false });
+      },
       setSetupCompleted: (completed) => set({ isSetupCompleted: completed }),
     }),
     {

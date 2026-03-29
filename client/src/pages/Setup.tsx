@@ -14,25 +14,24 @@ export const Setup = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4 relative overflow-hidden">
-      {/* Background Orbs */}
-      <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-primary/20 rounded-full blur-[120px]" />
-      <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-blue-600/10 rounded-full blur-[120px]" />
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-background p-4">
+      <div className="absolute left-[-15%] top-[-15%] h-[45%] w-[45%] rounded-full bg-primary/15 blur-[100px]" />
+      <div className="absolute bottom-[-15%] right-[-15%] h-[40%] w-[40%] rounded-full bg-primary/10 blur-[120px]" />
 
       <motion.div 
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="max-w-md w-full"
+        className="relative z-[1] w-full max-w-md"
       >
-        <div className="text-center mb-8">
-          <div className="inline-flex w-16 h-16 bg-primary rounded-2xl items-center justify-center shadow-2xl shadow-primary/40 mb-6">
-            <ShieldCheck className="w-10 h-10 text-white" />
+        <div className="mb-8 text-center">
+          <div className="mb-6 inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-[hsl(251_83%_45%)] shadow-xl shadow-primary/35">
+            <ShieldCheck className="h-10 w-10 text-primary-foreground" />
           </div>
-          <h1 className="mb-2 text-3xl font-bold text-foreground">Initialize ServerVault</h1>
-          <p className="text-secondary">Create the master administrator account</p>
+          <h1 className="mb-2 text-3xl font-semibold tracking-tight text-foreground">Initialize ServerVault</h1>
+          <p className="text-[15px] text-secondary">Create the master administrator account</p>
         </div>
 
-        <form onSubmit={handleComplete} className="card space-y-5 backdrop-blur-xl bg-surface/80">
+        <form onSubmit={handleComplete} className="sv-card space-y-5 border-t-4 border-t-primary pt-8">
           <div>
             <label className="block text-sm font-medium text-secondary mb-2">Administrator Name</label>
             <div className="relative">
@@ -40,7 +39,7 @@ export const Setup = () => {
               <input 
                 type="text" 
                 required 
-                className="input pl-10" 
+                className="sv-input pl-10" 
                 placeholder="John Doe" 
               />
             </div>
@@ -53,7 +52,7 @@ export const Setup = () => {
               <input 
                 type="email" 
                 required 
-                className="input pl-10" 
+                className="sv-input pl-10" 
                 placeholder="admin@servervault.com" 
               />
             </div>
@@ -66,14 +65,14 @@ export const Setup = () => {
               <input 
                 type="password" 
                 required 
-                className="input pl-10" 
+                className="sv-input pl-10" 
                 placeholder="••••••••••••" 
               />
             </div>
           </div>
 
           <div className="pt-2">
-            <button type="submit" className="btn-primary w-full py-3 gap-2">
+            <button type="submit" className="sv-btn-primary w-full py-3 gap-2">
               Finish Setup <ArrowRight className="w-4 h-4" />
             </button>
           </div>

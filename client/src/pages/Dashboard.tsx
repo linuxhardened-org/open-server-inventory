@@ -29,10 +29,12 @@ const data = [
   { name: '23:59', cpu: 34, mem: 43 },
 ];
 
+const CHART_PRIMARY = '#7367f0';
+
 const StatCard = ({ icon: Icon, label, value, trend, trendValue }: any) => (
-  <div className="card">
-    <div className="flex items-start justify-between mb-4">
-      <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-foreground/[0.05] dark:bg-white/5">
+  <div className="sv-card">
+    <div className="mb-4 flex items-start justify-between">
+      <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 ring-1 ring-primary/15">
         <Icon className="h-6 w-6 text-primary" />
       </div>
       <div className={trend === 'up' ? 'text-success' : 'text-danger'}>
@@ -42,7 +44,7 @@ const StatCard = ({ icon: Icon, label, value, trend, trendValue }: any) => (
         </div>
       </div>
     </div>
-    <p className="text-secondary text-sm font-medium">{label}</p>
+    <p className="text-sm font-medium text-secondary">{label}</p>
     <h3 className="mt-1 text-2xl font-bold text-foreground">{value}</h3>
   </div>
 );
@@ -56,24 +58,22 @@ export const Dashboard = () => {
   const tooltipColor = isDark ? '#f8fafc' : '#0f172a';
 
   return (
-    <div className="mx-auto max-w-7xl space-y-8 animate-in">
-      <header className="border-b border-border/80 pb-6">
-        <h1 className="text-3xl font-bold tracking-tight text-foreground md:text-4xl">Infrastructure overview</h1>
-        <p className="mt-2 max-w-2xl text-base text-secondary">
-          Health and capacity at a glance. Use the sidebar to manage servers, groups, and keys.
-        </p>
+    <div className="mx-auto max-w-7xl animate-in space-y-8">
+      <header className="page-header">
+        <h1>Infrastructure overview</h1>
+        <p>Health and capacity at a glance. Use the sidebar to manage servers, groups, and keys.</p>
       </header>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
         <StatCard icon={Server} label="Total Servers" value="24" trend="up" trendValue="12%" />
         <StatCard icon={Activity} label="Active Sessions" value="156" trend="up" trendValue="5%" />
         <StatCard icon={Shield} label="Security Alerts" value="0" trend="down" trendValue="100%" />
         <StatCard icon={Cpu} label="Avg CPU Usage" value="42.5%" trend="up" trendValue="2.4%" />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="card">
-          <h3 className="mb-6 text-lg font-bold text-foreground">Resource Consumption</h3>
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <div className="sv-card">
+          <h3 className="mb-6 text-base font-semibold text-foreground">Resource consumption</h3>
           <div className="h-[300px]">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={data}>
@@ -90,14 +90,14 @@ export const Dashboard = () => {
                   contentStyle={{ backgroundColor: tooltipBg, border: `1px solid ${tooltipBorder}`, borderRadius: '8px' }}
                   itemStyle={{ color: tooltipColor }}
                 />
-                <Area type="monotone" dataKey="cpu" stroke="#6366f1" fillOpacity={1} fill="url(#colorCpu)" strokeWidth={2} />
+                <Area type="monotone" dataKey="cpu" stroke={CHART_PRIMARY} fillOpacity={1} fill="url(#colorCpu)" strokeWidth={2} />
               </AreaChart>
             </ResponsiveContainer>
           </div>
         </div>
 
-        <div className="card">
-          <h3 className="mb-6 text-lg font-bold text-foreground">Storage Distribution</h3>
+        <div className="sv-card">
+          <h3 className="mb-6 text-base font-semibold text-foreground">Storage distribution</h3>
           <div className="h-[300px]">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={data}>
@@ -108,20 +108,20 @@ export const Dashboard = () => {
                    contentStyle={{ backgroundColor: tooltipBg, border: `1px solid ${tooltipBorder}`, borderRadius: '8px' }}
                    itemStyle={{ color: tooltipColor }}
                 />
-                <Bar dataKey="mem" fill="#6366f1" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="mem" fill={CHART_PRIMARY} radius={[6, 6, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
         </div>
       </div>
 
-      <div className="card">
+      <div className="sv-card">
         <h3 className="mb-6 text-lg font-bold text-foreground">Recent Activity</h3>
         <div className="space-y-4">
           {[1, 2, 3, 4].map((i) => (
             <div key={i} className="flex items-center justify-between py-3 border-b border-border last:border-0">
               <div className="flex items-center gap-4">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-foreground/[0.05] dark:bg-white/5">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 ring-1 ring-primary/10">
                   <Shield className="w-5 h-5 text-secondary" />
                 </div>
                 <div>

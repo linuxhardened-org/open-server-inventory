@@ -56,12 +56,12 @@ export const Groups = () => {
       <div className="space-y-6">
         <header className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold">Server Groups</h1>
+            <h1 className="text-3xl font-bold text-foreground">Server Groups</h1>
             <p className="text-secondary">Organize your infrastructure into logical units</p>
           </div>
           <button 
             onClick={() => setIsAdding(true)}
-            className="btn-primary flex items-center gap-2"
+            className="sv-btn-primary flex items-center gap-2"
           >
             <Plus className="w-4 h-4" /> Add Group
           </button>
@@ -72,7 +72,7 @@ export const Groups = () => {
           <input 
             type="text" 
             placeholder="Search groups..." 
-            className="input pl-10 h-11 w-full"
+            className="sv-input pl-10 h-11 w-full"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
@@ -82,16 +82,16 @@ export const Groups = () => {
           <motion.div 
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="card bg-primary/5 border-primary/20"
+            className="sv-card bg-primary/5 border-primary/20"
           >
             <form onSubmit={handleAddGroup} className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium mb-1">Group Name</label>
+                  <label className="mb-1 block text-sm font-medium text-foreground">Group Name</label>
                   <input 
                     type="text" 
                     required 
-                    className="input h-10 w-full" 
+                    className="sv-input h-10 w-full" 
                     value={newGroupName}
                     onChange={(e) => setNewGroupName(e.target.value)}
                     placeholder="e.g. Production"
@@ -101,7 +101,7 @@ export const Groups = () => {
                   <label className="block text-sm font-medium mb-1">Description</label>
                   <input 
                     type="text" 
-                    className="input h-10 w-full" 
+                    className="sv-input h-10 w-full" 
                     value={newGroupDesc}
                     onChange={(e) => setNewGroupDesc(e.target.value)}
                     placeholder="Optional description"
@@ -110,7 +110,7 @@ export const Groups = () => {
               </div>
               <div className="flex justify-end gap-3">
                 <button type="button" onClick={() => setIsAdding(false)} className="px-4 py-2 text-secondary transition-colors hover:text-foreground">Cancel</button>
-                <button type="submit" className="btn-primary px-6 h-10">Create Group</button>
+                <button type="submit" className="sv-btn-primary px-6 h-10">Create Group</button>
               </div>
             </form>
           </motion.div>
@@ -121,7 +121,7 @@ export const Groups = () => {
             <motion.div 
               key={group.id}
               layout
-              className="card group hover:border-primary/50 transition-colors"
+              className="sv-card group hover:border-primary/50 transition-colors"
             >
               <div className="flex items-start justify-between mb-4">
                 <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center">
@@ -139,7 +139,7 @@ export const Groups = () => {
                   </button>
                 </div>
               </div>
-              <h3 className="text-xl font-bold mb-1">{group.name}</h3>
+              <h3 className="mb-1 text-xl font-bold text-foreground">{group.name}</h3>
               <p className="text-secondary text-sm mb-4 line-clamp-2">{group.description || 'No description provided.'}</p>
               <div className="flex items-center justify-between pt-4 border-t border-border mt-auto">
                 <span className="text-sm font-medium text-primary bg-primary/10 px-3 py-1 rounded-full">

@@ -20,6 +20,7 @@ import { sessionAuth } from './middleware/sessionAuth';
 import { bearerAuth } from './middleware/bearerAuth';
 
 import db, { initDB } from './db';
+import { attachClientSpa } from './spaStatic';
 
 const PgSession = connectPgSimple(session);
 
@@ -67,6 +68,8 @@ app.use('/api/ssh-keys', authMiddleware, sshKeyRoutes);
 app.use('/api/stats', authMiddleware, statsRoutes);
 app.use('/api/export-import', sessionAuth, exportImportRoutes);
 app.use('/api/users', userRoutes);
+
+attachClientSpa(app);
 
 // Error handling
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {

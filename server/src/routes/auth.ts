@@ -14,6 +14,70 @@ const loginSchema = z.object({
   totpToken: z.string().optional(),
 });
 
+const setupSchema = z.object({
+  username: z.string().trim().min(3),
+  password: z.string().min(8),
+});
+
+router.post('/setup', async (req, res) => {
+  const parsed = setupSchema.safeParse(req.body);
+  if (!parsed.success) return sendError(res, 'Invalid input');
+
+  try {
+    const countResult = await db.query('SELECT COUNT(*)::int AS count FROM users');
+    const existingUsers = (countResult.rows[0] as { count: number }).count;
+    if (existingUsers > 0) {
+      return sendError(res, 'Setup already completed', 409);
+    }
+
+    const { username, password } = parsed.data;
+    const passwordHash = await hashPassword(password);
+    const created = await db.query(
+      'INSERT INTO users (username, password_hash, role) VALUES ($1, $2, $3) RETURNING id, username, role, totp_enabled',
+      [username, passwordHash, 'admin']
+    );
+    const user = created.rows[0] as {
+      id: number;
+      username: string;
+      role: string;
+      totp_enabled: boolean;
+    };
+
+    req.session.regenerate((regErr) => {
+      if (regErr) {
+        console.error('session regenerate:', regErr);
+        return sendError(res, 'Could not create session', 500);
+      }
+      req.session.userId = user.id;
+      req.session.username = user.username;
+      req.session.role = user.role;
+      sendSuccess(
+        res,
+        {
+          id: user.id,
+          username: user.username,
+          role: user.role,
+          totpEnabled: !!user.totp_enabled,
+        },
+        201
+      );
+    });
+  } catch (err: any) {
+    if (err?.code === '23505') return sendError(res, 'Username already exists', 409);
+    sendError(res, err.message || 'Setup failed');
+  }
+});
+
+router.get('/setup-status', async (_req, res) => {
+  try {
+    const result = await db.query('SELECT COUNT(*)::int AS count FROM users');
+    const count = (result.rows[0] as { count: number }).count;
+    sendSuccess(res, { isSetupCompleted: count > 0 });
+  } catch (err: any) {
+    sendError(res, err.message || 'Could not check setup status', 500);
+  }
+});
+
 router.post('/login', async (req, res) => {
   const parseResult = loginSchema.safeParse(req.body);
   if (!parseResult.success) return sendError(res, 'Invalid input');
