@@ -1,14 +1,15 @@
 import { NavLink, useNavigate } from 'react-router-dom';
-import { 
-  LayoutDashboard, 
-  Server, 
-  Layers, 
-  Tag, 
-  Key, 
-  Users, 
-  Settings, 
+import {
+  LayoutDashboard,
+  Server,
+  Layers,
+  Tag,
+  Key,
+  Users,
+  UserCircle,
+  Settings,
   LogOut,
-  ShieldCheck
+  ShieldCheck,
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useAuthStore } from '../store/useAuthStore';
@@ -23,6 +24,8 @@ const navItems = [
   { icon: Settings, label: 'Settings', path: '/settings' },
 ];
 
+const profileItem = { icon: UserCircle, label: 'Profile', path: '/profile' } as const;
+
 export const Sidebar = () => {
   const logout = useAuthStore((state) => state.logout);
   const navigate = useNavigate();
@@ -33,38 +36,56 @@ export const Sidebar = () => {
   };
 
   return (
-    <aside className="w-64 bg-surface border-r border-border h-screen flex flex-col sticky top-0">
-      <div className="p-6 flex items-center gap-3">
-        <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center shadow-lg shadow-primary/20">
-          <ShieldCheck className="text-white w-6 h-6" />
+    <aside className="sticky top-0 flex h-screen w-64 shrink-0 flex-col border-r border-border bg-surface">
+      <div className="flex items-center gap-3 p-6">
+        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary shadow-lg shadow-primary/25">
+          <ShieldCheck className="h-6 w-6 text-white" />
         </div>
-        <span className="text-xl font-bold tracking-tight">ServerVault</span>
+        <div className="min-w-0">
+          <span className="block text-lg font-bold tracking-tight text-white">ServerVault</span>
+          <span className="text-xs font-medium text-secondary">Inventory</span>
+        </div>
       </div>
 
-      <nav className="flex-1 px-4 py-4 space-y-1">
+      <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-2" aria-label="Main">
         {navItems.map((item) => (
           <NavLink
             key={item.path}
             to={item.path}
             className={({ isActive }) =>
               cn(
-                'flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all group',
+                'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',
                 isActive
-                  ? 'bg-primary text-white'
-                  : 'text-secondary hover:bg-white/5 hover:text-white'
+                  ? 'bg-primary text-white shadow-md shadow-primary/20'
+                  : 'text-secondary hover:bg-white/[0.06] hover:text-white'
               )
             }
           >
-            <item.icon className="w-5 h-5" />
-            <span className="font-medium">{item.label}</span>
+            <item.icon className="h-5 w-5 shrink-0 opacity-90" aria-hidden />
+            <span>{item.label}</span>
           </NavLink>
         ))}
+        <NavLink
+          to={profileItem.path}
+          className={({ isActive }) =>
+            cn(
+              'mt-2 flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',
+              isActive
+                ? 'bg-primary text-white shadow-md shadow-primary/20'
+                : 'text-secondary hover:bg-white/[0.06] hover:text-white'
+            )
+          }
+        >
+          <profileItem.icon className="h-5 w-5 shrink-0 opacity-90" aria-hidden />
+          <span>{profileItem.label}</span>
+        </NavLink>
       </nav>
 
-      <div className="p-4 border-t border-border">
+      <div className="border-t border-border p-4">
         <button
+          type="button"
           onClick={handleLogout}
-          className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-danger hover:bg-danger/10 transition-colors w-full"
+          className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-danger transition-colors hover:bg-danger/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-danger/40"
         >
           <LogOut className="w-5 h-5" />
           <span className="font-medium">Logout</span>

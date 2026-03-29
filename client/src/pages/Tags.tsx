@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion } from 'framer-motion';
 import { Tag as TagIcon, Plus, Trash2, Search } from 'lucide-react';
-import { Layout } from '../components/Layout';
 import api from '../lib/api';
 import { Tag } from '../types';
 
@@ -57,7 +56,6 @@ export const Tags = () => {
   );
 
   return (
-    <Layout>
       <div className="space-y-6">
         <header className="flex items-center justify-between">
           <div>
@@ -155,6 +153,5 @@ export const Tags = () => {
           ))}
         </div>
       </div>
-    </Layout>
   );
 };

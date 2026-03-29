@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion } from 'framer-motion';
 import { User, Shield, Key, Plus, LogOut, AlertCircle } from 'lucide-react';
-import { Layout } from '../components/Layout';
 import QrSetup from '../components/QrSetup';
 import TokenTable from '../components/TokenTable';
 import api from '../lib/api';
@@ -81,8 +80,7 @@ export const Profile = () => {
   };
 
   return (
-    <Layout>
-      <div className="max-w-4xl mx-auto space-y-8">
+      <div className="mx-auto max-w-4xl space-y-8">
         <header className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold">Profile Settings</h1>
@@ -210,6 +208,5 @@ export const Profile = () => {
           </div>
         </div>
       </div>
-    </Layout>
   );
 };

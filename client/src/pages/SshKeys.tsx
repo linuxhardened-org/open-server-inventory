@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion } from 'framer-motion';
 import { Key, Plus, Trash2, Search, Copy, Check } from 'lucide-react';
-import { Layout } from '../components/Layout';
 import api from '../lib/api';
 import { SshKey } from '../types';
 import { format } from 'date-fns';
@@ -61,7 +60,6 @@ export const SshKeys = () => {
   );
 
   return (
-    <Layout>
       <div className="space-y-6">
         <header className="flex items-center justify-between">
           <div>
@@ -175,7 +173,6 @@ export const SshKeys = () => {
           )}
         </div>
       </div>
-    </Layout>
   );
 };
 

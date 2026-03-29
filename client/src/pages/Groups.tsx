@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion } from 'framer-motion';
 import { Folder, Plus, Trash2, Edit2, Search } from 'lucide-react';
-import { Layout } from '../components/Layout';
 import api from '../lib/api';
 import { Group } from '../types';
 
@@ -54,7 +53,6 @@ export const Groups = () => {
   );
 
   return (
-    <Layout>
       <div className="space-y-6">
         <header className="flex items-center justify-between">
           <div>
@@ -152,6 +150,5 @@ export const Groups = () => {
           ))}
         </div>
       </div>
-    </Layout>
   );
 };

@@ -1,4 +1,3 @@
-import { Layout } from '../components/Layout';
 import { Download, Upload, Trash2, ShieldAlert } from 'lucide-react';
 import axios from '../lib/api';
 import toast from 'react-hot-toast';
@@ -68,10 +67,9 @@ export const Settings = () => {
   };
 
   return (
-    <Layout>
-      <div className="p-8 max-w-4xl">
-        <h1 className="text-3xl font-bold mb-2">System Settings</h1>
-        <p className="text-gray-400 mb-8">System-wide configuration, data portability, and maintenance.</p>
+      <div className="mx-auto max-w-4xl">
+        <h1 className="mb-2 text-3xl font-bold tracking-tight text-white">System Settings</h1>
+        <p className="mb-8 text-secondary">System-wide configuration, data portability, and maintenance.</p>
 
         <div className="space-y-6">
           <section className="bg-[#111118] border border-[#1a1a2e] rounded-xl p-6">
@@ -148,6 +146,5 @@ export const Settings = () => {
           </section>
         </div>
       </div>
-    </Layout>
   );
 }

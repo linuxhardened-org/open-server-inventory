@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { useAuthStore } from '../store/useAuthStore';
-import { Layout } from '../components/Layout';
 import { motion } from 'framer-motion';
 import { UserPlus, Shield, User, Trash2 } from 'lucide-react';
 import axios from '../lib/api';
@@ -25,7 +24,7 @@ export const Users = () => {
 
   const fetchUsers = async () => {
     try {
-      const res = await axios.get('/api/users');
+      const res = await axios.get('/users');
       setUsers(res.data);
     } catch (err: any) {
       toast.error('Failed to fetch users');
@@ -35,7 +34,7 @@ export const Users = () => {
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await axios.post('/api/users', newUser);
+      await axios.post('/users', newUser);
       toast.success('User created successfully');
       setIsAdding(false);
       setNewUser({ username: '', password: '', role: 'operator' });
@@ -52,7 +51,7 @@ export const Users = () => {
     }
     if (!confirm('Are you sure you want to delete this user?')) return;
     try {
-      await axios.delete(`/api/users/${id}`);
+      await axios.delete(`/users/${id}`);
       toast.success('User deleted');
       fetchUsers();
     } catch (err: any) {
@@ -62,21 +61,18 @@ export const Users = () => {
 
   if (currentUser?.role !== 'admin') {
     return (
-      <Layout>
-        <div className="flex items-center justify-center h-full">
+        <div className="flex min-h-[40vh] items-center justify-center">
           <div className="text-center">
-            <Shield className="w-16 h-16 text-red-500 mx-auto mb-4" />
-            <h2 className="text-2xl font-bold">Access Denied</h2>
-            <p className="text-gray-400">Administrative privileges required.</p>
+            <Shield className="mx-auto mb-4 h-16 w-16 text-danger" />
+            <h2 className="text-2xl font-bold text-white">Access denied</h2>
+            <p className="mt-2 text-secondary">Administrative privileges are required for this page.</p>
           </div>
         </div>
-      </Layout>
     );
   }
 
   return (
-    <Layout>
-      <div className="p-8">
+      <div className="space-y-8">
         <div className="flex justify-between items-center mb-8">
           <div>
             <h1 className="text-3xl font-bold">User Management</h1>
@@ -204,6 +200,5 @@ export const Users = () => {
           </div>
         )}
       </div>
-    </Layout>
   );
 }

@@ -48,11 +48,13 @@ const StatCard = ({ icon: Icon, label, value, trend, trendValue }: any) => (
 
 export const Dashboard = () => {
   return (
-    <div className="space-y-8 animate-in">
-      <div>
-        <h1 className="text-3xl font-bold">Infrastructure Overview</h1>
-        <p className="text-secondary mt-1">Real-time health monitoring and resource allocation.</p>
-      </div>
+    <div className="mx-auto max-w-7xl space-y-8 animate-in">
+      <header className="border-b border-border/80 pb-6">
+        <h1 className="text-3xl font-bold tracking-tight text-white md:text-4xl">Infrastructure overview</h1>
+        <p className="mt-2 max-w-2xl text-base text-secondary">
+          Health and capacity at a glance. Use the sidebar to manage servers, groups, and keys.
+        </p>
+      </header>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatCard icon={Server} label="Total Servers" value="24" trend="up" trendValue="12%" />
