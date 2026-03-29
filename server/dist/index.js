@@ -1,0 +1,110 @@
+"use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = __importDefault(require("express"));
+const express_session_1 = __importDefault(require("express-session"));
+const connect_pg_simple_1 = __importDefault(require("connect-pg-simple"));
+const cors_1 = __importDefault(require("cors"));
+const morgan_1 = __importDefault(require("morgan"));
+const dotenv_1 = __importDefault(require("dotenv"));
+const auth_1 = __importDefault(require("./routes/auth"));
+const tokens_1 = __importDefault(require("./routes/tokens"));
+const servers_1 = __importDefault(require("./routes/servers"));
+const groups_1 = __importDefault(require("./routes/groups"));
+const tags_1 = __importDefault(require("./routes/tags"));
+const sshKeys_1 = __importDefault(require("./routes/sshKeys"));
+const stats_1 = __importDefault(require("./routes/stats"));
+const exportImport_1 = __importDefault(require("./routes/exportImport"));
+const users_1 = __importDefault(require("./routes/users"));
+const sessionAuth_1 = require("./middleware/sessionAuth");
+const bearerAuth_1 = require("./middleware/bearerAuth");
+const db_1 = __importStar(require("./db"));
+const PgSession = (0, connect_pg_simple_1.default)(express_session_1.default);
+dotenv_1.default.config();
+const app = (0, express_1.default)();
+const PORT = process.env.PORT || 3001;
+app.use((0, morgan_1.default)('dev'));
+app.use((0, cors_1.default)({
+    origin: process.env.CLIENT_URL || 'http://localhost:5173',
+    credentials: true
+}));
+app.use(express_1.default.json());
+app.use((0, express_session_1.default)({
+    store: new PgSession({
+        pool: db_1.default.pool,
+        tableName: 'session'
+    }),
+    secret: process.env.SESSION_SECRET || 'servervault-secret-key-12345',
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+        secure: process.env.NODE_ENV === 'production',
+        maxAge: 1000 * 60 * 60 * 24 // 24 hours
+    }
+}));
+// Routes
+app.use('/api/auth', auth_1.default);
+// Protected routes (Session or Bearer)
+const authMiddleware = (req, res, next) => {
+    if (req.headers.authorization) {
+        return (0, bearerAuth_1.bearerAuth)(req, res, next);
+    }
+    return (0, sessionAuth_1.sessionAuth)(req, res, next);
+};
+app.use('/api/tokens', sessionAuth_1.sessionAuth, tokens_1.default);
+app.use('/api/servers', authMiddleware, servers_1.default);
+app.use('/api/groups', authMiddleware, groups_1.default);
+app.use('/api/tags', authMiddleware, tags_1.default);
+app.use('/api/ssh-keys', authMiddleware, sshKeys_1.default);
+app.use('/api/stats', authMiddleware, stats_1.default);
+app.use('/api/export-import', sessionAuth_1.sessionAuth, exportImport_1.default);
+app.use('/api/users', users_1.default);
+// Error handling
+app.use((err, req, res, next) => {
+    console.error(err.stack);
+    res.status(500).json({ success: false, error: 'Internal Server Error' });
+});
+// Initialize Database before starting the server
+(0, db_1.initDB)().then(() => {
+    app.listen(PORT, () => {
+        console.log(`ServerVault Backend running on http://localhost:${PORT}`);
+    });
+}).catch(err => {
+    console.error('Failed to start server due to database initialization error:', err);
+    process.exit(1);
+});

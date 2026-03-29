@@ -1,0 +1,81 @@
+import { Terminal, Activity, Settings } from 'lucide-react';
+import { Server } from '../types';
+import { formatBytes } from '../lib/utils';
+import { motion } from 'framer-motion';
+
+interface ServerTableProps {
+  servers: Server[];
+  onRowClick: (server: Server) => void;
+}
+
+export const ServerTable = ({ servers, onRowClick }: ServerTableProps) => {
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full text-left border-collapse">
+        <thead>
+          <tr className="border-b border-border text-secondary text-sm font-medium">
+            <th className="py-4 px-4">Status</th>
+            <th className="py-4 px-4">Hostname</th>
+            <th className="py-4 px-4">Primary IP</th>
+            <th className="py-4 px-4">OS</th>
+            <th className="py-4 px-4">Resources</th>
+            <th className="py-4 px-4">Tags</th>
+            <th className="py-4 px-4 text-right">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {servers.map((server, index) => (
+            <motion.tr
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: index * 0.05 }}
+              key={server.id}
+              onClick={() => onRowClick(server)}
+              className="border-b border-border/50 hover:bg-white/[0.02] cursor-pointer transition-colors group"
+            >
+              <td className="py-4 px-4">
+                <div className="flex items-center gap-2">
+                  <div className={`w-2 h-2 rounded-full animate-pulse ${
+                    server.status === 'online' || server.status === 'active' ? "bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]" : "bg-red-500"
+                  }`} />
+                  <span className="text-xs font-medium uppercase tracking-wider">{server.status}</span>
+                </div>
+              </td>
+              <td className="py-4 px-4 font-mono text-sm">{server.hostname}</td>
+              <td className="py-4 px-4 font-mono text-sm text-secondary">{server.ip_address}</td>
+              <td className="py-4 px-4 text-sm">{server.os}</td>
+              <td className="py-4 px-4">
+                <div className="space-y-1 text-[10px] text-secondary font-mono">
+                  <div>CPU: {server.cpu_cores || 0} Cores</div>
+                  <div>RAM: {formatBytes((server.ram_gb || 0) * 1024 * 1024 * 1024)}</div>
+                </div>
+              </td>
+              <td className="py-4 px-4">
+                <div className="flex flex-wrap gap-1">
+                  {server.tags?.map(tag => (
+                    <span key={tag} className="px-2 py-0.5 bg-blue-500/10 text-blue-400 text-[10px] rounded border border-blue-500/20">
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+              </td>
+              <td className="py-4 px-4 text-right">
+                <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button className="p-2 hover:bg-white/5 rounded-lg text-secondary transition-colors" title="Terminal">
+                    <Terminal className="w-4 h-4" />
+                  </button>
+                  <button className="p-2 hover:bg-white/5 rounded-lg text-secondary transition-colors" title="Monitoring">
+                    <Activity className="w-4 h-4" />
+                  </button>
+                  <button className="p-2 hover:bg-white/5 rounded-lg text-secondary transition-colors" title="Settings">
+                    <Settings className="w-4 h-4" />
+                  </button>
+                </div>
+              </td>
+            </motion.tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+};
