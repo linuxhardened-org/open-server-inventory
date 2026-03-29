@@ -3,8 +3,8 @@ import session from 'express-session';
 import connectPgSimple from 'connect-pg-simple';
 import cors from 'cors';
 import morgan from 'morgan';
-import dotenv from 'dotenv';
 
+import { env } from './config/env';
 import authRoutes from './routes/auth';
 import tokenRoutes from './routes/tokens';
 import serverRoutes from './routes/servers';
@@ -22,14 +22,12 @@ import db, { initDB } from './db';
 
 const PgSession = connectPgSimple(session);
 
-dotenv.config();
-
 const app = express();
-const PORT = process.env.PORT || 3001;
+const PORT = env.port;
 
 app.use(morgan('dev'));
 app.use(cors({
-  origin: process.env.CLIENT_URL || 'http://localhost:5173',
+  origin: env.clientUrl,
   credentials: true
 }));
 app.use(express.json());
@@ -39,11 +37,11 @@ app.use(session({
     pool: db.pool,
     tableName: 'session'
   }),
-  secret: process.env.SESSION_SECRET || 'servervault-secret-key-12345',
+  secret: env.sessionSecret,
   resave: false,
   saveUninitialized: false,
   cookie: {
-    secure: process.env.NODE_ENV === 'production',
+    secure: env.isProduction,
     maxAge: 1000 * 60 * 60 * 24 // 24 hours
   }
 }));

@@ -27,6 +27,8 @@ const express_1 = require("express");
 const zod_1 = require("zod");
 const db_1 = __importDefault(require("../db"));
 const response_1 = require("../utils/response");
+const collections_1 = require("../utils/collections");
+const requestContext_1 = require("../utils/requestContext");
 const router = (0, express_1.Router)();
 const serverSchema = zod_1.z.object({
     name: zod_1.z.string(),
@@ -42,6 +44,7 @@ const serverSchema = zod_1.z.object({
     tags: zod_1.z.array(zod_1.z.number()).optional(),
 });
 router.get('/', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    var _a;
     try {
         const serversResult = yield db_1.default.query(`
       SELECT s.*, g.name as group_name, k.name as ssh_key_name
@@ -49,16 +52,34 @@ router.get('/', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
       LEFT JOIN groups g ON s.group_id = g.id
       LEFT JOIN ssh_keys k ON s.ssh_key_id = k.id
     `);
-        const results = yield Promise.all(serversResult.rows.map((s) => __awaiter(void 0, void 0, void 0, function* () {
-            const disksResult = yield db_1.default.query('SELECT * FROM server_disks WHERE server_id = $1', [s.id]);
-            const interfacesResult = yield db_1.default.query('SELECT * FROM server_interfaces WHERE server_id = $1', [s.id]);
-            const tagsResult = yield db_1.default.query(`
-        SELECT t.* FROM tags t
-        JOIN server_tags st ON t.id = st.tag_id
-        WHERE st.server_id = $1
-      `, [s.id]);
-            return Object.assign(Object.assign({}, s), { disks: disksResult.rows, interfaces: interfacesResult.rows, tags: tagsResult.rows });
-        })));
+        const rows = serversResult.rows;
+        const ids = rows.map((s) => s.id);
+        if (ids.length === 0) {
+            return (0, response_1.sendSuccess)(res, []);
+        }
+        const [disksRes, interfacesRes, tagsRes] = yield Promise.all([
+            db_1.default.query('SELECT * FROM server_disks WHERE server_id = ANY($1::int[])', [ids]),
+            db_1.default.query('SELECT * FROM server_interfaces WHERE server_id = ANY($1::int[])', [ids]),
+            db_1.default.query(`
+        SELECT st.server_id, t.id, t.name, t.color
+        FROM server_tags st
+        JOIN tags t ON t.id = st.tag_id
+        WHERE st.server_id = ANY($1::int[])
+      `, [ids]),
+        ]);
+        const disksBy = (0, collections_1.groupBy)(disksRes.rows, 'server_id');
+        const ifBy = (0, collections_1.groupBy)(interfacesRes.rows, 'server_id');
+        const tagsByServer = new Map();
+        for (const r of tagsRes.rows) {
+            const list = (_a = tagsByServer.get(r.server_id)) !== null && _a !== void 0 ? _a : [];
+            list.push({ id: r.id, name: r.name, color: r.color });
+            tagsByServer.set(r.server_id, list);
+        }
+        const results = rows.map((s) => {
+            var _a, _b, _c;
+            const id = s.id;
+            return Object.assign(Object.assign({}, s), { disks: (_a = disksBy.get(String(id))) !== null && _a !== void 0 ? _a : [], interfaces: (_b = ifBy.get(String(id))) !== null && _b !== void 0 ? _b : [], tags: (_c = tagsByServer.get(id)) !== null && _c !== void 0 ? _c : [] });
+        });
         (0, response_1.sendSuccess)(res, results);
     }
     catch (err) {
@@ -116,8 +137,12 @@ router.post('/', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
                 yield client.query('INSERT INTO server_tags (server_id, tag_id) VALUES ($1, $2)', [serverId, tagId]);
             }
         }
-        const userId = req.userId || req.session.userId;
-        yield client.query('INSERT INTO server_history (server_id, user_id, action) VALUES ($1, $2, $3)', [serverId, userId, 'Server created']);
+        const userId = (0, requestContext_1.getActorUserId)(req);
+        yield client.query('INSERT INTO server_history (server_id, user_id, action) VALUES ($1, $2, $3)', [
+            serverId,
+            userId !== null && userId !== void 0 ? userId : null,
+            'Server created',
+        ]);
         yield client.query('COMMIT');
         (0, response_1.sendSuccess)(res, { id: serverId }, 201);
     }
@@ -148,8 +173,12 @@ router.put('/:id', (req, res) => __awaiter(void 0, void 0, void 0, function* () 
                 yield client.query('INSERT INTO server_tags (server_id, tag_id) VALUES ($1, $2)', [serverId, tagId]);
             }
         }
-        const userId = req.userId || req.session.userId;
-        yield client.query('INSERT INTO server_history (server_id, user_id, action) VALUES ($1, $2, $3)', [serverId, userId, 'Server updated']);
+        const userId = (0, requestContext_1.getActorUserId)(req);
+        yield client.query('INSERT INTO server_history (server_id, user_id, action) VALUES ($1, $2, $3)', [
+            serverId,
+            userId !== null && userId !== void 0 ? userId : null,
+            'Server updated',
+        ]);
         yield client.query('COMMIT');
         (0, response_1.sendSuccess)(res, { message: 'Server updated' });
     }
@@ -163,7 +192,10 @@ router.put('/:id', (req, res) => __awaiter(void 0, void 0, void 0, function* () 
 }));
 router.delete('/:id', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
-        yield db_1.default.query('DELETE FROM servers WHERE id = $1', [req.params.id]);
+        const result = yield db_1.default.query('DELETE FROM servers WHERE id = $1', [req.params.id]);
+        if (!result.rowCount) {
+            return (0, response_1.sendError)(res, 'Server not found', 404);
+        }
         (0, response_1.sendSuccess)(res, { message: 'Server deleted' });
     }
     catch (err) {

@@ -15,22 +15,30 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.generateTotpSecret = generateTotpSecret;
 exports.generateTotpUri = generateTotpUri;
 exports.verifyTotp = verifyTotp;
-const otplib_1 = require("otplib");
+const speakeasy_1 = __importDefault(require("speakeasy"));
 const qrcode_1 = __importDefault(require("qrcode"));
 function generateTotpSecret() {
-    return (0, otplib_1.generateSecret)();
+    const secret = speakeasy_1.default.generateSecret({
+        name: 'ServerVault',
+    });
+    return secret.base32;
 }
 function generateTotpUri(secret, userEmail) {
     return __awaiter(this, void 0, void 0, function* () {
-        const uri = (0, otplib_1.generateURI)({
-            issuer: 'ServerVault',
-            label: userEmail,
+        const uri = speakeasy_1.default.otpauthURL({
             secret: secret,
+            label: userEmail,
+            issuer: 'ServerVault',
+            encoding: 'base32',
         });
         return qrcode_1.default.toDataURL(uri);
     });
 }
 function verifyTotp(token, secret) {
-    const result = (0, otplib_1.verifySync)({ token, secret });
-    return result.valid;
+    return speakeasy_1.default.totp.verify({
+        secret: secret,
+        encoding: 'base32',
+        token: token,
+        window: 1, // Allow for small clock drift
+    });
 }

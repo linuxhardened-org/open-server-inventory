@@ -1,11 +1,15 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import db from '../db';
-import { generateApiToken } from '../utils/token';
+import { generateApiToken, hashApiToken } from '../utils/token';
 import { sendSuccess, sendError } from '../utils/response';
 import { sessionAuth } from '../middleware/sessionAuth';
 
 const router = Router();
+
+const createBody = z.object({
+  name: z.string().min(1, 'Name is required'),
+});
 
 router.get('/', sessionAuth, async (req, res) => {
   try {
@@ -17,14 +21,16 @@ router.get('/', sessionAuth, async (req, res) => {
 });
 
 router.post('/', sessionAuth, async (req, res) => {
+  const parsed = createBody.safeParse(req.body);
+  if (!parsed.success) return sendError(res, 'Invalid input');
+
   try {
-    const { name } = req.body;
-    if (!name) return sendError(res, 'Name is required');
-    
+    const { name } = parsed.data;
     const token = generateApiToken();
+    const tokenHash = hashApiToken(token);
     await db.query(
-      'INSERT INTO api_tokens (user_id, name, token) VALUES ($1, $2, $3)',
-      [req.session.userId, name, token]
+      'INSERT INTO api_tokens (user_id, name, token_hash) VALUES ($1, $2, $3)',
+      [req.session.userId, name, tokenHash]
     );
     sendSuccess(res, { name, token });
   } catch (err: any) {

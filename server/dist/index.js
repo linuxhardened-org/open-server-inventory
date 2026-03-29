@@ -41,7 +41,7 @@ const express_session_1 = __importDefault(require("express-session"));
 const connect_pg_simple_1 = __importDefault(require("connect-pg-simple"));
 const cors_1 = __importDefault(require("cors"));
 const morgan_1 = __importDefault(require("morgan"));
-const dotenv_1 = __importDefault(require("dotenv"));
+const env_1 = require("./config/env");
 const auth_1 = __importDefault(require("./routes/auth"));
 const tokens_1 = __importDefault(require("./routes/tokens"));
 const servers_1 = __importDefault(require("./routes/servers"));
@@ -55,12 +55,11 @@ const sessionAuth_1 = require("./middleware/sessionAuth");
 const bearerAuth_1 = require("./middleware/bearerAuth");
 const db_1 = __importStar(require("./db"));
 const PgSession = (0, connect_pg_simple_1.default)(express_session_1.default);
-dotenv_1.default.config();
 const app = (0, express_1.default)();
-const PORT = process.env.PORT || 3001;
+const PORT = env_1.env.port;
 app.use((0, morgan_1.default)('dev'));
 app.use((0, cors_1.default)({
-    origin: process.env.CLIENT_URL || 'http://localhost:5173',
+    origin: env_1.env.clientUrl,
     credentials: true
 }));
 app.use(express_1.default.json());
@@ -69,11 +68,11 @@ app.use((0, express_session_1.default)({
         pool: db_1.default.pool,
         tableName: 'session'
     }),
-    secret: process.env.SESSION_SECRET || 'servervault-secret-key-12345',
+    secret: env_1.env.sessionSecret,
     resave: false,
     saveUninitialized: false,
     cookie: {
-        secure: process.env.NODE_ENV === 'production',
+        secure: env_1.env.isProduction,
         maxAge: 1000 * 60 * 60 * 24 // 24 hours
     }
 }));

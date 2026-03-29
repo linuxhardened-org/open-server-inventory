@@ -1,18 +1,20 @@
 import { Pool } from 'pg';
+import { env } from '../config/env';
 import { schema } from './schema';
+import { runMigrations } from './migrations';
 
 const pool = new Pool({
-  host: process.env.POSTGRES_HOST || 'localhost',
-  port: parseInt(process.env.POSTGRES_PORT || '5432'),
-  user: process.env.POSTGRES_USER || 'postgres',
-  password: process.env.POSTGRES_PASSWORD || 'postgres',
-  database: process.env.POSTGRES_DATABASE || 'servervault',
+  host: env.postgres.host,
+  port: env.postgres.port,
+  user: env.postgres.user,
+  password: env.postgres.password,
+  database: env.postgres.database,
 });
 
-// Initialize schema
 export const initDB = async () => {
   try {
     await pool.query(schema);
+    await runMigrations(pool);
     console.log('Database initialized successfully');
   } catch (error) {
     console.error('Failed to initialize database:', error);

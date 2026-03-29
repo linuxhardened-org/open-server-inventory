@@ -20,13 +20,13 @@ const totp_1 = require("../utils/totp");
 const response_1 = require("../utils/response");
 const sessionAuth_1 = require("../middleware/sessionAuth");
 const router = (0, express_1.Router)();
+const loginSchema = zod_1.z.object({
+    username: zod_1.z.string().min(1),
+    password: zod_1.z.string().min(1),
+    totpToken: zod_1.z.string().optional(),
+});
 router.post('/login', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    const schema = zod_1.z.object({
-        username: zod_1.z.string(),
-        password: zod_1.z.string(),
-        totpToken: zod_1.z.string().optional()
-    });
-    const parseResult = schema.safeParse(req.body);
+    const parseResult = loginSchema.safeParse(req.body);
     if (!parseResult.success)
         return (0, response_1.sendError)(res, 'Invalid input');
     try {
@@ -37,14 +37,25 @@ router.post('/login', (req, res) => __awaiter(void 0, void 0, void 0, function* 
             return (0, response_1.sendError)(res, 'Invalid username or password', 401);
         }
         if (user.totp_enabled) {
-            if (!totpToken || !(0, totp_1.verifyTotp)(totpToken, user.totp_secret)) {
+            if (!totpToken || !user.totp_secret || !(0, totp_1.verifyTotp)(totpToken, user.totp_secret)) {
                 return (0, response_1.sendError)(res, 'Invalid TOTP token', 401);
             }
         }
-        req.session.userId = user.id;
-        req.session.username = user.username;
-        req.session.role = user.role;
-        (0, response_1.sendSuccess)(res, { id: user.id, username: user.username, role: user.role, totpEnabled: !!user.totp_enabled });
+        req.session.regenerate((regErr) => {
+            if (regErr) {
+                console.error('session regenerate:', regErr);
+                return (0, response_1.sendError)(res, 'Could not create session', 500);
+            }
+            req.session.userId = user.id;
+            req.session.username = user.username;
+            req.session.role = user.role;
+            (0, response_1.sendSuccess)(res, {
+                id: user.id,
+                username: user.username,
+                role: user.role,
+                totpEnabled: !!user.totp_enabled,
+            });
+        });
     }
     catch (err) {
         (0, response_1.sendError)(res, err.message);
@@ -78,12 +89,18 @@ router.post('/2fa/setup', sessionAuth_1.sessionAuth, (req, res) => __awaiter(voi
         (0, response_1.sendError)(res, err.message);
     }
 }));
+const totpVerifyBody = zod_1.z.object({
+    token: zod_1.z.string().regex(/^\d{6}$/, 'Enter a 6-digit code'),
+});
 router.post('/2fa/verify', sessionAuth_1.sessionAuth, (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const parsed = totpVerifyBody.safeParse(req.body);
+    if (!parsed.success)
+        return (0, response_1.sendError)(res, 'Invalid input');
     try {
-        const { token } = req.body;
+        const { token } = parsed.data;
         const result = yield db_1.default.query('SELECT totp_enabling_secret FROM users WHERE id = $1', [req.session.userId]);
         const user = result.rows[0];
-        if (user.totp_enabling_secret && (0, totp_1.verifyTotp)(token, user.totp_enabling_secret)) {
+        if ((user === null || user === void 0 ? void 0 : user.totp_enabling_secret) && (0, totp_1.verifyTotp)(token, user.totp_enabling_secret)) {
             yield db_1.default.query('UPDATE users SET totp_secret = $1, totp_enabled = TRUE, totp_enabling_secret = NULL WHERE id = $2', [user.totp_enabling_secret, req.session.userId]);
             (0, response_1.sendSuccess)(res, { message: '2FA enabled' });
         }
@@ -95,11 +112,20 @@ router.post('/2fa/verify', sessionAuth_1.sessionAuth, (req, res) => __awaiter(vo
         (0, response_1.sendError)(res, err.message);
     }
 }));
+const changePasswordBody = zod_1.z.object({
+    currentPassword: zod_1.z.string().min(1),
+    newPassword: zod_1.z.string().min(8, 'New password must be at least 8 characters'),
+});
 router.post('/change-password', sessionAuth_1.sessionAuth, (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const parsed = changePasswordBody.safeParse(req.body);
+    if (!parsed.success)
+        return (0, response_1.sendError)(res, 'Invalid input');
     try {
-        const { currentPassword, newPassword } = req.body;
+        const { currentPassword, newPassword } = parsed.data;
         const result = yield db_1.default.query('SELECT password_hash FROM users WHERE id = $1', [req.session.userId]);
         const user = result.rows[0];
+        if (!user)
+            return (0, response_1.sendError)(res, 'User not found', 404);
         if (yield (0, crypto_1.verifyPassword)(currentPassword, user.password_hash)) {
             const newHash = yield (0, crypto_1.hashPassword)(newPassword);
             yield db_1.default.query('UPDATE users SET password_hash = $1 WHERE id = $2', [newHash, req.session.userId]);

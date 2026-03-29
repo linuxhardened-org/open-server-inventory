@@ -13,11 +13,15 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
+const zod_1 = require("zod");
 const db_1 = __importDefault(require("../db"));
 const token_1 = require("../utils/token");
 const response_1 = require("../utils/response");
 const sessionAuth_1 = require("../middleware/sessionAuth");
 const router = (0, express_1.Router)();
+const createBody = zod_1.z.object({
+    name: zod_1.z.string().min(1, 'Name is required'),
+});
 router.get('/', sessionAuth_1.sessionAuth, (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
         const result = yield db_1.default.query('SELECT id, name, created_at, last_used_at FROM api_tokens WHERE user_id = $1', [req.session.userId]);
@@ -28,12 +32,14 @@ router.get('/', sessionAuth_1.sessionAuth, (req, res) => __awaiter(void 0, void 
     }
 }));
 router.post('/', sessionAuth_1.sessionAuth, (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const parsed = createBody.safeParse(req.body);
+    if (!parsed.success)
+        return (0, response_1.sendError)(res, 'Invalid input');
     try {
-        const { name } = req.body;
-        if (!name)
-            return (0, response_1.sendError)(res, 'Name is required');
+        const { name } = parsed.data;
         const token = (0, token_1.generateApiToken)();
-        yield db_1.default.query('INSERT INTO api_tokens (user_id, name, token) VALUES ($1, $2, $3)', [req.session.userId, name, token]);
+        const tokenHash = (0, token_1.hashApiToken)(token);
+        yield db_1.default.query('INSERT INTO api_tokens (user_id, name, token_hash) VALUES ($1, $2, $3)', [req.session.userId, name, tokenHash]);
         (0, response_1.sendSuccess)(res, { name, token });
     }
     catch (err) {

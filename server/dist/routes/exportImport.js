@@ -16,21 +16,50 @@ const express_1 = require("express");
 const db_1 = __importDefault(require("../db"));
 const response_1 = require("../utils/response");
 const sessionAuth_1 = require("../middleware/sessionAuth");
+const adminAuth_1 = require("../middleware/adminAuth");
 const router = (0, express_1.Router)();
+const SEQUENCE_TABLES = [
+    { table: 'groups', sequence: 'groups_id_seq' },
+    { table: 'tags', sequence: 'tags_id_seq' },
+    { table: 'ssh_keys', sequence: 'ssh_keys_id_seq' },
+    { table: 'servers', sequence: 'servers_id_seq' },
+    { table: 'server_disks', sequence: 'server_disks_id_seq' },
+    { table: 'server_interfaces', sequence: 'server_interfaces_id_seq' },
+];
+function syncSequence(client, table, sequence) {
+    return __awaiter(this, void 0, void 0, function* () {
+        const maxR = yield client.query(`SELECT MAX(id) AS m FROM ${table}`);
+        const m = maxR.rows[0].m;
+        if (m === null) {
+            yield client.query('SELECT setval($1::regclass, 1, false)', [sequence]);
+        }
+        else {
+            yield client.query('SELECT setval($1::regclass, $2::bigint, true)', [sequence, m]);
+        }
+    });
+}
 router.get('/export', sessionAuth_1.sessionAuth, (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
+        const includePrivate = req.query.includePrivateKeys === 'true' || req.query.includePrivateKeys === '1';
+        if (includePrivate && req.session.role !== 'admin') {
+            return (0, response_1.sendError)(res, 'Including private SSH keys requires admin role', 403);
+        }
         const servers = yield db_1.default.query('SELECT * FROM servers');
         const groups = yield db_1.default.query('SELECT * FROM groups');
         const tags = yield db_1.default.query('SELECT * FROM tags');
-        const ssh_keys = yield db_1.default.query('SELECT * FROM ssh_keys');
+        const sshKeysResult = yield db_1.default.query('SELECT * FROM ssh_keys');
         const server_disks = yield db_1.default.query('SELECT * FROM server_disks');
         const server_interfaces = yield db_1.default.query('SELECT * FROM server_interfaces');
         const server_tags = yield db_1.default.query('SELECT * FROM server_tags');
+        let ssh_keys = sshKeysResult.rows;
+        if (!includePrivate) {
+            ssh_keys = ssh_keys.map((row) => (Object.assign(Object.assign({}, row), { private_key: null })));
+        }
         const data = {
             servers: servers.rows,
             groups: groups.rows,
             tags: tags.rows,
-            ssh_keys: ssh_keys.rows,
+            ssh_keys,
             server_disks: server_disks.rows,
             server_interfaces: server_interfaces.rows,
             server_tags: server_tags.rows,
@@ -43,14 +72,13 @@ router.get('/export', sessionAuth_1.sessionAuth, (req, res) => __awaiter(void 0,
         (0, response_1.sendError)(res, err.message);
     }
 }));
-router.post('/import', sessionAuth_1.sessionAuth, (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+router.post('/import', sessionAuth_1.sessionAuth, adminAuth_1.adminAuth, (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const { data } = req.body;
     if (!data)
         return (0, response_1.sendError)(res, 'No data provided');
     const client = yield db_1.default.pool.connect();
     try {
         yield client.query('BEGIN');
-        // Clear all existing data
         yield client.query('DELETE FROM server_tags');
         yield client.query('DELETE FROM server_interfaces');
         yield client.query('DELETE FROM server_disks');
@@ -58,15 +86,22 @@ router.post('/import', sessionAuth_1.sessionAuth, (req, res) => __awaiter(void 0
         yield client.query('DELETE FROM ssh_keys');
         yield client.query('DELETE FROM tags');
         yield client.query('DELETE FROM groups');
-        // Insert new data
         if (data.groups) {
             for (const g of data.groups) {
-                yield client.query('INSERT INTO groups (id, name, description) VALUES ($1, $2, $3)', [g.id, g.name, g.description]);
+                yield client.query('INSERT INTO groups (id, name, description) VALUES ($1, $2, $3)', [
+                    g.id,
+                    g.name,
+                    g.description,
+                ]);
             }
         }
         if (data.tags) {
             for (const t of data.tags) {
-                yield client.query('INSERT INTO tags (id, name, color) VALUES ($1, $2, $3)', [t.id, t.name, t.color]);
+                yield client.query('INSERT INTO tags (id, name, color) VALUES ($1, $2, $3)', [
+                    t.id,
+                    t.name,
+                    t.color,
+                ]);
             }
         }
         if (data.ssh_keys) {
@@ -76,7 +111,22 @@ router.post('/import', sessionAuth_1.sessionAuth, (req, res) => __awaiter(void 0
         }
         if (data.servers) {
             for (const s of data.servers) {
-                yield client.query('INSERT INTO servers (id, name, hostname, ip_address, os, cpu_cores, ram_gb, group_id, ssh_key_id, status, notes, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)', [s.id, s.name, s.hostname, s.ip_address, s.os, s.cpu_cores, s.ram_gb, s.group_id, s.ssh_key_id, s.status, s.notes, s.created_at, s.updated_at]);
+                yield client.query(`INSERT INTO servers (id, name, hostname, ip_address, os, cpu_cores, ram_gb, group_id, ssh_key_id, status, notes, created_at, updated_at)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`, [
+                    s.id,
+                    s.name,
+                    s.hostname,
+                    s.ip_address,
+                    s.os,
+                    s.cpu_cores,
+                    s.ram_gb,
+                    s.group_id,
+                    s.ssh_key_id,
+                    s.status,
+                    s.notes,
+                    s.created_at,
+                    s.updated_at,
+                ]);
             }
         }
         if (data.server_disks) {
@@ -91,16 +141,15 @@ router.post('/import', sessionAuth_1.sessionAuth, (req, res) => __awaiter(void 0
         }
         if (data.server_tags) {
             for (const st of data.server_tags) {
-                yield client.query('INSERT INTO server_tags (server_id, tag_id) VALUES ($1, $2)', [st.server_id, st.tag_id]);
+                yield client.query('INSERT INTO server_tags (server_id, tag_id) VALUES ($1, $2)', [
+                    st.server_id,
+                    st.tag_id,
+                ]);
             }
         }
-        // Reset sequences
-        yield client.query("SELECT setval('groups_id_seq', (SELECT MAX(id) FROM groups))");
-        yield client.query("SELECT setval('tags_id_seq', (SELECT MAX(id) FROM tags))");
-        yield client.query("SELECT setval('ssh_keys_id_seq', (SELECT MAX(id) FROM ssh_keys))");
-        yield client.query("SELECT setval('servers_id_seq', (SELECT MAX(id) FROM servers))");
-        yield client.query("SELECT setval('server_disks_id_seq', (SELECT MAX(id) FROM server_disks))");
-        yield client.query("SELECT setval('server_interfaces_id_seq', (SELECT MAX(id) FROM server_interfaces))");
+        for (const { table, sequence } of SEQUENCE_TABLES) {
+            yield syncSequence(client, table, sequence);
+        }
         yield client.query('COMMIT');
         (0, response_1.sendSuccess)(res, { message: 'Import successful' });
     }

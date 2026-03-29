@@ -15,14 +15,19 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.bearerAuth = void 0;
 const db_1 = __importDefault(require("../db"));
 const response_1 = require("../utils/response");
+const token_1 = require("../utils/token");
 const bearerAuth = (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
         return (0, response_1.sendError)(res, 'Unauthorized: Bearer token required', 401);
     }
-    const token = authHeader.split(' ')[1];
+    const rawToken = authHeader.slice('Bearer '.length).trim();
+    if (!rawToken) {
+        return (0, response_1.sendError)(res, 'Unauthorized: Bearer token required', 401);
+    }
+    const tokenHash = (0, token_1.hashApiToken)(rawToken);
     try {
-        const result = yield db_1.default.query('SELECT * FROM api_tokens WHERE token = $1', [token]);
+        const result = yield db_1.default.query('SELECT * FROM api_tokens WHERE token_hash = $1', [tokenHash]);
         const apiToken = result.rows[0];
         if (apiToken) {
             yield db_1.default.query('UPDATE api_tokens SET last_used_at = CURRENT_TIMESTAMP WHERE id = $1', [apiToken.id]);

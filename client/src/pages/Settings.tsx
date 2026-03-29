@@ -2,22 +2,27 @@ import { Layout } from '../components/Layout';
 import { Download, Upload, Trash2, ShieldAlert } from 'lucide-react';
 import axios from '../lib/api';
 import toast from 'react-hot-toast';
+import { useAuthStore } from '../store/useAuthStore';
 
 export const Settings = () => {
+  const currentUser = useAuthStore((s) => s.user);
+  const isAdmin = currentUser?.role === 'admin';
+
   const handleExport = async (format: 'json' | 'csv') => {
     try {
-      const response = await axios.get(`/api/export-import/export?format=${format}`, {
+      const blob = (await axios.get('/export-import/export', {
         responseType: 'blob',
-      });
-      const url = window.URL.createObjectURL(new Blob([response.data]));
+      })) as Blob;
+      const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
       link.setAttribute('download', `servervault-export-${new Date().toISOString().split('T')[0]}.${format}`);
       document.body.appendChild(link);
       link.click();
       link.remove();
+      window.URL.revokeObjectURL(url);
       toast.success(`Exported to ${format.toUpperCase()}`);
-    } catch (err) {
+    } catch {
       toast.error('Export failed');
     }
   };
@@ -25,17 +30,26 @@ export const Settings = () => {
   const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
-    const formData = new FormData();
-    formData.append('file', file);
+    if (!isAdmin) {
+      toast.error('Only administrators can import data');
+      e.target.value = '';
+      return;
+    }
 
     try {
-      await axios.post('/api/export-import/import', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
+      const text = await file.text();
+      const parsed = JSON.parse(text) as Record<string, unknown>;
+      await axios.post('/export-import/import', { data: parsed });
       toast.success('Import successful');
-    } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Import failed');
+      window.location.reload();
+    } catch (err: unknown) {
+      const msg =
+        err && typeof err === 'object' && 'error' in err
+          ? String((err as { error: string }).error)
+          : 'Import failed';
+      toast.error(msg);
+    } finally {
+      e.target.value = '';
     }
   };
 
@@ -92,14 +106,16 @@ export const Settings = () => {
               Data Import
             </h2>
             <p className="text-sm text-gray-400 mb-6">
-              Import servers, groups, and tags from a previously exported JSON file.
+              Import servers, groups, and tags from a previously exported JSON file.{' '}
+              {!isAdmin && <span className="text-amber-500/90">Only administrators can import.</span>}
             </p>
-            <div className="relative group">
+            <div className={`relative group ${!isAdmin ? 'opacity-50 pointer-events-none' : ''}`}>
               <input
                 type="file"
                 accept=".json"
                 onChange={handleImport}
-                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                disabled={!isAdmin}
+                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10 disabled:cursor-not-allowed"
               />
               <div className="border-2 border-dashed border-[#1a1a2e] group-hover:border-blue-500/50 rounded-lg p-8 transition-colors text-center">
                 <Upload className="w-8 h-8 text-gray-500 mx-auto mb-2" />

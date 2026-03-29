@@ -11,18 +11,20 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.initDB = void 0;
 const pg_1 = require("pg");
+const env_1 = require("../config/env");
 const schema_1 = require("./schema");
+const migrations_1 = require("./migrations");
 const pool = new pg_1.Pool({
-    host: process.env.POSTGRES_HOST || 'localhost',
-    port: parseInt(process.env.POSTGRES_PORT || '5432'),
-    user: process.env.POSTGRES_USER || 'postgres',
-    password: process.env.POSTGRES_PASSWORD || 'postgres',
-    database: process.env.POSTGRES_DATABASE || 'servervault',
+    host: env_1.env.postgres.host,
+    port: env_1.env.postgres.port,
+    user: env_1.env.postgres.user,
+    password: env_1.env.postgres.password,
+    database: env_1.env.postgres.database,
 });
-// Initialize schema
 const initDB = () => __awaiter(void 0, void 0, void 0, function* () {
     try {
         yield pool.query(schema_1.schema);
+        yield (0, migrations_1.runMigrations)(pool);
         console.log('Database initialized successfully');
     }
     catch (error) {

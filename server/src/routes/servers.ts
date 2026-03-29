@@ -2,6 +2,8 @@ import { Router } from 'express';
 import { z } from 'zod';
 import db from '../db';
 import { sendSuccess, sendError } from '../utils/response';
+import { groupBy } from '../utils/collections';
+import { getActorUserId } from '../utils/requestContext';
 
 const router = Router();
 
@@ -27,18 +29,52 @@ router.get('/', async (req, res) => {
       LEFT JOIN groups g ON s.group_id = g.id
       LEFT JOIN ssh_keys k ON s.ssh_key_id = k.id
     `);
-    
-    const results = await Promise.all(serversResult.rows.map(async (s: any) => {
-      const disksResult = await db.query('SELECT * FROM server_disks WHERE server_id = $1', [s.id]);
-      const interfacesResult = await db.query('SELECT * FROM server_interfaces WHERE server_id = $1', [s.id]);
-      const tagsResult = await db.query(`
-        SELECT t.* FROM tags t
-        JOIN server_tags st ON t.id = st.tag_id
-        WHERE st.server_id = $1
-      `, [s.id]);
-      return { ...s, disks: disksResult.rows, interfaces: interfacesResult.rows, tags: tagsResult.rows };
-    }));
-    
+
+    const rows = serversResult.rows as Record<string, unknown>[];
+    const ids = rows.map((s) => s.id as number);
+    if (ids.length === 0) {
+      return sendSuccess(res, []);
+    }
+
+    const [disksRes, interfacesRes, tagsRes] = await Promise.all([
+      db.query('SELECT * FROM server_disks WHERE server_id = ANY($1::int[])', [ids]),
+      db.query('SELECT * FROM server_interfaces WHERE server_id = ANY($1::int[])', [ids]),
+      db.query(
+        `
+        SELECT st.server_id, t.id, t.name, t.color
+        FROM server_tags st
+        JOIN tags t ON t.id = st.tag_id
+        WHERE st.server_id = ANY($1::int[])
+      `,
+        [ids]
+      ),
+    ]);
+
+    const disksBy = groupBy(disksRes.rows as { server_id: number }[], 'server_id');
+    const ifBy = groupBy(interfacesRes.rows as { server_id: number }[], 'server_id');
+
+    const tagsByServer = new Map<number, { id: number; name: string; color: string | null }[]>();
+    for (const r of tagsRes.rows as {
+      server_id: number;
+      id: number;
+      name: string;
+      color: string | null;
+    }[]) {
+      const list = tagsByServer.get(r.server_id) ?? [];
+      list.push({ id: r.id, name: r.name, color: r.color });
+      tagsByServer.set(r.server_id, list);
+    }
+
+    const results = rows.map((s) => {
+      const id = s.id as number;
+      return {
+        ...s,
+        disks: disksBy.get(String(id)) ?? [],
+        interfaces: ifBy.get(String(id)) ?? [],
+        tags: tagsByServer.get(id) ?? [],
+      };
+    });
+
     sendSuccess(res, results);
   } catch (err: any) {
     sendError(res, err.message);
@@ -108,9 +144,12 @@ router.post('/', async (req, res) => {
       }
     }
 
-    const userId = (req as any).userId || (req.session as any).userId;
-    await client.query('INSERT INTO server_history (server_id, user_id, action) VALUES ($1, $2, $3)',
-      [serverId, userId, 'Server created']);
+    const userId = getActorUserId(req);
+    await client.query('INSERT INTO server_history (server_id, user_id, action) VALUES ($1, $2, $3)', [
+      serverId,
+      userId ?? null,
+      'Server created',
+    ]);
     
     await client.query('COMMIT');
     sendSuccess(res, { id: serverId }, 201);
@@ -144,9 +183,12 @@ router.put('/:id', async (req, res) => {
       }
     }
 
-    const userId = (req as any).userId || (req.session as any).userId;
-    await client.query('INSERT INTO server_history (server_id, user_id, action) VALUES ($1, $2, $3)',
-      [serverId, userId, 'Server updated']);
+    const userId = getActorUserId(req);
+    await client.query('INSERT INTO server_history (server_id, user_id, action) VALUES ($1, $2, $3)', [
+      serverId,
+      userId ?? null,
+      'Server updated',
+    ]);
     
     await client.query('COMMIT');
     sendSuccess(res, { message: 'Server updated' });
@@ -160,7 +202,10 @@ router.put('/:id', async (req, res) => {
 
 router.delete('/:id', async (req, res) => {
   try {
-    await db.query('DELETE FROM servers WHERE id = $1', [req.params.id]);
+    const result = await db.query('DELETE FROM servers WHERE id = $1', [req.params.id]);
+    if (!result.rowCount) {
+      return sendError(res, 'Server not found', 404);
+    }
     sendSuccess(res, { message: 'Server deleted' });
   } catch (err: any) {
     sendError(res, err.message);

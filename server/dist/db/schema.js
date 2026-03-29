@@ -17,7 +17,7 @@ CREATE TABLE IF NOT EXISTS api_tokens (
   id SERIAL PRIMARY KEY,
   user_id INTEGER NOT NULL,
   name VARCHAR(255) NOT NULL,
-  token TEXT UNIQUE NOT NULL,
+  token_hash TEXT UNIQUE NOT NULL,
   created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
   last_used_at TIMESTAMPTZ,
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
@@ -104,9 +104,16 @@ CREATE TABLE IF NOT EXISTS "session" (
   "sid" varchar NOT NULL COLLATE "default",
   "sess" json NOT NULL,
   "expire" timestamp(6) NOT NULL
-) WITH (OIDS=FALSE);
+);
 
-ALTER TABLE "session" ADD CONSTRAINT "session_pkey" PRIMARY KEY ("sid") NOT DEFERRABLE INITIALLY IMMEDIATE;
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'session_pkey'
+  ) THEN
+    ALTER TABLE "session" ADD CONSTRAINT "session_pkey" PRIMARY KEY ("sid");
+  END IF;
+END $$;
 
-CREATE INDEX "IDX_session_expire" ON "session" ("expire");
+CREATE INDEX IF NOT EXISTS "IDX_session_expire" ON "session" ("expire");
 `;
