@@ -100,6 +100,23 @@ CREATE TABLE IF NOT EXISTS server_history (
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
 );
 
+CREATE TABLE IF NOT EXISTS custom_columns (
+  id SERIAL PRIMARY KEY,
+  name VARCHAR(255) NOT NULL,
+  key VARCHAR(255) UNIQUE NOT NULL,
+  position INTEGER NOT NULL DEFAULT 0,
+  created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS server_custom_values (
+  server_id INTEGER NOT NULL,
+  custom_column_id INTEGER NOT NULL,
+  value TEXT,
+  PRIMARY KEY (server_id, custom_column_id),
+  FOREIGN KEY (server_id) REFERENCES servers(id) ON DELETE CASCADE,
+  FOREIGN KEY (custom_column_id) REFERENCES custom_columns(id) ON DELETE CASCADE
+);
+
 CREATE TABLE IF NOT EXISTS "session" (
   "sid" varchar NOT NULL COLLATE "default",
   "sess" json NOT NULL,

@@ -1,25 +1,24 @@
 /** @type {import('tailwindcss').Config} */
 export default {
-  content: [
-    "./index.html",
-    "./src/**/*.{js,ts,jsx,tsx}",
-  ],
+  content: ['./index.html', './src/**/*.{js,ts,jsx,tsx}'],
   darkMode: 'class',
   theme: {
     extend: {
       colors: {
-        background: '#0a0a0c',
-        surface: '#121214',
-        'surface-lighter': '#1a1a1e',
-        border: '#2a2a2e',
+        background: 'hsl(var(--background) / <alpha-value>)',
+        foreground: 'hsl(var(--foreground) / <alpha-value>)',
+        surface: 'hsl(var(--surface) / <alpha-value>)',
+        'surface-lighter': 'hsl(var(--surface-lighter) / <alpha-value>)',
+        border: 'hsl(var(--border) / <alpha-value>)',
         primary: {
-          DEFAULT: '#6366f1', // Indigo
-          hover: '#4f46e5',
+          DEFAULT: 'hsl(var(--primary) / <alpha-value>)',
+          hover: 'hsl(var(--primary-hover) / <alpha-value>)',
+          foreground: 'hsl(var(--primary-foreground) / <alpha-value>)',
         },
-        secondary: '#94a3b8',
-        success: '#10b981',
-        warning: '#f59e0b',
-        danger: '#ef4444',
+        secondary: 'hsl(var(--secondary) / <alpha-value>)',
+        success: 'hsl(var(--success) / <alpha-value>)',
+        warning: 'hsl(var(--warning) / <alpha-value>)',
+        danger: 'hsl(var(--danger) / <alpha-value>)',
       },
       fontFamily: {
         sans: ['"Plus Jakarta Sans"', 'system-ui', 'sans-serif'],
@@ -28,4 +27,4 @@ export default {
     },
   },
   plugins: [],
-}
+};

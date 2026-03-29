@@ -1,6 +1,22 @@
 <!doctype html>
 <html lang="en">
   <head>
+    <script>
+      (function () {
+        try {
+          var raw = localStorage.getItem('theme-storage');
+          if (!raw) {
+            document.documentElement.classList.add('dark');
+            return;
+          }
+          var p = JSON.parse(raw);
+          var t = (p.state && p.state.theme) || 'dark';
+          document.documentElement.classList.toggle('dark', t === 'dark');
+        } catch (e) {
+          document.documentElement.classList.add('dark');
+        }
+      })();
+    </script>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>ServerVault</title>

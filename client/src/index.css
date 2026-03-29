@@ -3,8 +3,38 @@
 @tailwind utilities;
 
 @layer base {
+  :root {
+    --background: 220 20% 97%;
+    --foreground: 222 47% 11%;
+    --surface: 0 0% 100%;
+    --surface-lighter: 220 14% 96%;
+    --border: 214 32% 88%;
+    --primary: 239 84% 52%;
+    --primary-hover: 239 84% 44%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 215 16% 42%;
+    --success: 160 84% 35%;
+    --warning: 38 92% 42%;
+    --danger: 0 72% 48%;
+  }
+
+  .dark {
+    --background: 240 10% 4%;
+    --foreground: 210 20% 98%;
+    --surface: 240 6% 8%;
+    --surface-lighter: 240 5% 12%;
+    --border: 240 4% 20%;
+    --primary: 239 84% 67%;
+    --primary-hover: 239 84% 57%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 215 20% 58%;
+    --success: 160 84% 39%;
+    --warning: 38 92% 50%;
+    --danger: 0 72% 55%;
+  }
+
   body {
-    @apply bg-background text-slate-100 antialiased font-sans overflow-x-hidden text-[15px] leading-relaxed;
+    @apply bg-background text-foreground antialiased font-sans overflow-x-hidden text-[15px] leading-relaxed;
   }
 
   ::-webkit-scrollbar {
@@ -17,14 +47,14 @@
   }
 
   ::-webkit-scrollbar-thumb {
-    @apply bg-border rounded-full hover:bg-white/10 transition-colors;
+    @apply rounded-full border border-transparent bg-border transition-colors hover:bg-secondary/40;
   }
 
   input:-webkit-autofill,
   input:-webkit-autofill:hover,
   input:-webkit-autofill:focus {
-    -webkit-text-fill-color: white;
-    -webkit-box-shadow: 0 0 0px 1000px #121214 inset;
+    -webkit-text-fill-color: hsl(var(--foreground));
+    -webkit-box-shadow: 0 0 0px 1000px hsl(var(--surface-lighter)) inset;
     transition: background-color 5000s ease-in-out 0s;
   }
 }
@@ -35,11 +65,11 @@
   }
 
   .btn-primary {
-    @apply btn bg-primary text-white hover:bg-primary-hover shadow-lg shadow-primary/20;
+    @apply btn bg-primary text-primary-foreground hover:bg-primary-hover shadow-lg shadow-primary/20;
   }
 
   .btn-ghost {
-    @apply btn text-secondary hover:bg-white/5 hover:text-white;
+    @apply btn text-secondary hover:bg-foreground/[0.06] hover:text-foreground;
   }
 
   .btn-danger {
@@ -47,11 +77,11 @@
   }
 
   .card {
-    @apply bg-surface border border-border rounded-xl p-6 shadow-xl;
+    @apply bg-surface border border-border rounded-xl p-6 shadow-xl shadow-foreground/[0.03];
   }
 
   .input {
-    @apply w-full bg-surface-lighter border border-border rounded-lg px-4 py-2.5 text-white placeholder-secondary outline-none focus:border-primary transition-colors;
+    @apply w-full bg-surface-lighter border border-border rounded-lg px-4 py-2.5 text-foreground placeholder:text-secondary/70 outline-none focus:border-primary transition-colors;
   }
 
   .badge {

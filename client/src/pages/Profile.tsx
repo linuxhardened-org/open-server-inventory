@@ -172,12 +172,12 @@ export const Profile = () => {
                       <Shield className="w-4 h-4" />
                       Save this token now!
                     </p>
-                    <button onClick={() => setNewToken(null)} className="text-xs text-gray-500 hover:text-white">Dismiss</button>
+                    <button onClick={() => setNewToken(null)} className="text-xs text-secondary transition-colors hover:text-foreground">Dismiss</button>
                   </div>
-                  <div className="bg-black p-3 rounded font-mono text-sm break-all border border-blue-600/10">
+                  <div className="rounded border border-blue-600/10 bg-surface-lighter p-3 font-mono text-sm break-all text-foreground">
                     {newToken}
                   </div>
-                  <p className="text-[10px] text-gray-500 mt-2">This token will never be shown again.</p>
+                  <p className="mt-2 text-[10px] text-secondary">This token will never be shown again.</p>
                 </div>
               )}
             </motion.div>

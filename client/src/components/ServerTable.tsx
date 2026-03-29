@@ -1,14 +1,19 @@
 import { Terminal, Activity, Settings } from 'lucide-react';
-import { Server } from '../types';
+import type { CustomColumn, Server, ServerTag } from '../types';
 import { formatBytes } from '../lib/utils';
 import { motion } from 'framer-motion';
 
+function tagLabel(tag: ServerTag | string): string {
+  return typeof tag === 'string' ? tag : tag.name;
+}
+
 interface ServerTableProps {
   servers: Server[];
+  customColumns: CustomColumn[];
   onRowClick: (server: Server) => void;
 }
 
-export const ServerTable = ({ servers, onRowClick }: ServerTableProps) => {
+export const ServerTable = ({ servers, customColumns, onRowClick }: ServerTableProps) => {
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-left border-collapse">
@@ -20,6 +25,11 @@ export const ServerTable = ({ servers, onRowClick }: ServerTableProps) => {
             <th className="py-4 px-4">OS</th>
             <th className="py-4 px-4">Resources</th>
             <th className="py-4 px-4">Tags</th>
+            {customColumns.map((col) => (
+              <th key={col.id} className="py-4 px-4 max-w-[14rem] truncate" title={col.name}>
+                {col.name}
+              </th>
+            ))}
             <th className="py-4 px-4 text-right">Actions</th>
           </tr>
         </thead>
@@ -31,7 +41,7 @@ export const ServerTable = ({ servers, onRowClick }: ServerTableProps) => {
               transition={{ delay: index * 0.05 }}
               key={server.id}
               onClick={() => onRowClick(server)}
-              className="border-b border-border/50 hover:bg-white/[0.02] cursor-pointer transition-colors group"
+              className="border-b border-border/50 hover:bg-foreground/[0.04] cursor-pointer transition-colors group"
             >
               <td className="py-4 px-4">
                 <div className="flex items-center gap-2">
@@ -42,8 +52,8 @@ export const ServerTable = ({ servers, onRowClick }: ServerTableProps) => {
                 </div>
               </td>
               <td className="py-4 px-4 font-mono text-sm">{server.hostname}</td>
-              <td className="py-4 px-4 font-mono text-sm text-secondary">{server.ip_address}</td>
-              <td className="py-4 px-4 text-sm">{server.os}</td>
+              <td className="py-4 px-4 font-mono text-sm text-secondary">{server.ip_address ?? '—'}</td>
+              <td className="py-4 px-4 text-sm">{server.os ?? '—'}</td>
               <td className="py-4 px-4">
                 <div className="space-y-1 text-[10px] text-secondary font-mono">
                   <div>CPU: {server.cpu_cores || 0} Cores</div>
@@ -52,22 +62,45 @@ export const ServerTable = ({ servers, onRowClick }: ServerTableProps) => {
               </td>
               <td className="py-4 px-4">
                 <div className="flex flex-wrap gap-1">
-                  {server.tags?.map(tag => (
-                    <span key={tag} className="px-2 py-0.5 bg-blue-500/10 text-blue-400 text-[10px] rounded border border-blue-500/20">
-                      {tag}
+                  {server.tags?.map((tag) => (
+                    <span
+                      key={typeof tag === 'string' ? tag : tag.id}
+                      className="px-2 py-0.5 bg-blue-500/10 text-blue-400 text-[10px] rounded border border-blue-500/20"
+                    >
+                      {tagLabel(tag)}
                     </span>
                   ))}
                 </div>
               </td>
+              {customColumns.map((col) => (
+                <td key={col.id} className="py-4 px-4 text-sm text-secondary max-w-[14rem] truncate" title={server.custom_values?.[String(col.id)]}>
+                  {server.custom_values?.[String(col.id)]?.trim() ? server.custom_values[String(col.id)] : '—'}
+                </td>
+              ))}
               <td className="py-4 px-4 text-right">
                 <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <button className="p-2 hover:bg-white/5 rounded-lg text-secondary transition-colors" title="Terminal">
+                  <button
+                    type="button"
+                    className="p-2 hover:bg-foreground/[0.06] rounded-lg text-secondary transition-colors"
+                    title="Terminal"
+                    onClick={(e) => e.stopPropagation()}
+                  >
                     <Terminal className="w-4 h-4" />
                   </button>
-                  <button className="p-2 hover:bg-white/5 rounded-lg text-secondary transition-colors" title="Monitoring">
+                  <button
+                    type="button"
+                    className="p-2 hover:bg-white/5 rounded-lg text-secondary transition-colors"
+                    title="Monitoring"
+                    onClick={(e) => e.stopPropagation()}
+                  >
                     <Activity className="w-4 h-4" />
                   </button>
-                  <button className="p-2 hover:bg-white/5 rounded-lg text-secondary transition-colors" title="Settings">
+                  <button
+                    type="button"
+                    className="p-2 hover:bg-foreground/[0.06] rounded-lg text-secondary transition-colors"
+                    title="Settings"
+                    onClick={(e) => e.stopPropagation()}
+                  >
                     <Settings className="w-4 h-4" />
                   </button>
                 </div>

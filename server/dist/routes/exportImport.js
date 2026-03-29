@@ -22,6 +22,7 @@ const SEQUENCE_TABLES = [
     { table: 'groups', sequence: 'groups_id_seq' },
     { table: 'tags', sequence: 'tags_id_seq' },
     { table: 'ssh_keys', sequence: 'ssh_keys_id_seq' },
+    { table: 'custom_columns', sequence: 'custom_columns_id_seq' },
     { table: 'servers', sequence: 'servers_id_seq' },
     { table: 'server_disks', sequence: 'server_disks_id_seq' },
     { table: 'server_interfaces', sequence: 'server_interfaces_id_seq' },
@@ -51,6 +52,8 @@ router.get('/export', sessionAuth_1.sessionAuth, (req, res) => __awaiter(void 0,
         const server_disks = yield db_1.default.query('SELECT * FROM server_disks');
         const server_interfaces = yield db_1.default.query('SELECT * FROM server_interfaces');
         const server_tags = yield db_1.default.query('SELECT * FROM server_tags');
+        const custom_columns = yield db_1.default.query('SELECT * FROM custom_columns');
+        const server_custom_values = yield db_1.default.query('SELECT * FROM server_custom_values');
         let ssh_keys = sshKeysResult.rows;
         if (!includePrivate) {
             ssh_keys = ssh_keys.map((row) => (Object.assign(Object.assign({}, row), { private_key: null })));
@@ -63,6 +66,8 @@ router.get('/export', sessionAuth_1.sessionAuth, (req, res) => __awaiter(void 0,
             server_disks: server_disks.rows,
             server_interfaces: server_interfaces.rows,
             server_tags: server_tags.rows,
+            custom_columns: custom_columns.rows,
+            server_custom_values: server_custom_values.rows,
         };
         res.setHeader('Content-Type', 'application/json');
         res.setHeader('Content-Disposition', 'attachment; filename=servervault-export.json');
@@ -83,6 +88,7 @@ router.post('/import', sessionAuth_1.sessionAuth, adminAuth_1.adminAuth, (req, r
         yield client.query('DELETE FROM server_interfaces');
         yield client.query('DELETE FROM server_disks');
         yield client.query('DELETE FROM servers');
+        yield client.query('DELETE FROM custom_columns');
         yield client.query('DELETE FROM ssh_keys');
         yield client.query('DELETE FROM tags');
         yield client.query('DELETE FROM groups');
@@ -107,6 +113,11 @@ router.post('/import', sessionAuth_1.sessionAuth, adminAuth_1.adminAuth, (req, r
         if (data.ssh_keys) {
             for (const k of data.ssh_keys) {
                 yield client.query('INSERT INTO ssh_keys (id, name, public_key, private_key, created_at) VALUES ($1, $2, $3, $4, $5)', [k.id, k.name, k.public_key, k.private_key, k.created_at]);
+            }
+        }
+        if (data.custom_columns) {
+            for (const c of data.custom_columns) {
+                yield client.query('INSERT INTO custom_columns (id, name, key, position, created_at) VALUES ($1, $2, $3, $4, $5)', [c.id, c.name, c.key, c.position, c.created_at]);
             }
         }
         if (data.servers) {
@@ -145,6 +156,11 @@ router.post('/import', sessionAuth_1.sessionAuth, adminAuth_1.adminAuth, (req, r
                     st.server_id,
                     st.tag_id,
                 ]);
+            }
+        }
+        if (data.server_custom_values) {
+            for (const v of data.server_custom_values) {
+                yield client.query('INSERT INTO server_custom_values (server_id, custom_column_id, value) VALUES ($1, $2, $3)', [v.server_id, v.custom_column_id, v.value]);
             }
         }
         for (const { table, sequence } of SEQUENCE_TABLES) {

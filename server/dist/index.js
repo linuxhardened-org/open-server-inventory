@@ -50,6 +50,7 @@ const tags_1 = __importDefault(require("./routes/tags"));
 const sshKeys_1 = __importDefault(require("./routes/sshKeys"));
 const stats_1 = __importDefault(require("./routes/stats"));
 const exportImport_1 = __importDefault(require("./routes/exportImport"));
+const customColumns_1 = __importDefault(require("./routes/customColumns"));
 const users_1 = __importDefault(require("./routes/users"));
 const sessionAuth_1 = require("./middleware/sessionAuth");
 const bearerAuth_1 = require("./middleware/bearerAuth");
@@ -87,6 +88,7 @@ const authMiddleware = (req, res, next) => {
 };
 app.use('/api/tokens', sessionAuth_1.sessionAuth, tokens_1.default);
 app.use('/api/servers', authMiddleware, servers_1.default);
+app.use('/api/custom-columns', authMiddleware, customColumns_1.default);
 app.use('/api/groups', authMiddleware, groups_1.default);
 app.use('/api/tags', authMiddleware, tags_1.default);
 app.use('/api/ssh-keys', authMiddleware, sshKeys_1.default);

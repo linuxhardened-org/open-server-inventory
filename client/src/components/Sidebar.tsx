@@ -39,10 +39,10 @@ export const Sidebar = () => {
     <aside className="sticky top-0 flex h-screen w-64 shrink-0 flex-col border-r border-border bg-surface">
       <div className="flex items-center gap-3 p-6">
         <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary shadow-lg shadow-primary/25">
-          <ShieldCheck className="h-6 w-6 text-white" />
+          <ShieldCheck className="h-6 w-6 text-primary-foreground" />
         </div>
         <div className="min-w-0">
-          <span className="block text-lg font-bold tracking-tight text-white">ServerVault</span>
+          <span className="block text-lg font-bold tracking-tight text-foreground">ServerVault</span>
           <span className="text-xs font-medium text-secondary">Inventory</span>
         </div>
       </div>
@@ -56,8 +56,8 @@ export const Sidebar = () => {
               cn(
                 'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',
                 isActive
-                  ? 'bg-primary text-white shadow-md shadow-primary/20'
-                  : 'text-secondary hover:bg-white/[0.06] hover:text-white'
+                  ? 'bg-primary text-primary-foreground shadow-md shadow-primary/20'
+                  : 'text-secondary hover:bg-foreground/[0.06] hover:text-foreground'
               )
             }
           >
@@ -71,8 +71,8 @@ export const Sidebar = () => {
             cn(
               'mt-2 flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',
               isActive
-                ? 'bg-primary text-white shadow-md shadow-primary/20'
-                : 'text-secondary hover:bg-white/[0.06] hover:text-white'
+                ? 'bg-primary text-primary-foreground shadow-md shadow-primary/20'
+                : 'text-secondary hover:bg-foreground/[0.06] hover:text-foreground'
             )
           }
         >

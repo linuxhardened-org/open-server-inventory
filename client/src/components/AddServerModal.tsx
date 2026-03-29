@@ -1,22 +1,86 @@
-import { useState } from "react";
-import { motion, AnimatePresence } from 'framer-motion';
-import { X, Server, Shield, Key, ChevronRight, ChevronLeft, Check } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { motion } from 'framer-motion';
+import { X, Server, Key } from 'lucide-react';
+import toast from 'react-hot-toast';
+import type { CustomColumn } from '../types';
+import api from '../lib/api';
 
 interface AddServerModalProps {
   isOpen: boolean;
   onClose: () => void;
+  customColumns: CustomColumn[];
+  onServerCreated?: () => void;
 }
 
-const steps = [
-  { id: 1, title: 'Basic Info', icon: Server },
-  { id: 2, title: 'Authentication', icon: Key },
-  { id: 3, title: 'Security', icon: Shield },
-];
+/**
+ * Inventory-only: SSH / keys are optional metadata — ServerVault does not connect to hosts.
+ */
+export const AddServerModal = ({ isOpen, onClose, customColumns, onServerCreated }: AddServerModalProps) => {
+  const [serverName, setServerName] = useState('');
+  const [hostname, setHostname] = useState('');
+  const [ip, setIp] = useState('');
+  const [notes, setNotes] = useState('');
+  const [sshKeyId, setSshKeyId] = useState('');
+  const [customValues, setCustomValues] = useState<Record<number, string>>({});
+  const [submitting, setSubmitting] = useState(false);
 
-export const AddServerModal = ({ isOpen, onClose }: AddServerModalProps) => {
-  const [currentStep, setCurrentStep] = useState(1);
+  useEffect(() => {
+    if (!isOpen) {
+      setServerName('');
+      setHostname('');
+      setIp('');
+      setNotes('');
+      setSshKeyId('');
+      setCustomValues({});
+      setSubmitting(false);
+    }
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    setCustomValues((prev) => {
+      const next = { ...prev };
+      for (const col of customColumns) {
+        if (!(col.id in next)) next[col.id] = '';
+      }
+      for (const id of Object.keys(next).map(Number)) {
+        if (!customColumns.some((c) => c.id === id)) delete next[id];
+      }
+      return next;
+    });
+  }, [isOpen, customColumns]);
 
   if (!isOpen) return null;
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSubmitting(true);
+    const custom_values: Record<string, string | null> = {};
+    for (const col of customColumns) {
+      const raw = (customValues[col.id] ?? '').trim();
+      custom_values[String(col.id)] = raw === '' ? null : raw;
+    }
+    try {
+      await api.post('/servers', {
+        name: serverName.trim(),
+        hostname: hostname.trim(),
+        ip_address: ip.trim() || undefined,
+        notes: notes.trim() || undefined,
+        ssh_key_id: sshKeyId ? Number(sshKeyId) : null,
+        status: 'active',
+        custom_values: Object.keys(custom_values).length ? custom_values : undefined,
+      });
+      toast.success('Server added to inventory');
+      onServerCreated?.();
+      onClose();
+    } catch (err: unknown) {
+      const msg =
+        typeof err === 'object' && err && 'message' in err ? String((err as { message: string }).message) : 'Could not save server';
+      toast.error(msg);
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
@@ -31,165 +95,153 @@ export const AddServerModal = ({ isOpen, onClose }: AddServerModalProps) => {
         initial={{ scale: 0.95, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         exit={{ scale: 0.95, opacity: 0 }}
-        className="bg-surface border border-border w-full max-w-2xl rounded-2xl shadow-2xl relative z-[70] overflow-hidden"
+        className="relative z-[70] max-h-[90vh] w-full max-w-lg overflow-y-auto overflow-x-hidden rounded-2xl border border-border bg-surface shadow-2xl"
+        role="dialog"
+        aria-labelledby="add-server-title"
+        aria-describedby="add-server-desc"
       >
-        <div className="flex border-b border-border">
-          {steps.map((step) => (
-            <div 
-              key={step.id}
-              className={`flex-1 flex items-center justify-center gap-3 py-4 border-b-2 transition-colors ${
-                currentStep === step.id ? 'border-primary bg-primary/5' : 'border-transparent text-secondary'
-              }`}
-            >
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${
-                currentStep >= step.id ? 'bg-primary text-white' : 'bg-white/5 text-secondary border border-border'
-              }`}>
-                {currentStep > step.id ? <Check className="w-4 h-4" /> : step.id}
-              </div>
-              <span className={`text-sm font-medium ${currentStep === step.id ? 'text-white' : 'text-secondary'}`}>
-                {step.title}
-              </span>
+        <div className="flex items-center justify-between border-b border-border px-6 py-4">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/15 text-primary">
+              <Server className="h-5 w-5" />
             </div>
-          ))}
-          <button 
-            onClick={onClose}
-            className="px-6 border-l border-border hover:bg-white/5 text-secondary hover:text-white transition-colors"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-
-        <div className="p-8 min-h-[400px]">
-          <AnimatePresence mode="wait">
-            {currentStep === 1 && (
-              <motion.div
-                key="step1"
-                initial={{ x: 20, opacity: 0 }}
-                animate={{ x: 0, opacity: 1 }}
-                exit={{ x: -20, opacity: 0 }}
-                className="space-y-6"
-              >
-                <div>
-                  <h3 className="text-xl font-bold mb-1">Server Details</h3>
-                  <p className="text-secondary text-sm">Provide the primary connection information for the node.</p>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-secondary">Hostname</label>
-                    <input type="text" className="input" placeholder="srv-prod-01" />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-secondary">IP Address</label>
-                    <input type="text" className="input" placeholder="10.0.0.1" />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-secondary">Operating System</label>
-                  <select className="input appearance-none bg-surface-lighter">
-                    <option>Ubuntu 22.04 LTS</option>
-                    <option>Debian 11</option>
-                    <option>CentOS Stream 9</option>
-                    <option>FreeBSD 13</option>
-                  </select>
-                </div>
-              </motion.div>
-            )}
-
-            {currentStep === 2 && (
-              <motion.div
-                key="step2"
-                initial={{ x: 20, opacity: 0 }}
-                animate={{ x: 0, opacity: 1 }}
-                exit={{ x: -20, opacity: 0 }}
-                className="space-y-6"
-              >
-                <div>
-                  <h3 className="text-xl font-bold mb-1">SSH Authentication</h3>
-                  <p className="text-secondary text-sm">Select the method used to access this server.</p>
-                </div>
-                <div className="space-y-4">
-                  <div className="p-4 rounded-xl border border-primary bg-primary/5 flex items-center justify-between cursor-pointer">
-                    <div className="flex items-center gap-4">
-                      <Key className="w-6 h-6 text-primary" />
-                      <div>
-                        <p className="font-bold">SSH Key Pair</p>
-                        <p className="text-xs text-secondary">Recommended for maximum security</p>
-                      </div>
-                    </div>
-                    <div className="w-5 h-5 rounded-full border-2 border-primary flex items-center justify-center">
-                      <div className="w-2.5 h-2.5 rounded-full bg-primary" />
-                    </div>
-                  </div>
-                  <div className="p-4 rounded-xl border border-border hover:border-white/20 transition-colors flex items-center justify-between cursor-pointer">
-                    <div className="flex items-center gap-4">
-                      <Shield className="w-6 h-6 text-secondary" />
-                      <div>
-                        <p className="font-bold">Password Auth</p>
-                        <p className="text-xs text-secondary">Basic authentication method</p>
-                      </div>
-                    </div>
-                    <div className="w-5 h-5 rounded-full border-2 border-border" />
-                  </div>
-                </div>
-              </motion.div>
-            )}
-
-            {currentStep === 3 && (
-              <motion.div
-                key="step3"
-                initial={{ x: 20, opacity: 0 }}
-                animate={{ x: 0, opacity: 1 }}
-                exit={{ x: -20, opacity: 0 }}
-                className="space-y-6"
-              >
-                <div>
-                  <h3 className="text-xl font-bold mb-1">Security Hardening</h3>
-                  <p className="text-secondary text-sm">Choose initial security scripts to run on deployment.</p>
-                </div>
-                <div className="space-y-3">
-                  {[
-                    'Disable Root SSH Login',
-                    'Setup Uncomplicated Firewall (UFW)',
-                    'Install Fail2Ban',
-                    'Automatic Security Updates'
-                  ].map(policy => (
-                    <label key={policy} className="flex items-center gap-3 p-3 bg-white/5 border border-border rounded-lg cursor-pointer hover:bg-white/10 transition-colors">
-                      <input type="checkbox" className="w-4 h-4 rounded border-border text-primary bg-surface-lighter focus:ring-primary" defaultChecked />
-                      <span className="text-sm">{policy}</span>
-                    </label>
-                  ))}
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-
-        <div className="p-6 border-t border-border bg-white/[0.01] flex items-center justify-between">
-          <button 
-            disabled={currentStep === 1}
-            onClick={() => setCurrentStep(prev => prev - 1)}
-            className="btn-ghost gap-2 disabled:opacity-0"
-          >
-            <ChevronLeft className="w-4 h-4" /> Previous
-          </button>
-          <div className="flex gap-3">
-             {currentStep < 3 ? (
-               <button 
-                onClick={() => setCurrentStep(prev => prev + 1)}
-                className="btn-primary gap-2"
-              >
-                Continue <ChevronRight className="w-4 h-4" />
-              </button>
-             ) : (
-               <button 
-                onClick={onClose}
-                className="btn-primary gap-2"
-              >
-                Deploy Server <Check className="w-4 h-4" />
-              </button>
-             )}
+            <div>
+              <h2 id="add-server-title" className="text-lg font-bold text-foreground">
+                Add server
+              </h2>
+              <p id="add-server-desc" className="text-sm text-secondary">
+                Record-only — no remote connection or SSH required.
+              </p>
+            </div>
           </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-lg p-2 text-secondary transition-colors hover:bg-foreground/[0.06] hover:text-foreground"
+            aria-label="Close"
+          >
+            <X className="h-5 w-5" />
+          </button>
         </div>
+
+        <form onSubmit={handleSubmit} className="space-y-5 p-6">
+          <div className="rounded-lg border border-border/80 bg-background/50 p-4 text-sm text-secondary">
+            <p>
+              Use this form to track servers in your inventory.{' '}
+              <span className="font-medium text-foreground">Connecting via SSH is not required</span> — optional fields are for your
+              documentation only.
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <label htmlFor="srv-name" className="text-sm font-medium text-secondary">
+              Display name <span className="text-danger">*</span>
+            </label>
+            <input
+              id="srv-name"
+              required
+              value={serverName}
+              onChange={(e) => setServerName(e.target.value)}
+              className="input"
+              placeholder="e.g. prod-web-01"
+              autoComplete="off"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label htmlFor="srv-hostname" className="text-sm font-medium text-secondary">
+              Hostname <span className="text-danger">*</span>
+            </label>
+            <input
+              id="srv-hostname"
+              required
+              value={hostname}
+              onChange={(e) => setHostname(e.target.value)}
+              className="input"
+              placeholder="node01.example.com"
+              autoComplete="off"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label htmlFor="srv-ip" className="text-sm font-medium text-secondary">
+              IP address <span className="text-xs font-normal text-secondary/80">(optional)</span>
+            </label>
+            <input
+              id="srv-ip"
+              value={ip}
+              onChange={(e) => setIp(e.target.value)}
+              className="input"
+              placeholder="10.0.0.1"
+              autoComplete="off"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label htmlFor="srv-notes" className="text-sm font-medium text-secondary">
+              Notes <span className="text-xs font-normal text-secondary/80">(optional)</span>
+            </label>
+            <textarea
+              id="srv-notes"
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              className="input min-h-[88px] resize-y"
+              placeholder="Rack, owner, purpose…"
+            />
+          </div>
+
+          {customColumns.length > 0 && (
+            <div className="space-y-3 border-t border-border pt-5">
+              <p className="text-sm font-medium text-secondary">Custom fields</p>
+              <div className="space-y-3">
+                {customColumns.map((col) => (
+                  <div key={col.id} className="space-y-1.5">
+                    <label htmlFor={`srv-custom-${col.id}`} className="text-sm text-secondary">
+                      {col.name}
+                    </label>
+                    <input
+                      id={`srv-custom-${col.id}`}
+                      value={customValues[col.id] ?? ''}
+                      onChange={(e) => setCustomValues((prev) => ({ ...prev, [col.id]: e.target.value }))}
+                      className="input"
+                      placeholder="—"
+                      autoComplete="off"
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="space-y-2 border-t border-border pt-5">
+            <div className="mb-1 flex items-center gap-2 text-sm font-medium text-secondary">
+              <Key className="h-4 w-4 text-primary" aria-hidden />
+              <span>SSH key reference</span>
+              <span className="text-xs font-normal text-secondary/80">(optional)</span>
+            </div>
+            <p className="mb-2 text-xs text-secondary">
+              If you use keys elsewhere, you can link one for reference. This app does not connect over SSH.
+            </p>
+            <select
+              id="srv-ssh"
+              value={sshKeyId}
+              onChange={(e) => setSshKeyId(e.target.value)}
+              className="input appearance-none bg-surface-lighter"
+            >
+              <option value="">None — inventory only</option>
+              {/* Populated when wired to API */}
+            </select>
+          </div>
+
+          <div className="flex justify-end gap-3 border-t border-border pt-4">
+            <button type="button" onClick={onClose} className="btn-ghost px-4" disabled={submitting}>
+              Cancel
+            </button>
+            <button type="submit" className="btn-primary px-6" disabled={submitting}>
+              {submitting ? 'Saving…' : 'Save to inventory'}
+            </button>
+          </div>
+        </form>
       </motion.div>
     </div>
   );

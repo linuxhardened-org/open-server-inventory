@@ -1,6 +1,22 @@
 <!doctype html>
 <html lang="en">
   <head>
+    <script>
+      (function () {
+        try {
+          var raw = localStorage.getItem('theme-storage');
+          if (!raw) {
+            document.documentElement.classList.add('dark');
+            return;
+          }
+          var p = JSON.parse(raw);
+          var t = (p.state && p.state.theme) || 'dark';
+          document.documentElement.classList.toggle('dark', t === 'dark');
+        } catch (e) {
+          document.documentElement.classList.add('dark');
+        }
+      })();
+    </script>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>ServerVault</title>
@@ -10,8 +26,8 @@
       href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap"
       rel="stylesheet"
     />
-    <script type="module" crossorigin src="/assets/index-DLY78G2G.js"></script>
-    <link rel="stylesheet" crossorigin href="/assets/index-D9ZM8D-0.css">
+    <script type="module" crossorigin src="/assets/index-CA_7TjPy.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-BxDCPoYD.css">
   </head>
   <body>
     <div id="root"></div>

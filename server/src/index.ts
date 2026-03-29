@@ -13,6 +13,7 @@ import tagRoutes from './routes/tags';
 import sshKeyRoutes from './routes/sshKeys';
 import statsRoutes from './routes/stats';
 import exportImportRoutes from './routes/exportImport';
+import customColumnsRoutes from './routes/customColumns';
 import userRoutes from './routes/users';
 
 import { sessionAuth } from './middleware/sessionAuth';
@@ -59,6 +60,7 @@ const authMiddleware = (req: express.Request, res: express.Response, next: expre
 
 app.use('/api/tokens', sessionAuth, tokenRoutes);
 app.use('/api/servers', authMiddleware, serverRoutes);
+app.use('/api/custom-columns', authMiddleware, customColumnsRoutes);
 app.use('/api/groups', authMiddleware, groupRoutes);
 app.use('/api/tags', authMiddleware, tagRoutes);
 app.use('/api/ssh-keys', authMiddleware, sshKeyRoutes);

@@ -1,4 +1,5 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { ThemeSync } from './components/ThemeSync';
 import { Login } from './pages/Login';
 import { Dashboard } from './pages/Dashboard';
 import { Servers } from './pages/Servers';
@@ -15,15 +16,13 @@ import { Toaster } from 'react-hot-toast';
 function App() {
   return (
     <Router>
+      <ThemeSync />
       <Toaster
         position="top-right"
         toastOptions={{
           duration: 5000,
-          style: {
-            background: '#121214',
-            color: '#f8fafc',
-            border: '1px solid #2a2a2e',
-          },
+          className:
+            '!bg-surface !text-foreground !border !border-border !shadow-lg',
         }}
       />
       <Routes>

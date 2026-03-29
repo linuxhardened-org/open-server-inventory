@@ -1,19 +1,31 @@
-import axios from 'axios';
+import axios, { type AxiosInstance, type AxiosRequestConfig } from 'axios';
 
-const api = axios.create({
+const instance = axios.create({
   baseURL: '/api',
   withCredentials: true,
 });
 
-api.interceptors.response.use(
+instance.interceptors.response.use(
   (response) => response.data,
   (error) => {
     if (error.response?.status === 401) {
-      // Logout on unauthorized
       window.location.href = '/login';
     }
     return Promise.reject(error.response?.data || error.message);
   }
 );
+
+/** Axios instance where responses are already unwrapped to `response.data` (matches runtime interceptor). */
+export interface ApiClient {
+  get<T = any>(url: string, config?: AxiosRequestConfig): Promise<T>;
+  post<T = any>(url: string, data?: unknown, config?: AxiosRequestConfig): Promise<T>;
+  put<T = any>(url: string, data?: unknown, config?: AxiosRequestConfig): Promise<T>;
+  patch<T = any>(url: string, data?: unknown, config?: AxiosRequestConfig): Promise<T>;
+  delete<T = any>(url: string, config?: AxiosRequestConfig): Promise<T>;
+  defaults: AxiosInstance['defaults'];
+  interceptors: AxiosInstance['interceptors'];
+}
+
+const api = instance as unknown as ApiClient;
 
 export default api;

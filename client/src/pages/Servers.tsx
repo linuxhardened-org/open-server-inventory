@@ -1,93 +1,168 @@
-import { useState } from 'react';
-import { Plus, Search, Filter, Download } from 'lucide-react';
+import { useCallback, useEffect, useState } from 'react';
+import { Plus, Search, Filter, Download, Trash2, Columns } from 'lucide-react';
+import toast from 'react-hot-toast';
 import { ServerTable } from '../components/ServerTable';
 import { ServerDrawer } from '../components/ServerDrawer';
 import { AddServerModal } from '../components/AddServerModal';
-import { Server } from '../types';
+import type { CustomColumn, Server } from '../types';
+import api from '../lib/api';
 
-const mockServers: Server[] = [
-  {
-    id: 1,
-    name: 'prod-api-01',
-    hostname: 'prod-api-01.local',
-    ip_address: '192.168.1.10',
-    status: 'online',
-    group_name: 'Production',
-    tags: ['API', 'Critical'],
-    os: 'Ubuntu 22.04',
-    cpu_cores: 4,
-    ram_gb: 8,
-    last_seen: new Date().toISOString(),
-  },
-  {
-    id: 2,
-    name: 'staging-db-01',
-    hostname: 'staging-db-01.local',
-    ip_address: '192.168.1.20',
-    status: 'offline',
-    group_name: 'Staging',
-    tags: ['Database'],
-    os: 'Debian 11',
-    cpu_cores: 8,
-    ram_gb: 16,
-    last_seen: new Date(Date.now() - 3600000).toISOString(),
-  },
-];
+type ApiListResponse<T> = { success: boolean; data: T };
 
 export const Servers = () => {
+  const [servers, setServers] = useState<Server[]>([]);
+  const [customColumns, setCustomColumns] = useState<CustomColumn[]>([]);
+  const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedServer, setSelectedServer] = useState<Server | null>(null);
+  const [newColumnName, setNewColumnName] = useState('');
+
+  const load = useCallback(async () => {
+    try {
+      const [sRes, cRes] = await Promise.all([
+        api.get<ApiListResponse<Server[]>>('/servers'),
+        api.get<ApiListResponse<CustomColumn[]>>('/custom-columns'),
+      ]);
+      setServers(sRes.data);
+      setCustomColumns(cRes.data);
+    } catch (e: unknown) {
+      const msg =
+        typeof e === 'object' && e && 'message' in e ? String((e as { message: string }).message) : 'Failed to load servers';
+      toast.error(msg);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  const handleAddColumn = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const name = newColumnName.trim();
+    if (!name) return;
+    try {
+      await api.post('/custom-columns', { name });
+      setNewColumnName('');
+      toast.success('Column added');
+      await load();
+    } catch (err: unknown) {
+      const msg =
+        typeof err === 'object' && err && 'message' in err ? String((err as { message: string }).message) : 'Could not add column';
+      toast.error(msg);
+    }
+  };
+
+  const handleDeleteColumn = async (id: number, label: string) => {
+    if (!window.confirm(`Delete column "${label}" and all values in that column?`)) return;
+    try {
+      await api.delete(`/custom-columns/${id}`);
+      toast.success('Column removed');
+      await load();
+    } catch (err: unknown) {
+      const msg =
+        typeof err === 'object' && err && 'message' in err
+          ? String((err as { message: string }).message)
+          : 'Could not remove column';
+      toast.error(msg);
+    }
+  };
 
   return (
     <div className="space-y-6 animate-in">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Servers</h1>
-          <p className="text-secondary mt-1">Manage and monitor your infrastructure nodes.</p>
+          <h1 className="text-3xl font-bold text-foreground">Servers</h1>
+          <p className="mt-1 text-secondary">Manage and monitor your infrastructure nodes.</p>
         </div>
-        <button 
-          onClick={() => setIsModalOpen(true)}
-          className="btn-primary flex items-center gap-2"
-        >
-          <Plus className="w-4 h-4" /> Add Server
+        <button type="button" onClick={() => setIsModalOpen(true)} className="btn-primary flex items-center gap-2">
+          <Plus className="h-4 w-4" /> Add Server
         </button>
       </div>
 
       <div className="card space-y-4">
+        <div className="flex flex-wrap items-start gap-4 border-b border-border pb-4">
+          <div className="flex min-w-0 flex-1 flex-col gap-2">
+            <div className="flex items-center gap-2 text-sm font-medium text-secondary">
+              <Columns className="h-4 w-4 text-primary" aria-hidden />
+              Custom columns
+            </div>
+            <form onSubmit={handleAddColumn} className="flex flex-wrap items-center gap-2">
+              <input
+                type="text"
+                value={newColumnName}
+                onChange={(e) => setNewColumnName(e.target.value)}
+                placeholder="e.g. Rack, Owner, Cost center"
+                className="input h-10 min-w-[200px] max-w-md flex-1"
+                maxLength={200}
+                autoComplete="off"
+              />
+              <button type="submit" className="btn-primary h-10 px-4">
+                Add column
+              </button>
+            </form>
+            {customColumns.length > 0 && (
+              <ul className="flex flex-wrap gap-2 pt-1">
+                {customColumns.map((col) => (
+                  <li
+                    key={col.id}
+                    className="inline-flex items-center gap-1 rounded-lg border border-border bg-surface/80 py-1 pl-2 pr-1 text-xs text-foreground"
+                  >
+                    <span className="max-w-[12rem] truncate" title={col.name}>
+                      {col.name}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteColumn(col.id, col.name)}
+                      className="rounded p-1 text-secondary transition-colors hover:bg-danger/15 hover:text-danger"
+                      aria-label={`Remove column ${col.name}`}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </div>
+
         <div className="flex flex-wrap items-center gap-4">
-          <div className="flex-1 min-w-[300px] relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-secondary" />
-            <input 
-              type="text" 
-              placeholder="Search by hostname, IP, or tag..." 
-              className="input pl-10 h-11 w-full"
+          <div className="relative min-w-[300px] flex-1">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-secondary" />
+            <input
+              type="text"
+              placeholder="Search by hostname, IP, or tag..."
+              className="input h-11 w-full pl-10"
             />
           </div>
-          <button className="btn-ghost flex items-center gap-2 border border-border h-11 px-4">
-            <Filter className="w-4 h-4" /> Filters
+          <button type="button" className="btn-ghost flex h-11 items-center gap-2 border border-border px-4">
+            <Filter className="h-4 w-4" /> Filters
           </button>
-          <button className="btn-ghost flex items-center gap-2 border border-border h-11 px-4">
-            <Download className="w-4 h-4" /> Export
+          <button type="button" className="btn-ghost flex h-11 items-center gap-2 border border-border px-4">
+            <Download className="h-4 w-4" /> Export
           </button>
         </div>
 
-        <ServerTable 
-          servers={mockServers} 
-          onRowClick={(server) => setSelectedServer(server)} 
-        />
+        {loading ? (
+          <p className="py-8 text-center text-secondary">Loading…</p>
+        ) : (
+          <ServerTable servers={servers} customColumns={customColumns} onRowClick={(server) => setSelectedServer(server)} />
+        )}
       </div>
 
       {selectedServer && (
-        <ServerDrawer 
-          server={selectedServer} 
-          isOpen={!!selectedServer} 
-          onClose={() => setSelectedServer(null)} 
-        />
+        <ServerDrawer server={selectedServer} isOpen={!!selectedServer} onClose={() => setSelectedServer(null)} />
       )}
 
-      <AddServerModal 
-        isOpen={isModalOpen} 
-        onClose={() => setIsModalOpen(false)} 
+      <AddServerModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        customColumns={customColumns}
+        onServerCreated={() => {
+          load();
+          setIsModalOpen(false);
+        }}
       />
     </div>
   );

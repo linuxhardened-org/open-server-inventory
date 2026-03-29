@@ -42,7 +42,40 @@ const serverSchema = zod_1.z.object({
     status: zod_1.z.string().optional(),
     notes: zod_1.z.string().optional(),
     tags: zod_1.z.array(zod_1.z.number()).optional(),
+    /** Map of custom column id (string) -> value */
+    custom_values: zod_1.z.record(zod_1.z.string(), zod_1.z.string().nullable()).optional(),
 });
+function attachCustomValues(serverIds) {
+    return __awaiter(this, void 0, void 0, function* () {
+        var _a, _b;
+        const map = new Map();
+        if (serverIds.length === 0)
+            return map;
+        const r = yield db_1.default.query('SELECT server_id, custom_column_id, value FROM server_custom_values WHERE server_id = ANY($1::int[])', [serverIds]);
+        for (const row of r.rows) {
+            const cur = (_a = map.get(row.server_id)) !== null && _a !== void 0 ? _a : {};
+            cur[String(row.custom_column_id)] = (_b = row.value) !== null && _b !== void 0 ? _b : '';
+            map.set(row.server_id, cur);
+        }
+        return map;
+    });
+}
+function saveCustomValues(client, serverId, customValues) {
+    return __awaiter(this, void 0, void 0, function* () {
+        if (customValues === undefined)
+            return;
+        yield client.query('DELETE FROM server_custom_values WHERE server_id = $1', [serverId]);
+        for (const [colIdStr, val] of Object.entries(customValues)) {
+            const colId = parseInt(colIdStr, 10);
+            if (Number.isNaN(colId))
+                continue;
+            const col = yield client.query('SELECT id FROM custom_columns WHERE id = $1', [colId]);
+            if (!col.rows.length)
+                continue;
+            yield client.query('INSERT INTO server_custom_values (server_id, custom_column_id, value) VALUES ($1, $2, $3)', [serverId, colId, val !== null && val !== void 0 ? val : null]);
+        }
+    });
+}
 router.get('/', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     var _a;
     try {
@@ -75,10 +108,11 @@ router.get('/', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
             list.push({ id: r.id, name: r.name, color: r.color });
             tagsByServer.set(r.server_id, list);
         }
+        const customMap = yield attachCustomValues(ids);
         const results = rows.map((s) => {
-            var _a, _b, _c;
+            var _a, _b, _c, _d;
             const id = s.id;
-            return Object.assign(Object.assign({}, s), { disks: (_a = disksBy.get(String(id))) !== null && _a !== void 0 ? _a : [], interfaces: (_b = ifBy.get(String(id))) !== null && _b !== void 0 ? _b : [], tags: (_c = tagsByServer.get(id)) !== null && _c !== void 0 ? _c : [] });
+            return Object.assign(Object.assign({}, s), { disks: (_a = disksBy.get(String(id))) !== null && _a !== void 0 ? _a : [], interfaces: (_b = ifBy.get(String(id))) !== null && _b !== void 0 ? _b : [], tags: (_c = tagsByServer.get(id)) !== null && _c !== void 0 ? _c : [], custom_values: (_d = customMap.get(id)) !== null && _d !== void 0 ? _d : {} });
         });
         (0, response_1.sendSuccess)(res, results);
     }
@@ -122,7 +156,7 @@ router.post('/', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const parseResult = serverSchema.safeParse(req.body);
     if (!parseResult.success)
         return (0, response_1.sendError)(res, 'Invalid input');
-    const _a = parseResult.data, { tags } = _a, data = __rest(_a, ["tags"]);
+    const _a = parseResult.data, { tags, custom_values } = _a, data = __rest(_a, ["tags", "custom_values"]);
     const client = yield db_1.default.pool.connect();
     try {
         yield client.query('BEGIN');
@@ -132,6 +166,7 @@ router.post('/', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
       RETURNING id
     `, [data.name, data.hostname, data.ip_address || null, data.os || null, data.cpu_cores || null, data.ram_gb || null, data.group_id || null, data.ssh_key_id || null, data.status || 'active', data.notes || null]);
         const serverId = insertResult.rows[0].id;
+        yield saveCustomValues(client, serverId, custom_values);
         if (tags && tags.length > 0) {
             for (const tagId of tags) {
                 yield client.query('INSERT INTO server_tags (server_id, tag_id) VALUES ($1, $2)', [serverId, tagId]);
@@ -158,7 +193,7 @@ router.put('/:id', (req, res) => __awaiter(void 0, void 0, void 0, function* () 
     const parseResult = serverSchema.safeParse(req.body);
     if (!parseResult.success)
         return (0, response_1.sendError)(res, 'Invalid input');
-    const _a = parseResult.data, { tags } = _a, data = __rest(_a, ["tags"]);
+    const _a = parseResult.data, { tags, custom_values } = _a, data = __rest(_a, ["tags", "custom_values"]);
     const serverId = req.params.id;
     const client = yield db_1.default.pool.connect();
     try {
@@ -167,6 +202,9 @@ router.put('/:id', (req, res) => __awaiter(void 0, void 0, void 0, function* () 
       UPDATE servers SET name = $1, hostname = $2, ip_address = $3, os = $4, cpu_cores = $5, ram_gb = $6, group_id = $7, ssh_key_id = $8, status = $9, notes = $10, updated_at = CURRENT_TIMESTAMP
       WHERE id = $11
     `, [data.name, data.hostname, data.ip_address || null, data.os || null, data.cpu_cores || null, data.ram_gb || null, data.group_id || null, data.ssh_key_id || null, data.status || 'active', data.notes || null, serverId]);
+        if (custom_values !== undefined) {
+            yield saveCustomValues(client, Number(serverId), custom_values);
+        }
         if (tags) {
             yield client.query('DELETE FROM server_tags WHERE server_id = $1', [serverId]);
             for (const tagId of tags) {

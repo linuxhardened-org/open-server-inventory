@@ -8,9 +8,9 @@ interface TokenTableProps {
 
 export default function TokenTable({ tokens, onRevoke }: TokenTableProps) {
   return (
-    <div className="bg-[#111118] border border-[#1a1a2e] rounded-xl overflow-hidden">
+    <div className="overflow-hidden rounded-xl border border-border bg-surface">
       <table className="w-full text-left">
-        <thead className="bg-[#1a1a2e] text-gray-400 text-xs uppercase tracking-wider">
+        <thead className="bg-surface-lighter text-xs uppercase tracking-wider text-secondary">
           <tr>
             <th className="px-6 py-4">Token Name</th>
             <th className="px-6 py-4">Created</th>
@@ -18,43 +18,44 @@ export default function TokenTable({ tokens, onRevoke }: TokenTableProps) {
             <th className="px-6 py-4 text-right">Actions</th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-[#1a1a2e]">
+        <tbody className="divide-y divide-border">
           {tokens.map((token) => (
-            <tr key={token.id} className="hover:bg-white/[0.02] transition-colors group">
+            <tr key={token.id} className="group transition-colors hover:bg-foreground/[0.02]">
               <td className="px-6 py-4">
                 <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 bg-blue-600/10 rounded-lg flex items-center justify-center">
-                    <Key className="w-4 h-4 text-blue-600" />
+                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
+                    <Key className="h-4 w-4 text-primary" />
                   </div>
-                  <span className="font-medium">{token.name}</span>
+                  <span className="font-medium text-foreground">{token.name}</span>
                 </div>
               </td>
-              <td className="px-6 py-4 text-sm text-gray-400">
+              <td className="px-6 py-4 text-sm text-secondary">
                 <div className="flex items-center gap-1">
-                  <Calendar className="w-3 h-3" />
+                  <Calendar className="h-3 w-3" />
                   {new Date(token.created_at).toLocaleDateString()}
                 </div>
               </td>
-              <td className="px-6 py-4 text-sm text-gray-400">
+              <td className="px-6 py-4 text-sm text-secondary">
                 <div className="flex items-center gap-1">
-                  <Clock className="w-3 h-3" />
+                  <Clock className="h-3 w-3" />
                   {token.last_used_at ? new Date(token.last_used_at).toLocaleString() : 'Never'}
                 </div>
               </td>
               <td className="px-6 py-4 text-right">
                 <button
+                  type="button"
                   onClick={() => onRevoke(token.id)}
-                  className="text-red-500 hover:bg-red-500/10 p-2 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+                  className="rounded-lg p-2 text-danger opacity-0 transition-colors hover:bg-danger/10 group-hover:opacity-100"
                   title="Revoke Token"
                 >
-                  <Trash2 className="w-4 h-4" />
+                  <Trash2 className="h-4 w-4" />
                 </button>
               </td>
             </tr>
           ))}
           {tokens.length === 0 && (
             <tr>
-              <td colSpan={4} className="px-6 py-12 text-center text-gray-500">
+              <td colSpan={4} className="px-6 py-12 text-center text-secondary">
                 No API tokens generated yet.
               </td>
             </tr>

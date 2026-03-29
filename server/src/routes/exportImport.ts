@@ -11,6 +11,7 @@ const SEQUENCE_TABLES: { table: string; sequence: string }[] = [
   { table: 'groups', sequence: 'groups_id_seq' },
   { table: 'tags', sequence: 'tags_id_seq' },
   { table: 'ssh_keys', sequence: 'ssh_keys_id_seq' },
+  { table: 'custom_columns', sequence: 'custom_columns_id_seq' },
   { table: 'servers', sequence: 'servers_id_seq' },
   { table: 'server_disks', sequence: 'server_disks_id_seq' },
   { table: 'server_interfaces', sequence: 'server_interfaces_id_seq' },
@@ -41,6 +42,8 @@ router.get('/export', sessionAuth, async (req, res) => {
     const server_disks = await db.query('SELECT * FROM server_disks');
     const server_interfaces = await db.query('SELECT * FROM server_interfaces');
     const server_tags = await db.query('SELECT * FROM server_tags');
+    const custom_columns = await db.query('SELECT * FROM custom_columns');
+    const server_custom_values = await db.query('SELECT * FROM server_custom_values');
 
     let ssh_keys = sshKeysResult.rows;
     if (!includePrivate) {
@@ -58,6 +61,8 @@ router.get('/export', sessionAuth, async (req, res) => {
       server_disks: server_disks.rows,
       server_interfaces: server_interfaces.rows,
       server_tags: server_tags.rows,
+      custom_columns: custom_columns.rows,
+      server_custom_values: server_custom_values.rows,
     };
 
     res.setHeader('Content-Type', 'application/json');
@@ -80,6 +85,7 @@ router.post('/import', sessionAuth, adminAuth, async (req, res) => {
     await client.query('DELETE FROM server_interfaces');
     await client.query('DELETE FROM server_disks');
     await client.query('DELETE FROM servers');
+    await client.query('DELETE FROM custom_columns');
     await client.query('DELETE FROM ssh_keys');
     await client.query('DELETE FROM tags');
     await client.query('DELETE FROM groups');
@@ -109,6 +115,15 @@ router.post('/import', sessionAuth, adminAuth, async (req, res) => {
         await client.query(
           'INSERT INTO ssh_keys (id, name, public_key, private_key, created_at) VALUES ($1, $2, $3, $4, $5)',
           [k.id, k.name, k.public_key, k.private_key, k.created_at]
+        );
+      }
+    }
+
+    if (data.custom_columns) {
+      for (const c of data.custom_columns) {
+        await client.query(
+          'INSERT INTO custom_columns (id, name, key, position, created_at) VALUES ($1, $2, $3, $4, $5)',
+          [c.id, c.name, c.key, c.position, c.created_at]
         );
       }
     }
@@ -161,6 +176,15 @@ router.post('/import', sessionAuth, adminAuth, async (req, res) => {
           st.server_id,
           st.tag_id,
         ]);
+      }
+    }
+
+    if (data.server_custom_values) {
+      for (const v of data.server_custom_values) {
+        await client.query(
+          'INSERT INTO server_custom_values (server_id, custom_column_id, value) VALUES ($1, $2, $3)',
+          [v.server_id, v.custom_column_id, v.value]
+        );
       }
     }
 

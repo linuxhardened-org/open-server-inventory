@@ -18,7 +18,7 @@ export const Layout = () => {
   }
 
   return (
-    <div className="flex min-h-screen bg-background text-slate-100">
+    <div className="flex min-h-screen bg-background text-foreground">
       <Sidebar />
       <div className="flex min-w-0 flex-1 flex-col">
         <TopBar />

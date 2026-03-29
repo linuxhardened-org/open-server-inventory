@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import type { PoolClient } from 'pg';
 import { z } from 'zod';
 import db from '../db';
 import { sendSuccess, sendError } from '../utils/response';
@@ -19,7 +20,43 @@ const serverSchema = z.object({
   status: z.string().optional(),
   notes: z.string().optional(),
   tags: z.array(z.number()).optional(),
+  /** Map of custom column id (string) -> value */
+  custom_values: z.record(z.string(), z.string().nullable()).optional(),
 });
+
+async function attachCustomValues(serverIds: number[]): Promise<Map<number, Record<string, string>>> {
+  const map = new Map<number, Record<string, string>>();
+  if (serverIds.length === 0) return map;
+  const r = await db.query(
+    'SELECT server_id, custom_column_id, value FROM server_custom_values WHERE server_id = ANY($1::int[])',
+    [serverIds]
+  );
+  for (const row of r.rows as { server_id: number; custom_column_id: number; value: string | null }[]) {
+    const cur = map.get(row.server_id) ?? {};
+    cur[String(row.custom_column_id)] = row.value ?? '';
+    map.set(row.server_id, cur);
+  }
+  return map;
+}
+
+async function saveCustomValues(
+  client: PoolClient,
+  serverId: number,
+  customValues: Record<string, string | null> | undefined
+): Promise<void> {
+  if (customValues === undefined) return;
+  await client.query('DELETE FROM server_custom_values WHERE server_id = $1', [serverId]);
+  for (const [colIdStr, val] of Object.entries(customValues)) {
+    const colId = parseInt(colIdStr, 10);
+    if (Number.isNaN(colId)) continue;
+    const col = await client.query('SELECT id FROM custom_columns WHERE id = $1', [colId]);
+    if (!col.rows.length) continue;
+    await client.query(
+      'INSERT INTO server_custom_values (server_id, custom_column_id, value) VALUES ($1, $2, $3)',
+      [serverId, colId, val ?? null]
+    );
+  }
+}
 
 router.get('/', async (req, res) => {
   try {
@@ -65,6 +102,8 @@ router.get('/', async (req, res) => {
       tagsByServer.set(r.server_id, list);
     }
 
+    const customMap = await attachCustomValues(ids);
+
     const results = rows.map((s) => {
       const id = s.id as number;
       return {
@@ -72,6 +111,7 @@ router.get('/', async (req, res) => {
         disks: disksBy.get(String(id)) ?? [],
         interfaces: ifBy.get(String(id)) ?? [],
         tags: tagsByServer.get(id) ?? [],
+        custom_values: customMap.get(id) ?? {},
       };
     });
 
@@ -125,8 +165,8 @@ router.post('/', async (req, res) => {
   const parseResult = serverSchema.safeParse(req.body);
   if (!parseResult.success) return sendError(res, 'Invalid input');
 
-  const { tags, ...data } = parseResult.data;
-  
+  const { tags, custom_values, ...data } = parseResult.data;
+
   const client = await db.pool.connect();
   try {
     await client.query('BEGIN');
@@ -135,9 +175,11 @@ router.post('/', async (req, res) => {
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
       RETURNING id
     `, [data.name, data.hostname, data.ip_address || null, data.os || null, data.cpu_cores || null, data.ram_gb || null, data.group_id || null, data.ssh_key_id || null, data.status || 'active', data.notes || null]);
-    
+
     const serverId = insertResult.rows[0].id;
-    
+
+    await saveCustomValues(client, serverId, custom_values);
+
     if (tags && tags.length > 0) {
       for (const tagId of tags) {
         await client.query('INSERT INTO server_tags (server_id, tag_id) VALUES ($1, $2)', [serverId, tagId]);
@@ -165,7 +207,7 @@ router.put('/:id', async (req, res) => {
   const parseResult = serverSchema.safeParse(req.body);
   if (!parseResult.success) return sendError(res, 'Invalid input');
 
-  const { tags, ...data } = parseResult.data;
+  const { tags, custom_values, ...data } = parseResult.data;
   const serverId = req.params.id;
 
   const client = await db.pool.connect();
@@ -175,6 +217,10 @@ router.put('/:id', async (req, res) => {
       UPDATE servers SET name = $1, hostname = $2, ip_address = $3, os = $4, cpu_cores = $5, ram_gb = $6, group_id = $7, ssh_key_id = $8, status = $9, notes = $10, updated_at = CURRENT_TIMESTAMP
       WHERE id = $11
     `, [data.name, data.hostname, data.ip_address || null, data.os || null, data.cpu_cores || null, data.ram_gb || null, data.group_id || null, data.ssh_key_id || null, data.status || 'active', data.notes || null, serverId]);
+
+    if (custom_values !== undefined) {
+      await saveCustomValues(client, Number(serverId), custom_values);
+    }
 
     if (tags) {
       await client.query('DELETE FROM server_tags WHERE server_id = $1', [serverId]);

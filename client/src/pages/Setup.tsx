@@ -28,7 +28,7 @@ export const Setup = () => {
           <div className="inline-flex w-16 h-16 bg-primary rounded-2xl items-center justify-center shadow-2xl shadow-primary/40 mb-6">
             <ShieldCheck className="w-10 h-10 text-white" />
           </div>
-          <h1 className="text-3xl font-bold mb-2">Initialize ServerVault</h1>
+          <h1 className="mb-2 text-3xl font-bold text-foreground">Initialize ServerVault</h1>
           <p className="text-secondary">Create the master administrator account</p>
         </div>
 

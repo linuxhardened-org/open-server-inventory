@@ -37,7 +37,7 @@ export const Login = () => {
           <div className="inline-flex w-16 h-16 bg-blue-600 rounded-2xl items-center justify-center shadow-2xl shadow-blue-600/40 mb-6">
             <ShieldCheck className="w-10 h-10 text-white" />
           </div>
-          <h1 className="text-3xl font-bold mb-2">Access Vault</h1>
+          <h1 className="mb-2 text-3xl font-bold text-foreground">Access Vault</h1>
           <p className="text-secondary">Secure server management system</p>
         </div>
 

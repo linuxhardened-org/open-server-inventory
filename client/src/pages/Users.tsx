@@ -64,7 +64,7 @@ export const Users = () => {
         <div className="flex min-h-[40vh] items-center justify-center">
           <div className="text-center">
             <Shield className="mx-auto mb-4 h-16 w-16 text-danger" />
-            <h2 className="text-2xl font-bold text-white">Access denied</h2>
+            <h2 className="text-2xl font-bold text-foreground">Access denied</h2>
             <p className="mt-2 text-secondary">Administrative privileges are required for this page.</p>
           </div>
         </div>
@@ -75,42 +75,43 @@ export const Users = () => {
       <div className="space-y-8">
         <div className="flex justify-between items-center mb-8">
           <div>
-            <h1 className="text-3xl font-bold">User Management</h1>
-            <p className="text-gray-400">Manage system administrators and operators.</p>
+            <h1 className="text-3xl font-bold text-foreground">User Management</h1>
+            <p className="text-secondary">Manage system administrators and operators.</p>
           </div>
           <button
+            type="button"
             onClick={() => setIsAdding(true)}
-            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors"
+            className="btn-primary flex items-center gap-2 px-4 py-2"
           >
             <UserPlus className="w-4 h-4" />
             Add User
           </button>
         </div>
 
-        <div className="bg-[#111118] rounded-xl border border-[#1a1a2e] overflow-hidden">
+        <div className="overflow-hidden rounded-xl border border-border bg-surface">
           <table className="w-full">
-            <thead className="bg-[#1a1a2e] border-b border-[#1a1a2e]">
+            <thead className="border-b border-border bg-surface-lighter">
               <tr>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">User</th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">Role</th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">Last Login</th>
-                <th className="px-6 py-4 text-right text-xs font-semibold text-gray-400 uppercase tracking-wider">Actions</th>
+                <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-secondary">User</th>
+                <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-secondary">Role</th>
+                <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-secondary">Last Login</th>
+                <th className="px-6 py-4 text-right text-xs font-semibold uppercase tracking-wider text-secondary">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#1a1a2e]">
+            <tbody className="divide-y divide-border">
               {users.map((u) => (
                 <motion.tr
                   key={u.id}
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
-                  className="hover:bg-[#1a1a2e]/50 transition-colors"
+                  className="transition-colors hover:bg-foreground/[0.04]"
                 >
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center gap-3">
                       <div className="w-8 h-8 rounded-full bg-blue-500/10 flex items-center justify-center">
                         <User className="w-4 h-4 text-blue-500" />
                       </div>
-                      <span className="font-medium">{u.username}</span>
+                      <span className="font-medium text-foreground">{u.username}</span>
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
@@ -120,7 +121,7 @@ export const Users = () => {
                       {u.role.toUpperCase()}
                     </span>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-400">
+                  <td className="whitespace-nowrap px-6 py-4 text-sm text-secondary">
                     {u.lastLogin ? new Date(u.lastLogin).toLocaleString() : 'Never'}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right">
@@ -139,42 +140,42 @@ export const Users = () => {
         </div>
 
         {isAdding && (
-          <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
             <motion.div
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
-              className="bg-[#111118] border border-[#1a1a2e] rounded-xl w-full max-w-md p-6 shadow-2xl"
+              className="w-full max-w-md rounded-xl border border-border bg-surface p-6 shadow-2xl"
             >
-              <h2 className="text-xl font-bold mb-6">Create New User</h2>
+              <h2 className="mb-6 text-xl font-bold text-foreground">Create New User</h2>
               <form onSubmit={handleCreate} className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-400 mb-1">Username</label>
+                  <label className="mb-1 block text-sm font-medium text-secondary">Username</label>
                   <input
                     type="text"
                     required
                     value={newUser.username}
                     onChange={(e) => setNewUser({ ...newUser, username: e.target.value })}
-                    className="w-full bg-[#1a1a2e] border border-[#1a1a2e] rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 outline-none"
+                    className="input"
                     placeholder="e.g. jdoe"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-400 mb-1">Password</label>
+                  <label className="mb-1 block text-sm font-medium text-secondary">Password</label>
                   <input
                     type="password"
                     required
                     value={newUser.password}
                     onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
-                    className="w-full bg-[#1a1a2e] border border-[#1a1a2e] rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 outline-none"
+                    className="input"
                     placeholder="Minimum 8 characters"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-400 mb-1">Role</label>
+                  <label className="mb-1 block text-sm font-medium text-secondary">Role</label>
                   <select
                     value={newUser.role}
                     onChange={(e) => setNewUser({ ...newUser, role: e.target.value as any })}
-                    className="w-full bg-[#1a1a2e] border border-[#1a1a2e] rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 outline-none"
+                    className="input appearance-none bg-surface-lighter"
                   >
                     <option value="operator">Operator (Read/Write Inventory)</option>
                     <option value="admin">Admin (System Management)</option>
@@ -184,14 +185,11 @@ export const Users = () => {
                   <button
                     type="button"
                     onClick={() => setIsAdding(false)}
-                    className="flex-1 px-4 py-2 border border-[#1a1a2e] rounded-lg hover:bg-[#1a1a2e] transition-colors"
+                    className="btn-ghost flex-1 border border-border px-4 py-2"
                   >
                     Cancel
                   </button>
-                  <button
-                    type="submit"
-                    className="flex-1 px-4 py-2 bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
-                  >
+                  <button type="submit" className="btn-primary flex-1 px-4 py-2">
                     Create User
                   </button>
                 </div>

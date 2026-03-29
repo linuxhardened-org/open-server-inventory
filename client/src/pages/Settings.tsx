@@ -68,42 +68,42 @@ export const Settings = () => {
 
   return (
       <div className="mx-auto max-w-4xl">
-        <h1 className="mb-2 text-3xl font-bold tracking-tight text-white">System Settings</h1>
+        <h1 className="mb-2 text-3xl font-bold tracking-tight text-foreground">System Settings</h1>
         <p className="mb-8 text-secondary">System-wide configuration, data portability, and maintenance.</p>
 
         <div className="space-y-6">
-          <section className="bg-[#111118] border border-[#1a1a2e] rounded-xl p-6">
-            <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
-              <Download className="w-5 h-5 text-blue-500" />
+          <section className="card">
+            <h2 className="mb-4 flex items-center gap-2 text-xl font-semibold text-foreground">
+              <Download className="h-5 w-5 text-primary" />
               Data Export
             </h2>
-            <p className="text-sm text-gray-400 mb-6">
+            <p className="mb-6 text-sm text-secondary">
               Download your entire inventory database in portable formats for backup or migration.
             </p>
             <div className="flex gap-4">
               <button
                 onClick={() => handleExport('json')}
-                className="flex-1 bg-[#1a1a2e] hover:bg-[#252545] border border-[#1a1a2e] rounded-lg p-4 transition-colors text-center"
+                className="flex-1 rounded-lg border border-border bg-surface-lighter p-4 text-center transition-colors hover:bg-foreground/[0.04]"
               >
-                <div className="font-semibold mb-1">Export JSON</div>
-                <div className="text-xs text-gray-400">Recommended for backups</div>
+                <div className="mb-1 font-semibold text-foreground">Export JSON</div>
+                <div className="text-xs text-secondary">Recommended for backups</div>
               </button>
               <button
                 onClick={() => handleExport('csv')}
-                className="flex-1 bg-[#1a1a2e] hover:bg-[#252545] border border-[#1a1a2e] rounded-lg p-4 transition-colors text-center"
+                className="flex-1 rounded-lg border border-border bg-surface-lighter p-4 text-center transition-colors hover:bg-foreground/[0.04]"
               >
-                <div className="font-semibold mb-1">Export CSV</div>
-                <div className="text-xs text-gray-400">Best for spreadsheets</div>
+                <div className="mb-1 font-semibold text-foreground">Export CSV</div>
+                <div className="text-xs text-secondary">Best for spreadsheets</div>
               </button>
             </div>
           </section>
 
-          <section className="bg-[#111118] border border-[#1a1a2e] rounded-xl p-6">
-            <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
-              <Upload className="w-5 h-5 text-green-500" />
+          <section className="card">
+            <h2 className="mb-4 flex items-center gap-2 text-xl font-semibold text-foreground">
+              <Upload className="h-5 w-5 text-success" />
               Data Import
             </h2>
-            <p className="text-sm text-gray-400 mb-6">
+            <p className="mb-6 text-sm text-secondary">
               Import servers, groups, and tags from a previously exported JSON file.{' '}
               {!isAdmin && <span className="text-amber-500/90">Only administrators can import.</span>}
             </p>
@@ -115,10 +115,10 @@ export const Settings = () => {
                 disabled={!isAdmin}
                 className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10 disabled:cursor-not-allowed"
               />
-              <div className="border-2 border-dashed border-[#1a1a2e] group-hover:border-blue-500/50 rounded-lg p-8 transition-colors text-center">
-                <Upload className="w-8 h-8 text-gray-500 mx-auto mb-2" />
-                <div className="text-sm font-medium">Click to upload or drag & drop</div>
-                <div className="text-xs text-gray-400 mt-1">Only .json files supported</div>
+              <div className="rounded-lg border-2 border-dashed border-border p-8 text-center transition-colors group-hover:border-primary/50">
+                <Upload className="mx-auto mb-2 h-8 w-8 text-secondary" />
+                <div className="text-sm font-medium text-foreground">Click to upload or drag & drop</div>
+                <div className="mt-1 text-xs text-secondary">Only .json files supported</div>
               </div>
             </div>
           </section>
