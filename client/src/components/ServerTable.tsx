@@ -1,7 +1,8 @@
 import { Edit2, Server as ServerIcon } from 'lucide-react';
 import type { CustomColumn, Server, ServerTag } from '../types';
-import { formatBytes, formatIpDisplay } from '../lib/utils';
+import { formatBytes } from '../lib/utils';
 import { motion } from 'framer-motion';
+import { ServerAddressPopoverCell } from './ServerAddressPopoverCell';
 
 function tagLabel(tag: ServerTag | string): string {
   return typeof tag === 'string' ? tag : tag.name;
@@ -231,29 +232,9 @@ export const ServerTable = ({ servers, customColumns, onRowClick }: ServerTableP
                 </span>
               </td>
 
-              {/* IPs */}
+              {/* IPs — compact cell; hover for full detail + Linode VPC/NAT */}
               <td className="px-4">
-                <div
-                  className="font-mono"
-                  style={{ fontSize: 10, color: 'hsl(var(--fg-2))', lineHeight: 1.55 }}
-                >
-                  <div>
-                    <span style={{ color: 'hsl(var(--fg-3))' }}>Pub4 </span>
-                    {formatIpDisplay(server.ip_address)}
-                  </div>
-                  <div>
-                    <span style={{ color: 'hsl(var(--fg-3))' }}>Prv4 </span>
-                    {formatIpDisplay(server.private_ip)}
-                  </div>
-                  <div>
-                    <span style={{ color: 'hsl(var(--fg-3))' }}>Pub6 </span>
-                    {formatIpDisplay(server.ipv6_address)}
-                  </div>
-                  <div>
-                    <span style={{ color: 'hsl(var(--fg-3))' }}>Prv6 </span>
-                    {formatIpDisplay(server.private_ipv6)}
-                  </div>
-                </div>
+                <ServerAddressPopoverCell server={server} />
               </td>
 
               {/* OS */}

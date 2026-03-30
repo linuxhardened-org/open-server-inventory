@@ -177,4 +177,5 @@ CREATE TABLE IF NOT EXISTS cloud_providers (
 
 ALTER TABLE servers ADD COLUMN IF NOT EXISTS cloud_provider_id INTEGER REFERENCES cloud_providers(id) ON DELETE SET NULL;
 ALTER TABLE servers ADD COLUMN IF NOT EXISTS cloud_instance_id VARCHAR(255);
+ALTER TABLE servers ADD COLUMN IF NOT EXISTS linode_network_extras TEXT;
 `;

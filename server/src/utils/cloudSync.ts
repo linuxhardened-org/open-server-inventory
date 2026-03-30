@@ -95,15 +95,60 @@ function partitionPublicPrivateIpv4(ipv4: string[]): { publicIpv4: string | null
   return { publicIpv4: pub[0] ?? null, privateIpv4: priv[0] ?? null };
 }
 
+type LinodeNetworkExtras = {
+  vpc_ipv4: string[];
+  vpc_ipv6: string[];
+  /** Linode NAT 1:1 (public side) for VPC addresses */
+  nat_1_1_ipv4: string[];
+};
+
 export type LinodeResolvedIps = {
   publicIpv4: string | null;
   privateIpv4: string | null;
   publicIpv6: string | null;
   privateIpv6: string | null;
+  extras: LinodeNetworkExtras;
 };
+
+function extractNat11(n: unknown): string | null {
+  if (n == null || n === '') return null;
+  if (typeof n === 'string') {
+    const t = n.trim();
+    return t || null;
+  }
+  if (typeof n === 'object' && n !== null && 'address' in n) {
+    const a = (n as { address?: string }).address?.trim();
+    return a || null;
+  }
+  return null;
+}
+
+function uniqStrings(values: (string | null | undefined)[]): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const v of values) {
+    const t = v?.trim();
+    if (!t || seen.has(t)) continue;
+    seen.add(t);
+    out.push(t);
+  }
+  return out;
+}
+
+function emptyExtras(): LinodeNetworkExtras {
+  return { vpc_ipv4: [], vpc_ipv6: [], nat_1_1_ipv4: [] };
+}
+
+function serializeNetworkExtras(extras: LinodeNetworkExtras): string | null {
+  const has =
+    extras.vpc_ipv4.length > 0 || extras.vpc_ipv6.length > 0 || extras.nat_1_1_ipv4.length > 0;
+  if (!has) return null;
+  return JSON.stringify(extras);
+}
 
 /**
  * Prefer Linode /linode/instances/{id}/ips; fall back to instance list ipv4/ipv6 heuristics.
+ * VPC + NAT 1:1 from ipv4.vpc[]; omits link-local from private_ipv6 (not useful for inventory).
  */
 async function resolveLinodeIps(
   apiToken: string,
@@ -119,6 +164,7 @@ async function resolveLinodeIps(
       privateIpv4,
       publicIpv6: v6,
       privateIpv6: null,
+      extras: emptyExtras(),
     };
   };
 
@@ -132,11 +178,16 @@ async function resolveLinodeIps(
     if (!res.ok) return fallback();
 
     const data = (await res.json()) as {
-      ipv4?: { public?: Array<{ address?: string }>; private?: Array<{ address?: string }> };
+      ipv4?: {
+        public?: Array<{ address?: string }>;
+        private?: Array<{ address?: string }>;
+        vpc?: Array<{ address?: string; nat_1_1?: unknown }>;
+      };
       ipv6?: {
         slaac?: { address?: string; subnet?: string };
         global?: Array<{ range?: string; address?: string }>;
         link_local?: { address?: string } | string;
+        vpc?: Array<{ address?: string; range?: string }>;
       };
     };
 
@@ -149,10 +200,30 @@ async function resolveLinodeIps(
       data.ipv6?.global?.[0]?.range?.trim() ||
       null;
 
-    let privateIpv6: string | null = null;
-    const ll = data.ipv6?.link_local;
-    if (typeof ll === 'string') privateIpv6 = ll.trim() || null;
-    else if (ll && typeof ll === 'object' && ll.address) privateIpv6 = ll.address.trim() || null;
+    const extras = emptyExtras();
+    const vpc4List = data.ipv4?.vpc;
+    if (Array.isArray(vpc4List)) {
+      for (const v of vpc4List) {
+        const addr = v?.address?.trim();
+        if (addr) extras.vpc_ipv4.push(addr);
+        const nat = extractNat11(v?.nat_1_1);
+        if (nat) extras.nat_1_1_ipv4.push(nat);
+      }
+    }
+    extras.vpc_ipv4 = uniqStrings(extras.vpc_ipv4);
+    extras.nat_1_1_ipv4 = uniqStrings(extras.nat_1_1_ipv4);
+
+    const vpc6List = data.ipv6?.vpc;
+    if (Array.isArray(vpc6List)) {
+      for (const v of vpc6List) {
+        const a = v?.address?.trim() || v?.range?.trim();
+        if (a) extras.vpc_ipv6.push(a);
+      }
+    }
+    extras.vpc_ipv6 = uniqStrings(extras.vpc_ipv6);
+
+    /** No link-local in inventory private_ipv6 */
+    const privateIpv6: string | null = null;
 
     const fb = fallback();
     if (!publicIpv4 && !privateIpv4) {
@@ -160,9 +231,8 @@ async function resolveLinodeIps(
       privateIpv4 = fb.privateIpv4;
     }
     if (!publicIpv6) publicIpv6 = fb.publicIpv6;
-    if (!privateIpv6) privateIpv6 = fb.privateIpv6;
 
-    return { publicIpv4, privateIpv4, publicIpv6, privateIpv6 };
+    return { publicIpv4, privateIpv4, publicIpv6, privateIpv6, extras };
   } catch {
     return fallback();
   }
@@ -289,7 +359,8 @@ export async function syncLinodeProvider(
       const cloudInstanceId = String(instance.id);
       const name = instance.label;
       const hostname = instance.label;
-      const { publicIpv4, privateIpv4, publicIpv6, privateIpv6 } = ips;
+      const { publicIpv4, privateIpv4, publicIpv6, privateIpv6, extras } = ips;
+      const networkExtrasJson = serializeNetworkExtras(extras);
 
       const cpuCores = instance.specs.vcpus;
       const ramGb = Math.round(instance.specs.memory / 1024);
@@ -308,11 +379,12 @@ export async function syncLinodeProvider(
           `UPDATE servers SET
             name = $1, hostname = $2,
             ip_address = $3, private_ip = $4, ipv6_address = $5, private_ipv6 = $6,
-            os = $7,
-            cpu_cores = $8, ram_gb = $9, region = $10, status = $11, notes = $12,
-            group_id = COALESCE(group_id, $13),
+            linode_network_extras = $7,
+            os = $8,
+            cpu_cores = $9, ram_gb = $10, region = $11, status = $12, notes = $13,
+            group_id = COALESCE(group_id, $14),
             updated_at = CURRENT_TIMESTAMP
-          WHERE id = $14`,
+          WHERE id = $15`,
           [
             name,
             hostname,
@@ -320,6 +392,7 @@ export async function syncLinodeProvider(
             privateIpv4,
             publicIpv6,
             privateIpv6,
+            networkExtrasJson,
             os,
             cpuCores,
             ramGb,
@@ -333,9 +406,9 @@ export async function syncLinodeProvider(
       } else {
         await client.query(
           `INSERT INTO servers (
-            name, hostname, ip_address, private_ip, ipv6_address, private_ipv6, os, cpu_cores, ram_gb, region, status, notes,
+            name, hostname, ip_address, private_ip, ipv6_address, private_ipv6, linode_network_extras, os, cpu_cores, ram_gb, region, status, notes,
             cloud_provider_id, cloud_instance_id, group_id
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)`,
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)`,
           [
             name,
             hostname,
@@ -343,6 +416,7 @@ export async function syncLinodeProvider(
             privateIpv4,
             publicIpv6,
             privateIpv6,
+            networkExtrasJson,
             os,
             cpuCores,
             ramGb,

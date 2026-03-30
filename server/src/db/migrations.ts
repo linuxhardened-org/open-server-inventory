@@ -14,12 +14,20 @@ export async function runMigrations(pool: Pool): Promise<void> {
   await migrateApiTokenExpiry(pool);
   await migrateServerIpFields(pool);
   await migrateServerPrivateIpv6(pool);
+  await migrateServerLinodeNetworkExtras(pool);
 }
 
 async function migrateServerPrivateIpv6(pool: Pool): Promise<void> {
   await pool.query(`
     ALTER TABLE servers
     ADD COLUMN IF NOT EXISTS private_ipv6 VARCHAR(100)
+  `);
+}
+
+async function migrateServerLinodeNetworkExtras(pool: Pool): Promise<void> {
+  await pool.query(`
+    ALTER TABLE servers
+    ADD COLUMN IF NOT EXISTS linode_network_extras TEXT
   `);
 }
 
