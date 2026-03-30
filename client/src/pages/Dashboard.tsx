@@ -125,20 +125,7 @@ export const Dashboard = () => {
         <StatCard icon={KeyRound} label="SSH keys" value={stats?.sshKeys ?? '—'} />
       </div>
 
-      {stats && stats.servers > 0 && (stats.capacity.avgCpuCores > 0 || stats.capacity.totalRamGb > 0) ? (
-        <div className="rounded-lg border border-border bg-muted/[0.5] px-4 py-2.5 text-sm text-secondary">
-          <span className="font-medium text-foreground">Inventory capacity: </span>
-          {stats.capacity.avgCpuCores > 0 ? (
-            <span>Avg {stats.capacity.avgCpuCores.toFixed(1)} CPU cores per server</span>
-          ) : null}
-          {stats.capacity.avgCpuCores > 0 && stats.capacity.totalRamGb > 0 ? <span> · </span> : null}
-          {stats.capacity.totalRamGb > 0 ? (
-            <span>{stats.capacity.totalRamGb} GB RAM total across servers</span>
-          ) : null}
-        </div>
-      ) : null}
-
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+<div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <div className="sv-card">
           <p className="card-section-title">Servers by group</p>
           <div className="h-[300px]">
