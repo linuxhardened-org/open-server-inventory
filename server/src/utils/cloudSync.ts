@@ -100,6 +100,8 @@ type LinodeNetworkExtras = {
   vpc_ipv6: string[];
   /** Linode NAT 1:1 (public side) for VPC addresses */
   nat_1_1_ipv4: string[];
+  /** Human-readable subnet lines from Linode VPC objects (gateway, mask, ids, ranges). */
+  vpc_subnet_lines: string[];
 };
 
 export type LinodeResolvedIps = {
@@ -131,6 +133,28 @@ function vpcPrivateIpv4(v: { address?: string | null; address_range?: string | n
   return r || null;
 }
 
+/** Linode VPC IP object — subnet mask, gateway, ids, range (from GET …/instances/{id}/ips). */
+function summarizeLinodeVpcSubnet(v: Record<string, unknown>): string | null {
+  const parts: string[] = [];
+  if (typeof v.vpc_id === 'number') parts.push(`VPC ${v.vpc_id}`);
+  if (typeof v.subnet_id === 'number') parts.push(`subnet ${v.subnet_id}`);
+  const ar = typeof v.address_range === 'string' ? v.address_range.trim() : '';
+  const range = typeof v.range === 'string' ? v.range.trim() : '';
+  const ipv6Range = typeof v.ipv6_range === 'string' ? v.ipv6_range.trim() : '';
+  if (ar) parts.push(ar);
+  else if (range) parts.push(range);
+  else if (ipv6Range) parts.push(ipv6Range);
+  const mask = typeof v.subnet_mask === 'string' ? v.subnet_mask.trim() : '';
+  if (mask && !parts.some((p) => p.includes(mask))) parts.push(mask);
+  if (typeof v.prefix === 'number' && v.prefix > 0 && !ar && !range && !ipv6Range) {
+    parts.push(`/${v.prefix}`);
+  }
+  const gw = typeof v.gateway === 'string' ? v.gateway.trim() : '';
+  if (gw) parts.push(`gw ${gw}`);
+  if (parts.length === 0) return null;
+  return parts.join(' · ');
+}
+
 /** Public / shared / reserved instance IPs expose NAT as `vpc_nat_1_1.address` (not only `ipv4.vpc[].nat_1_1`). */
 function collectVpcNat1To1FromInstanceIps(
   list: Array<{ vpc_nat_1_1?: { address?: string } | null }> | undefined,
@@ -156,12 +180,15 @@ function uniqStrings(values: (string | null | undefined)[]): string[] {
 }
 
 function emptyExtras(): LinodeNetworkExtras {
-  return { vpc_ipv4: [], vpc_ipv6: [], nat_1_1_ipv4: [] };
+  return { vpc_ipv4: [], vpc_ipv6: [], nat_1_1_ipv4: [], vpc_subnet_lines: [] };
 }
 
 function serializeNetworkExtras(extras: LinodeNetworkExtras): string | null {
   const has =
-    extras.vpc_ipv4.length > 0 || extras.vpc_ipv6.length > 0 || extras.nat_1_1_ipv4.length > 0;
+    extras.vpc_ipv4.length > 0 ||
+    extras.vpc_ipv6.length > 0 ||
+    extras.nat_1_1_ipv4.length > 0 ||
+    extras.vpc_subnet_lines.length > 0;
   if (!has) return null;
   return JSON.stringify(extras);
 }
@@ -203,7 +230,7 @@ async function resolveLinodeIps(
         private?: Array<{ address?: string }>;
         shared?: Array<{ address?: string; vpc_nat_1_1?: { address?: string } | null }>;
         reserved?: Array<{ address?: string; vpc_nat_1_1?: { address?: string } | null }>;
-        vpc?: Array<{
+        vpc?: Array<Record<string, unknown> & {
           address?: string | null;
           address_range?: string | null;
           nat_1_1?: unknown;
@@ -213,11 +240,13 @@ async function resolveLinodeIps(
         slaac?: { address?: string; subnet?: string };
         global?: Array<{ range?: string; address?: string }>;
         link_local?: { address?: string } | string;
-        vpc?: Array<{
-          address?: string;
-          range?: string;
-          ipv6_addresses?: Array<{ slaac_address?: string }>;
-        }>;
+        vpc?: Array<
+          Record<string, unknown> & {
+            address?: string;
+            range?: string;
+            ipv6_addresses?: Array<{ slaac_address?: string }>;
+          }
+        >;
       };
     };
 
@@ -238,6 +267,8 @@ async function resolveLinodeIps(
         if (priv) extras.vpc_ipv4.push(priv);
         const nat = extractNat11(v?.nat_1_1);
         if (nat) extras.nat_1_1_ipv4.push(nat);
+        const sub = summarizeLinodeVpcSubnet(v as Record<string, unknown>);
+        if (sub) extras.vpc_subnet_lines.push(sub);
       }
     }
     collectVpcNat1To1FromInstanceIps(data.ipv4?.public, extras.nat_1_1_ipv4);
@@ -258,9 +289,12 @@ async function resolveLinodeIps(
             if (s) extras.vpc_ipv6.push(s);
           }
         }
+        const sub = summarizeLinodeVpcSubnet(v as Record<string, unknown>);
+        if (sub) extras.vpc_subnet_lines.push(sub);
       }
     }
     extras.vpc_ipv6 = uniqStrings(extras.vpc_ipv6);
+    extras.vpc_subnet_lines = uniqStrings(extras.vpc_subnet_lines);
 
     /** No link-local in inventory private_ipv6 */
     const privateIpv6: string | null = null;
