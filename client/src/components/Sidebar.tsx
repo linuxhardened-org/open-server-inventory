@@ -7,6 +7,7 @@ import {
   UserCircle,
   Settings,
   LogOut,
+  Key,
 } from 'lucide-react';
 import { useAuthStore } from '../store/useAuthStore';
 import { useSettingsStore } from '../store/useSettingsStore';
@@ -18,9 +19,10 @@ const mainNav = [
 ];
 
 const accountNav = [
-  { icon: Users,      label: 'Users',    path: '/users',    end: false },
-  { icon: UserCircle, label: 'Profile',  path: '/profile',  end: false },
-  { icon: Settings,   label: 'Settings', path: '/settings', end: false },
+  { icon: Users,      label: 'Users',       path: '/users',        end: false },
+  { icon: Key,        label: 'API Settings', path: '/api-settings', end: false },
+  { icon: UserCircle, label: 'Profile',     path: '/profile',      end: false },
+  { icon: Settings,   label: 'Settings',    path: '/settings',     end: false },
 ];
 
 function NavItem({ icon: Icon, label, path, end }: { icon: typeof Server; label: string; path: string; end: boolean }) {

@@ -8,6 +8,7 @@ import { Tags } from './pages/Tags';
 import { Profile } from './pages/Profile';
 import { Users } from './pages/Users';
 import { Settings } from './pages/Settings';
+import { ApiSettings } from './pages/ApiSettings';
 import { Setup } from './pages/Setup';
 import { ChangePassword } from './pages/ChangePassword';
 import { Layout } from './components/Layout';
@@ -84,6 +85,7 @@ function App() {
           <Route path="tags" element={<Tags />} />
           <Route path="profile" element={<Profile />} />
           <Route path="users" element={<Users />} />
+          <Route path="api-settings" element={<ApiSettings />} />
           <Route path="settings" element={<Settings />} />
         </Route>
 
