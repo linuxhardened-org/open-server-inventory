@@ -9,7 +9,6 @@ import {
   UserCircle,
   Settings,
   LogOut,
-  Database,
 } from 'lucide-react';
 import { useAuthStore } from '../store/useAuthStore';
 import { useSettingsStore } from '../store/useSettingsStore';
@@ -51,21 +50,31 @@ export const Sidebar = ({ isOpen }: { isOpen?: boolean; onClose?: () => void }) 
   return (
     <nav className={`app-sidebar${isOpen ? ' sidebar-open' : ''}`}>
       <Link to="/dashboard" className="app-sidebar-brand">
-        <span
+        {/* Terminal >_ SVG icon */}
+        <svg
+          width="28"
+          height="28"
+          viewBox="0 0 28 28"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
           style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            width: 26,
-            height: 26,
-            borderRadius: 6,
-            background: 'hsl(var(--primary))',
-            color: '#fff',
             flexShrink: 0,
+            filter: 'drop-shadow(0 0 6px hsl(var(--primary) / 0.6))',
           }}
+          aria-hidden
         >
-          <Database size={14} strokeWidth={2} />
-        </span>
+          <rect width="28" height="28" rx="7" fill="hsl(var(--primary) / 0.12)" />
+          <text
+            x="5"
+            y="19"
+            fontFamily="'Geist Mono', ui-monospace, monospace"
+            fontSize="12"
+            fontWeight="600"
+            fill="hsl(var(--primary))"
+          >
+            {'> _'}
+          </text>
+        </svg>
         {appName}
       </Link>
 

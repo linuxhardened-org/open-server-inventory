@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { ShieldCheck, ArrowRight, Building2, Database, Server, CheckCircle2, XCircle, Loader2 } from 'lucide-react';
+import { ArrowRight, Building2, Database, Server, CheckCircle2, XCircle, Loader2 } from 'lucide-react';
 import { useAuthStore } from '../store/useAuthStore';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useState, useEffect } from 'react';
@@ -100,224 +100,447 @@ export const Setup = () => {
 
   if (restarting) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-background">
-        <div className="text-center space-y-4 max-w-sm px-4">
-          <Loader2 className="mx-auto h-10 w-10 animate-spin text-primary" />
-          <h2 className="text-lg font-semibold text-foreground">Connecting to your database…</h2>
-          <p className="text-sm text-secondary">The server is restarting with your new database configuration. This takes a few seconds.</p>
+      <div
+        className="flex min-h-screen items-center justify-center"
+        style={{ background: 'hsl(var(--bg))' }}
+      >
+        <div className="text-center" style={{ maxWidth: 360, padding: '0 24px' }}>
+          <Loader2
+            style={{ width: 40, height: 40, color: 'hsl(var(--primary))', margin: '0 auto 16px' }}
+            className="animate-spin"
+          />
+          <h2 style={{ fontSize: 17, fontWeight: 600, color: 'hsl(var(--fg))', marginBottom: 8 }}>
+            Connecting to your database…
+          </h2>
+          <p style={{ fontSize: 13, color: 'hsl(var(--fg-2))' }}>
+            The server is restarting with your new database configuration. This takes a few seconds.
+          </p>
         </div>
       </div>
     );
   }
 
+  const dbOptionStyle = (selected: boolean): React.CSSProperties => ({
+    width: '100%',
+    borderRadius: 12,
+    border: selected ? '2px solid hsl(var(--primary))' : '2px solid hsl(var(--border))',
+    background: selected ? 'hsl(var(--primary) / 0.06)' : 'transparent',
+    padding: 16,
+    textAlign: 'left',
+    cursor: 'pointer',
+    transition: 'border-color 120ms, background 120ms',
+  });
+
   return (
-    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-background p-4">
-      <div className="absolute left-[-15%] top-[-15%] h-[45%] w-[45%] rounded-full bg-primary/15 blur-[100px]" />
-      <div className="absolute bottom-[-15%] right-[-15%] h-[40%] w-[40%] rounded-full bg-primary/10 blur-[120px]" />
+    <div
+      className="relative flex min-h-screen items-center justify-center overflow-hidden p-4"
+      style={{ background: 'hsl(var(--bg))' }}
+    >
+      {/* Background blobs */}
+      <div
+        style={{
+          position: 'absolute',
+          top: '-10%',
+          right: '-10%',
+          width: '45%',
+          height: '45%',
+          borderRadius: '50%',
+          background: 'hsl(var(--primary) / 0.08)',
+          filter: 'blur(80px)',
+          pointerEvents: 'none',
+        }}
+      />
+      <div
+        style={{
+          position: 'absolute',
+          bottom: '-10%',
+          left: '-10%',
+          width: '40%',
+          height: '40%',
+          borderRadius: '50%',
+          background: 'hsl(var(--info) / 0.06)',
+          filter: 'blur(100px)',
+          pointerEvents: 'none',
+        }}
+      />
+      {/* Dot grid overlay */}
+      <div
+        style={{
+          position: 'absolute',
+          inset: 0,
+          backgroundImage: 'radial-gradient(hsl(var(--border-2)) 1px, transparent 1px)',
+          backgroundSize: '24px 24px',
+          opacity: 0.5,
+          pointerEvents: 'none',
+        }}
+      />
 
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="relative z-[1] w-full max-w-md"
+        className="relative z-[1] w-full"
+        style={{ maxWidth: 420 }}
       >
-        <div className="mb-8 text-center">
-          <div className="mb-6 inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-[hsl(251_83%_45%)] shadow-xl shadow-primary/35">
-            <ShieldCheck className="h-10 w-10 text-primary-foreground" />
+        {/* Header */}
+        <div className="text-center mb-6">
+          {/* Terminal icon */}
+          <div className="flex justify-center mb-4">
+            <svg
+              width="40"
+              height="40"
+              viewBox="0 0 40 40"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+              style={{ filter: 'drop-shadow(0 0 12px hsl(var(--primary) / 0.5))' }}
+              aria-hidden
+            >
+              <rect width="40" height="40" rx="10" fill="hsl(var(--primary) / 0.12)" />
+              <text
+                x="6"
+                y="27"
+                fontFamily="'Geist Mono', ui-monospace, monospace"
+                fontSize="17"
+                fontWeight="600"
+                fill="hsl(var(--primary))"
+              >
+                {'> _'}
+              </text>
+            </svg>
           </div>
-          <h1 className="mb-2 text-3xl font-semibold tracking-tight text-foreground">
+
+          <h1 style={{ fontSize: 20, fontWeight: 600, letterSpacing: '-0.02em', color: 'hsl(var(--fg))', marginBottom: 4 }}>
             {step === 'db' ? 'Choose database' : 'Almost done'}
           </h1>
-          <p className="text-[15px] text-secondary">
+          <p style={{ fontSize: 13, color: 'hsl(var(--fg-2))' }}>
             {step === 'db' ? 'Step 1 of 2 — where should data be stored?' : 'Step 2 of 2 — name your organization'}
           </p>
 
           {/* Step indicator */}
-          <div className="mt-4 flex items-center justify-center gap-2">
-            <div className={`h-1.5 w-8 rounded-full transition-colors ${step === 'db' ? 'bg-primary' : 'bg-primary/40'}`} />
-            <div className={`h-1.5 w-8 rounded-full transition-colors ${step === 'account' ? 'bg-primary' : 'bg-border'}`} />
+          <div className="flex items-center justify-center gap-2 mt-4">
+            <div
+              style={{
+                height: 4,
+                width: 32,
+                borderRadius: 9999,
+                background: step === 'db' ? 'hsl(var(--primary))' : 'hsl(var(--primary) / 0.4)',
+                transition: 'background 200ms',
+              }}
+            />
+            <div
+              style={{
+                height: 4,
+                width: 32,
+                borderRadius: 9999,
+                background: step === 'account' ? 'hsl(var(--primary))' : 'hsl(var(--border))',
+                transition: 'background 200ms',
+              }}
+            />
           </div>
         </div>
 
-        <AnimatePresence mode="wait">
-          {step === 'db' ? (
-            <motion.div
-              key="db"
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              className="sv-card space-y-4 border-t-4 border-t-primary pt-6"
-            >
-              {/* Local option */}
-              <button
-                type="button"
-                onClick={() => setDbProvider('local')}
-                className={`w-full rounded-xl border-2 p-4 text-left transition-all ${
-                  dbProvider === 'local'
-                    ? 'border-primary bg-primary/[0.06]'
-                    : 'border-border hover:border-border-strong'
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  <Server className={`h-5 w-5 shrink-0 ${dbProvider === 'local' ? 'text-primary' : 'text-secondary'}`} />
-                  <div>
-                    <p className="text-sm font-semibold text-foreground">Local PostgreSQL</p>
-                    <p className="text-xs text-secondary">Docker-managed database on this machine</p>
-                  </div>
-                  {dbProvider === 'local' && <CheckCircle2 className="ml-auto h-4 w-4 text-primary" />}
-                </div>
-              </button>
+        {/* Card */}
+        <div
+          style={{
+            background: 'hsl(var(--surface))',
+            border: '1px solid hsl(var(--border))',
+            borderRadius: 16,
+            overflow: 'hidden',
+          }}
+        >
+          {/* Top accent bar */}
+          <div
+            style={{
+              height: 3,
+              background: 'linear-gradient(to right, hsl(var(--primary)), hsl(var(--primary) / 0.5), transparent)',
+            }}
+          />
 
-              {/* Supabase option */}
-              <button
-                type="button"
-                onClick={() => setDbProvider('supabase')}
-                className={`w-full rounded-xl border-2 p-4 text-left transition-all ${
-                  dbProvider === 'supabase'
-                    ? 'border-primary bg-primary/[0.06]'
-                    : 'border-border hover:border-border-strong'
-                }`}
+          <AnimatePresence mode="wait">
+            {step === 'db' ? (
+              <motion.div
+                key="db"
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 12 }}
               >
-                <div className="flex items-center gap-3">
-                  <Database className={`h-5 w-5 shrink-0 ${dbProvider === 'supabase' ? 'text-primary' : 'text-secondary'}`} />
-                  <div>
-                    <p className="text-sm font-semibold text-foreground">Supabase</p>
-                    <p className="text-xs text-secondary">Managed cloud PostgreSQL by Supabase</p>
-                  </div>
-                  {dbProvider === 'supabase' && <CheckCircle2 className="ml-auto h-4 w-4 text-primary" />}
-                </div>
-              </button>
-
-              {/* Custom PostgreSQL option */}
-              <button
-                type="button"
-                onClick={() => setDbProvider('custom')}
-                className={`w-full rounded-xl border-2 p-4 text-left transition-all ${
-                  dbProvider === 'custom'
-                    ? 'border-primary bg-primary/[0.06]'
-                    : 'border-border hover:border-border-strong'
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  <Database className={`h-5 w-5 shrink-0 ${dbProvider === 'custom' ? 'text-primary' : 'text-secondary'}`} />
-                  <div>
-                    <p className="text-sm font-semibold text-foreground">External PostgreSQL</p>
-                    <p className="text-xs text-secondary">Any remote PostgreSQL via connection string</p>
-                  </div>
-                  {dbProvider === 'custom' && <CheckCircle2 className="ml-auto h-4 w-4 text-primary" />}
-                </div>
-              </button>
-
-              {/* Connection string input for non-local */}
-              <AnimatePresence>
-                {dbProvider !== 'local' && (
-                  <motion.div
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: 'auto' }}
-                    exit={{ opacity: 0, height: 0 }}
-                    className="overflow-hidden"
-                  >
-                    <div className="pt-2 space-y-3">
-                      <label className="block text-sm font-medium text-secondary">
-                        {dbProvider === 'supabase' ? 'Supabase connection string' : 'PostgreSQL connection string'}
-                      </label>
-                      {dbProvider === 'supabase' && (
-                        <p className="text-xs text-secondary rounded-lg bg-muted/60 px-3 py-2">
-                          Get this from: <span className="font-medium text-foreground">Supabase Dashboard → Project Settings → Database → Session mode (port 5432)</span>
-                        </p>
-                      )}
-                      <input
-                        type="text"
-                        value={databaseUrl}
-                        onChange={(e) => setDatabaseUrl(e.target.value)}
-                        className="sv-input font-mono text-xs"
-                        placeholder="postgresql://user:password@host:5432/database"
-                        autoComplete="off"
-                        spellCheck={false}
-                      />
-                      <div className="flex items-center gap-3">
-                        <button
-                          type="button"
-                          onClick={handleTestDb}
-                          disabled={!databaseUrl.trim() || testing}
-                          className="sv-btn-outline h-9 px-4 text-sm"
-                        >
-                          {testing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
-                          {testing ? 'Testing…' : 'Test connection'}
-                        </button>
-                        {dbTest && (
-                          <span className={`flex items-center gap-1.5 text-sm font-medium ${dbTest.connected ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                            {dbTest.connected
-                              ? <><CheckCircle2 className="h-4 w-4" /> Connected{dbTest.version ? ` · ${dbTest.version}` : ''}</>
-                              : <><XCircle className="h-4 w-4" /> {dbTest.error ?? 'Failed'}</>
-                            }
-                          </span>
-                        )}
-                      </div>
+                {/* Local option */}
+                <button
+                  type="button"
+                  onClick={() => setDbProvider('local')}
+                  style={dbOptionStyle(dbProvider === 'local')}
+                >
+                  <div className="flex items-center gap-3">
+                    <Server
+                      style={{ width: 18, height: 18, flexShrink: 0, color: dbProvider === 'local' ? 'hsl(var(--primary))' : 'hsl(var(--fg-2))' }}
+                    />
+                    <div>
+                      <p style={{ fontSize: 13, fontWeight: 600, color: 'hsl(var(--fg))', marginBottom: 2 }}>Local PostgreSQL</p>
+                      <p style={{ fontSize: 12, color: 'hsl(var(--fg-2))' }}>Docker-managed database on this machine</p>
                     </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
+                    {dbProvider === 'local' && (
+                      <CheckCircle2 style={{ marginLeft: 'auto', width: 15, height: 15, color: 'hsl(var(--primary))', flexShrink: 0 }} />
+                    )}
+                  </div>
+                </button>
 
-              <div className="pt-2">
+                {/* Supabase option */}
+                <button
+                  type="button"
+                  onClick={() => setDbProvider('supabase')}
+                  style={dbOptionStyle(dbProvider === 'supabase')}
+                >
+                  <div className="flex items-center gap-3">
+                    <Database
+                      style={{ width: 18, height: 18, flexShrink: 0, color: dbProvider === 'supabase' ? 'hsl(var(--primary))' : 'hsl(var(--fg-2))' }}
+                    />
+                    <div>
+                      <p style={{ fontSize: 13, fontWeight: 600, color: 'hsl(var(--fg))', marginBottom: 2 }}>Supabase</p>
+                      <p style={{ fontSize: 12, color: 'hsl(var(--fg-2))' }}>Managed cloud PostgreSQL by Supabase</p>
+                    </div>
+                    {dbProvider === 'supabase' && (
+                      <CheckCircle2 style={{ marginLeft: 'auto', width: 15, height: 15, color: 'hsl(var(--primary))', flexShrink: 0 }} />
+                    )}
+                  </div>
+                </button>
+
+                {/* Custom PostgreSQL option */}
+                <button
+                  type="button"
+                  onClick={() => setDbProvider('custom')}
+                  style={dbOptionStyle(dbProvider === 'custom')}
+                >
+                  <div className="flex items-center gap-3">
+                    <Database
+                      style={{ width: 18, height: 18, flexShrink: 0, color: dbProvider === 'custom' ? 'hsl(var(--primary))' : 'hsl(var(--fg-2))' }}
+                    />
+                    <div>
+                      <p style={{ fontSize: 13, fontWeight: 600, color: 'hsl(var(--fg))', marginBottom: 2 }}>External PostgreSQL</p>
+                      <p style={{ fontSize: 12, color: 'hsl(var(--fg-2))' }}>Any remote PostgreSQL via connection string</p>
+                    </div>
+                    {dbProvider === 'custom' && (
+                      <CheckCircle2 style={{ marginLeft: 'auto', width: 15, height: 15, color: 'hsl(var(--primary))', flexShrink: 0 }} />
+                    )}
+                  </div>
+                </button>
+
+                {/* Connection string input for non-local */}
+                <AnimatePresence>
+                  {dbProvider !== 'local' && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      exit={{ opacity: 0, height: 0 }}
+                      style={{ overflow: 'hidden' }}
+                    >
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 10, paddingTop: 4 }}>
+                        <label
+                          style={{
+                            fontSize: 11,
+                            fontWeight: 500,
+                            textTransform: 'uppercase' as const,
+                            letterSpacing: '0.06em',
+                            color: 'hsl(var(--fg-2))',
+                          }}
+                        >
+                          {dbProvider === 'supabase' ? 'Supabase connection string' : 'PostgreSQL connection string'}
+                        </label>
+                        {dbProvider === 'supabase' && (
+                          <p
+                            style={{
+                              fontSize: 12,
+                              color: 'hsl(var(--fg-2))',
+                              background: 'hsl(var(--surface-2))',
+                              border: '1px solid hsl(var(--border))',
+                              borderRadius: 6,
+                              padding: '8px 12px',
+                            }}
+                          >
+                            Get this from:{' '}
+                            <span style={{ fontWeight: 600, color: 'hsl(var(--fg))' }}>
+                              Supabase Dashboard → Project Settings → Database → Session mode (port 5432)
+                            </span>
+                          </p>
+                        )}
+                        <input
+                          type="text"
+                          value={databaseUrl}
+                          onChange={(e) => setDatabaseUrl(e.target.value)}
+                          className="sv-input font-mono"
+                          style={{ fontSize: 12 }}
+                          placeholder="postgresql://user:password@host:5432/database"
+                          autoComplete="off"
+                          spellCheck={false}
+                        />
+                        <div className="flex items-center gap-3">
+                          <button
+                            type="button"
+                            onClick={handleTestDb}
+                            disabled={!databaseUrl.trim() || testing}
+                            className="sv-btn-outline"
+                          >
+                            {testing ? <Loader2 style={{ width: 13, height: 13 }} className="animate-spin" /> : null}
+                            {testing ? 'Testing…' : 'Test connection'}
+                          </button>
+                          {dbTest && (
+                            <span
+                              className="flex items-center gap-1.5"
+                              style={{
+                                fontSize: 13,
+                                fontWeight: 500,
+                                color: dbTest.connected ? '#3ecf8e' : '#ef4444',
+                              }}
+                            >
+                              {dbTest.connected ? (
+                                <>
+                                  <CheckCircle2 style={{ width: 14, height: 14 }} />
+                                  Connected{dbTest.version ? ` · ${dbTest.version}` : ''}
+                                </>
+                              ) : (
+                                <>
+                                  <XCircle style={{ width: 14, height: 14 }} />
+                                  {dbTest.error ?? 'Failed'}
+                                </>
+                              )}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
                 <button
                   type="button"
                   disabled={!canProceedDb}
                   onClick={() => setStep('account')}
-                  className="sv-btn-primary w-full py-3 gap-2"
+                  className="sv-btn-primary"
+                  style={{ width: '100%', height: 38, marginTop: 4, fontSize: 14 }}
                 >
-                  Continue <ArrowRight className="w-4 h-4" />
+                  Continue <ArrowRight style={{ width: 15, height: 15 }} />
                 </button>
-              </div>
-            </motion.div>
-          ) : (
-            <motion.div
-              key="account"
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: 20 }}
-            >
-              <form onSubmit={handleComplete} className="sv-card space-y-5 border-t-4 border-t-primary pt-8">
-                <div>
-                  <label className="block text-sm font-medium text-secondary mb-2">Organization / App Name <span className="text-xs font-normal text-secondary/70">(optional)</span></label>
-                  <div className="relative">
-                    <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-secondary" />
-                    <input
-                      type="text"
-                      value={appName}
-                      onChange={(e) => setAppName(e.target.value)}
-                      className="sv-input pl-10"
-                      placeholder="ServerVault"
-                      maxLength={80}
-                    />
+              </motion.div>
+            ) : (
+              <motion.div
+                key="account"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 20 }}
+              >
+                <form
+                  onSubmit={handleComplete}
+                  style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 16 }}
+                >
+                  <div>
+                    <label
+                      style={{
+                        display: 'block',
+                        fontSize: 11,
+                        fontWeight: 500,
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.06em',
+                        color: 'hsl(var(--fg-2))',
+                        marginBottom: 6,
+                      }}
+                    >
+                      Organization / App Name{' '}
+                      <span
+                        style={{
+                          fontSize: 10,
+                          fontWeight: 400,
+                          textTransform: 'none',
+                          letterSpacing: 0,
+                          color: 'hsl(var(--fg-3))',
+                        }}
+                      >
+                        (optional)
+                      </span>
+                    </label>
+                    <div className="relative">
+                      <Building2
+                        style={{
+                          position: 'absolute',
+                          left: 10,
+                          top: '50%',
+                          transform: 'translateY(-50%)',
+                          width: 14,
+                          height: 14,
+                          color: 'hsl(var(--fg-3))',
+                          pointerEvents: 'none',
+                        }}
+                        aria-hidden
+                      />
+                      <input
+                        type="text"
+                        value={appName}
+                        onChange={(e) => setAppName(e.target.value)}
+                        className="sv-input"
+                        style={{ paddingLeft: 32 }}
+                        placeholder="ServerVault"
+                        maxLength={80}
+                      />
+                    </div>
                   </div>
-                </div>
 
-                <div className="rounded-lg bg-muted/60 px-4 py-3 text-sm text-secondary space-y-1">
-                  <p className="font-medium text-foreground">Default admin credentials</p>
-                  <p>Username: <span className="font-mono font-semibold text-foreground">Admin</span></p>
-                  <p>Password: <span className="font-mono font-semibold text-foreground">Admin@123</span></p>
-                  <p className="text-xs mt-1">You will be required to change your password on first login.</p>
-                </div>
-
-                <div className="flex gap-3 pt-2">
-                  <button
-                    type="button"
-                    onClick={() => setStep('db')}
-                    className="sv-btn-ghost border border-border px-4"
-                    disabled={submitting}
+                  {/* Credentials info box */}
+                  <div
+                    style={{
+                      background: 'hsl(var(--surface-2))',
+                      border: '1px solid hsl(var(--border))',
+                      borderRadius: 8,
+                      padding: '12px 14px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 4,
+                    }}
                   >
-                    Back
-                  </button>
-                  <button type="submit" disabled={submitting} className="sv-btn-primary flex-1 py-3 gap-2">
-                    {submitting ? 'Setting up…' : 'Finish Setup'} {!submitting && <ArrowRight className="w-4 h-4" />}
-                  </button>
-                </div>
-              </form>
-            </motion.div>
-          )}
-        </AnimatePresence>
+                    <p style={{ fontSize: 13, fontWeight: 600, color: 'hsl(var(--fg))', marginBottom: 2 }}>
+                      Default admin credentials
+                    </p>
+                    <p style={{ fontSize: 12, color: 'hsl(var(--fg-2))' }}>
+                      Username:{' '}
+                      <span className="font-mono" style={{ fontWeight: 600, color: 'hsl(var(--fg))' }}>
+                        Admin
+                      </span>
+                    </p>
+                    <p style={{ fontSize: 12, color: 'hsl(var(--fg-2))' }}>
+                      Password:{' '}
+                      <span className="font-mono" style={{ fontWeight: 600, color: 'hsl(var(--fg))' }}>
+                        Admin@123
+                      </span>
+                    </p>
+                    <p style={{ fontSize: 11, color: 'hsl(var(--fg-3))', marginTop: 4 }}>
+                      You will be required to change your password on first login.
+                    </p>
+                  </div>
 
-        <p className="text-center text-xs text-secondary mt-8">
+                  <div className="flex gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setStep('db')}
+                      className="sv-btn-ghost"
+                      style={{ border: '1px solid hsl(var(--border-2))', padding: '0 16px' }}
+                      disabled={submitting}
+                    >
+                      Back
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={submitting}
+                      className="sv-btn-primary"
+                      style={{ flex: 1, height: 38, fontSize: 14 }}
+                    >
+                      {submitting ? 'Setting up…' : 'Finish Setup'}
+                      {!submitting && <ArrowRight style={{ width: 15, height: 15 }} />}
+                    </button>
+                  </div>
+                </form>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+
+        <p className="text-center mt-6" style={{ fontSize: 12, color: 'hsl(var(--fg-3))' }}>
           By proceeding, you agree to the default security policies.
         </p>
       </motion.div>

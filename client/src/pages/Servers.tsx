@@ -80,50 +80,133 @@ export const Servers = () => {
     }
   };
 
+  const onlineCount = servers.filter((s) => s.status === 'online' || s.status === 'active').length;
+  const offlineCount = servers.filter(
+    (s) => s.status !== 'online' && s.status !== 'active' && s.status !== 'maintenance'
+  ).length;
+  const maintenanceCount = servers.filter((s) => s.status === 'maintenance').length;
+
   return (
-    <div className="page animate-in">
+    <div className="page animate-in" style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+      {/* Page header */}
       <header className="page-header">
         <div className="page-header-text">
-          <h1>Servers</h1>
+          <div className="flex items-center gap-2">
+            <h1>Servers</h1>
+            {!loading && (
+              <span
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  minWidth: 24,
+                  height: 20,
+                  borderRadius: 9999,
+                  padding: '0 8px',
+                  fontSize: 11,
+                  fontWeight: 600,
+                  background: 'hsl(var(--surface-3))',
+                  color: 'hsl(var(--fg-2))',
+                  border: '1px solid hsl(var(--border-2))',
+                }}
+              >
+                {servers.length}
+              </span>
+            )}
+          </div>
           <p>Manage and monitor your infrastructure nodes.</p>
         </div>
         <button type="button" onClick={() => setIsModalOpen(true)} className="sv-btn-primary">
-          <Plus className="h-4 w-4" /> Add Server
+          <Plus style={{ width: 15, height: 15 }} aria-hidden /> Add Server
         </button>
       </header>
 
+      {/* Stat pills row */}
       {!loading && (
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-          <div className="sv-card py-3">
-            <p className="stat-card-label">Total</p>
-            <p className="stat-card-value">{servers.length}</p>
+        <div className="flex items-center gap-3 flex-wrap">
+          <div
+            className="flex items-center gap-2"
+            style={{
+              padding: '6px 12px',
+              borderRadius: 8,
+              background: 'hsl(var(--surface-2))',
+              border: '1px solid hsl(var(--border))',
+            }}
+          >
+            <span
+              style={{ width: 7, height: 7, borderRadius: '50%', background: 'hsl(var(--fg-3))', flexShrink: 0 }}
+            />
+            <span style={{ fontSize: 13, color: 'hsl(var(--fg-2))' }}>
+              <span style={{ fontWeight: 600, color: 'hsl(var(--fg))' }}>{servers.length}</span> total
+            </span>
           </div>
-          <div className="sv-card py-3">
-            <p className="stat-card-label">Online</p>
-            <p className="stat-card-value text-green-600 dark:text-green-400">
-              {servers.filter((s) => s.status === 'online' || s.status === 'active').length}
-            </p>
+          <div
+            className="flex items-center gap-2"
+            style={{
+              padding: '6px 12px',
+              borderRadius: 8,
+              background: 'hsl(var(--surface-2))',
+              border: '1px solid hsl(var(--border))',
+            }}
+          >
+            <span
+              style={{ width: 7, height: 7, borderRadius: '50%', background: '#3ecf8e', flexShrink: 0 }}
+            />
+            <span style={{ fontSize: 13, color: 'hsl(var(--fg-2))' }}>
+              <span style={{ fontWeight: 600, color: '#3ecf8e' }}>{onlineCount}</span> online
+            </span>
           </div>
-          <div className="sv-card py-3">
-            <p className="stat-card-label">Offline</p>
-            <p className="stat-card-value text-red-500">
-              {servers.filter((s) => s.status !== 'online' && s.status !== 'active' && s.status !== 'maintenance').length}
-            </p>
+          <div
+            className="flex items-center gap-2"
+            style={{
+              padding: '6px 12px',
+              borderRadius: 8,
+              background: 'hsl(var(--surface-2))',
+              border: '1px solid hsl(var(--border))',
+            }}
+          >
+            <span
+              style={{ width: 7, height: 7, borderRadius: '50%', background: '#ef4444', flexShrink: 0 }}
+            />
+            <span style={{ fontSize: 13, color: 'hsl(var(--fg-2))' }}>
+              <span style={{ fontWeight: 600, color: '#ef4444' }}>{offlineCount}</span> offline
+            </span>
           </div>
-          <div className="sv-card py-3">
-            <p className="stat-card-label">Maintenance</p>
-            <p className="stat-card-value text-yellow-500">
-              {servers.filter((s) => s.status === 'maintenance').length}
-            </p>
+          <div
+            className="flex items-center gap-2"
+            style={{
+              padding: '6px 12px',
+              borderRadius: 8,
+              background: 'hsl(var(--surface-2))',
+              border: '1px solid hsl(var(--border))',
+            }}
+          >
+            <span
+              style={{ width: 7, height: 7, borderRadius: '50%', background: '#f59e0b', flexShrink: 0 }}
+            />
+            <span style={{ fontSize: 13, color: 'hsl(var(--fg-2))' }}>
+              <span style={{ fontWeight: 600, color: '#f59e0b' }}>{maintenanceCount}</span> maintenance
+            </span>
           </div>
         </div>
       )}
 
-      <div className="sv-card space-y-4">
-        <div className="flex flex-wrap items-start gap-4 border-b border-border pb-4">
-          <div className="flex min-w-0 flex-1 flex-col gap-2">
-            <div className="flex items-center gap-2 text-sm font-medium text-secondary">
-              <Columns className="h-4 w-4 text-primary" aria-hidden />
+      {/* Custom columns + search + table card */}
+      <div className="sv-card" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        {/* Custom columns section */}
+        <div
+          style={{
+            display: 'flex',
+            flexWrap: 'wrap',
+            alignItems: 'flex-start',
+            gap: 16,
+            paddingBottom: 16,
+            borderBottom: '1px solid hsl(var(--border))',
+          }}
+        >
+          <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <div className="flex items-center gap-2" style={{ fontSize: 13, fontWeight: 500, color: 'hsl(var(--fg-2))' }}>
+              <Columns style={{ width: 14, height: 14, color: 'hsl(var(--primary))' }} aria-hidden />
               Custom columns
             </div>
             <form onSubmit={handleAddColumn} className="flex flex-wrap items-center gap-2">
@@ -132,31 +215,63 @@ export const Servers = () => {
                 value={newColumnName}
                 onChange={(e) => setNewColumnName(e.target.value)}
                 placeholder="e.g. Rack, Owner, Cost center"
-                className="sv-input h-10 min-w-[200px] max-w-md flex-1"
+                className="sv-input"
+                style={{ minWidth: 200, maxWidth: 320, flex: 1 }}
                 maxLength={200}
                 autoComplete="off"
               />
-              <button type="submit" className="sv-btn-primary h-10 px-4">
+              <button type="submit" className="sv-btn-primary">
                 Add column
               </button>
             </form>
             {customColumns.length > 0 && (
-              <ul className="flex flex-wrap gap-2 pt-1">
+              <ul className="flex flex-wrap gap-2" style={{ paddingTop: 4 }}>
                 {customColumns.map((col) => (
                   <li
                     key={col.id}
-                    className="inline-flex items-center gap-1 rounded-lg border border-border bg-surface/80 py-1 pl-2 pr-1 text-xs text-foreground"
+                    className="inline-flex items-center gap-1"
+                    style={{
+                      borderRadius: 8,
+                      border: '1px solid hsl(var(--border))',
+                      background: 'hsl(var(--surface-2))',
+                      padding: '4px 4px 4px 10px',
+                      fontSize: 12,
+                      color: 'hsl(var(--fg))',
+                    }}
                   >
-                    <span className="max-w-[12rem] truncate" title={col.name}>
+                    <span
+                      style={{ maxWidth: '12rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                      title={col.name}
+                    >
                       {col.name}
                     </span>
                     <button
                       type="button"
                       onClick={() => handleDeleteColumn(col.id, col.name)}
-                      className="rounded p-1 text-secondary transition-colors hover:bg-danger/15 hover:text-danger"
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        width: 22,
+                        height: 22,
+                        borderRadius: 5,
+                        border: 'none',
+                        background: 'none',
+                        cursor: 'pointer',
+                        color: 'hsl(var(--fg-3))',
+                        transition: 'background 80ms, color 80ms',
+                      }}
+                      onMouseEnter={(e) => {
+                        (e.currentTarget as HTMLButtonElement).style.background = 'hsl(var(--danger) / 0.12)';
+                        (e.currentTarget as HTMLButtonElement).style.color = 'hsl(var(--danger))';
+                      }}
+                      onMouseLeave={(e) => {
+                        (e.currentTarget as HTMLButtonElement).style.background = 'none';
+                        (e.currentTarget as HTMLButtonElement).style.color = 'hsl(var(--fg-3))';
+                      }}
                       aria-label={`Remove column ${col.name}`}
                     >
-                      <Trash2 className="h-3.5 w-3.5" />
+                      <Trash2 style={{ width: 13, height: 13 }} />
                     </button>
                   </li>
                 ))}
@@ -165,29 +280,52 @@ export const Servers = () => {
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-4">
-          <div className="relative min-w-[300px] flex-1">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-secondary" />
+        {/* Search + filter toolbar */}
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="relative" style={{ minWidth: 300, flex: 1 }}>
+            <Search
+              style={{
+                position: 'absolute',
+                left: 10,
+                top: '50%',
+                transform: 'translateY(-50%)',
+                width: 14,
+                height: 14,
+                color: 'hsl(var(--fg-3))',
+                pointerEvents: 'none',
+              }}
+              aria-hidden
+            />
             <input
               type="text"
               placeholder="Search by hostname, IP, or tag..."
-              className="sv-input h-11 w-full pl-10"
+              className="sv-input font-mono"
+              style={{ paddingLeft: 32, fontFamily: undefined }}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
-          <button type="button" className="sv-btn-ghost flex h-11 items-center gap-2 border border-border px-4">
-            <Filter className="h-4 w-4" /> Filters
+          <button
+            type="button"
+            className="sv-btn-ghost"
+            style={{ border: '1px solid hsl(var(--border-2))', gap: 6 }}
+          >
+            <Filter style={{ width: 14, height: 14 }} aria-hidden /> Filters
           </button>
-          <button type="button" className="sv-btn-ghost flex h-11 items-center gap-2 border border-border px-4">
-            <Download className="h-4 w-4" /> Export
+          <button
+            type="button"
+            className="sv-btn-ghost"
+            style={{ border: '1px solid hsl(var(--border-2))', gap: 6 }}
+          >
+            <Download style={{ width: 14, height: 14 }} aria-hidden /> Export
           </button>
         </div>
 
+        {/* Table */}
         {loading ? (
-          <div className="space-y-2 py-4">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '8px 0' }}>
             {[...Array(5)].map((_, i) => (
-              <div key={i} className="h-14 animate-pulse rounded-lg bg-foreground/[0.04]" />
+              <div key={i} className="skeleton" style={{ height: 48, borderRadius: 8 }} />
             ))}
           </div>
         ) : (

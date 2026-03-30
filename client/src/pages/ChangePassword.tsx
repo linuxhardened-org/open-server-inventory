@@ -49,108 +49,282 @@ export const ChangePassword = () => {
     }
   };
 
+  const labelStyle: React.CSSProperties = {
+    display: 'block',
+    fontSize: 11,
+    fontWeight: 500,
+    textTransform: 'uppercase',
+    letterSpacing: '0.06em',
+    color: 'hsl(var(--fg-2))',
+    marginBottom: 6,
+  };
+
   return (
-    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-background p-4">
-      <div className="absolute left-[-15%] top-[-15%] h-[45%] w-[45%] rounded-full bg-primary/15 blur-[100px]" />
-      <div className="absolute bottom-[-15%] right-[-15%] h-[40%] w-[40%] rounded-full bg-primary/10 blur-[120px]" />
+    <div
+      className="relative flex min-h-screen items-center justify-center overflow-hidden p-4"
+      style={{ background: 'hsl(var(--bg))' }}
+    >
+      {/* Background blobs */}
+      <div
+        style={{
+          position: 'absolute',
+          top: '-10%',
+          right: '-10%',
+          width: '45%',
+          height: '45%',
+          borderRadius: '50%',
+          background: 'hsl(var(--warning) / 0.06)',
+          filter: 'blur(80px)',
+          pointerEvents: 'none',
+        }}
+      />
+      <div
+        style={{
+          position: 'absolute',
+          bottom: '-10%',
+          left: '-10%',
+          width: '40%',
+          height: '40%',
+          borderRadius: '50%',
+          background: 'hsl(var(--warning) / 0.04)',
+          filter: 'blur(100px)',
+          pointerEvents: 'none',
+        }}
+      />
+      {/* Dot grid */}
+      <div
+        style={{
+          position: 'absolute',
+          inset: 0,
+          backgroundImage: 'radial-gradient(hsl(var(--border-2)) 1px, transparent 1px)',
+          backgroundSize: '24px 24px',
+          opacity: 0.5,
+          pointerEvents: 'none',
+        }}
+      />
 
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="relative z-[1] w-full max-w-sm"
+        className="relative z-[1] w-full"
+        style={{ maxWidth: 380 }}
       >
-        <div className="mb-8 text-center">
-          <div className="mb-6 inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-warning/15 shadow-xl">
-            <ShieldAlert className="h-9 w-9 text-warning" />
+        {/* Icon */}
+        <div className="flex justify-center mb-6">
+          <div
+            style={{
+              width: 56,
+              height: 56,
+              borderRadius: 14,
+              background: 'hsl(var(--warning) / 0.12)',
+              border: '1px solid hsl(var(--warning) / 0.25)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <ShieldAlert style={{ width: 28, height: 28, color: 'hsl(var(--warning))' }} />
           </div>
-          <h1 className="mb-2 text-2xl font-semibold tracking-tight text-foreground">
+        </div>
+
+        {/* Title */}
+        <div className="text-center mb-6">
+          <h1
+            style={{
+              fontSize: 20,
+              fontWeight: 600,
+              letterSpacing: '-0.02em',
+              color: 'hsl(var(--fg))',
+              marginBottom: 6,
+            }}
+          >
             Change your password
           </h1>
-          <p className="text-sm text-secondary">
+          <p style={{ fontSize: 13, color: 'hsl(var(--fg-2))' }}>
             You must set a new password before continuing.
           </p>
         </div>
 
-        <form onSubmit={handleSubmit} className="sv-card space-y-5 border-t-4 border-t-warning pt-8">
-          <div className="space-y-2">
-            <label className="block text-sm font-medium text-secondary">Current password</label>
-            <div className="relative">
-              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-secondary" />
-              <input
-                type={showCurrent ? 'text' : 'password'}
-                required
-                value={currentPassword}
-                onChange={(e) => setCurrentPassword(e.target.value)}
-                className="sv-input pl-10 pr-10"
-                placeholder="••••••••"
-                autoFocus
-              />
-              <button
-                type="button"
-                onClick={() => setShowCurrent((v) => !v)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-secondary hover:text-foreground"
-              >
-                {showCurrent ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-              </button>
-            </div>
-          </div>
+        {/* Card */}
+        <div
+          style={{
+            background: 'hsl(var(--surface))',
+            border: '1px solid hsl(var(--border))',
+            borderRadius: 16,
+            overflow: 'hidden',
+          }}
+        >
+          {/* Top accent bar — warning gradient */}
+          <div
+            style={{
+              height: 3,
+              background: 'linear-gradient(to right, hsl(var(--warning)), hsl(var(--warning) / 0.5), transparent)',
+            }}
+          />
 
-          <div className="space-y-2">
-            <label className="block text-sm font-medium text-secondary">New password</label>
-            <div className="relative">
-              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-secondary" />
-              <input
-                type={showNew ? 'text' : 'password'}
-                required
-                minLength={8}
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                className="sv-input pl-10 pr-10"
-                placeholder="Min. 8 characters"
-              />
-              <button
-                type="button"
-                onClick={() => setShowNew((v) => !v)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-secondary hover:text-foreground"
-              >
-                {showNew ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-              </button>
+          <form
+            onSubmit={handleSubmit}
+            style={{ padding: 28, display: 'flex', flexDirection: 'column', gap: 16 }}
+          >
+            {/* Current password */}
+            <div>
+              <label style={labelStyle}>Current password</label>
+              <div className="relative">
+                <Lock
+                  style={{
+                    position: 'absolute',
+                    left: 10,
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    width: 14,
+                    height: 14,
+                    color: 'hsl(var(--fg-3))',
+                    pointerEvents: 'none',
+                  }}
+                  aria-hidden
+                />
+                <input
+                  type={showCurrent ? 'text' : 'password'}
+                  required
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  className="sv-input"
+                  style={{ paddingLeft: 32, paddingRight: 36 }}
+                  placeholder="••••••••"
+                  autoFocus
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowCurrent((v) => !v)}
+                  style={{
+                    position: 'absolute',
+                    right: 10,
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    color: 'hsl(var(--fg-3))',
+                    display: 'flex',
+                    alignItems: 'center',
+                    padding: 2,
+                  }}
+                  onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.color = 'hsl(var(--fg-2))'; }}
+                  onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.color = 'hsl(var(--fg-3))'; }}
+                >
+                  {showCurrent ? <EyeOff style={{ width: 14, height: 14 }} /> : <Eye style={{ width: 14, height: 14 }} />}
+                </button>
+              </div>
             </div>
-          </div>
 
-          <div className="space-y-2">
-            <label className="block text-sm font-medium text-secondary">Confirm new password</label>
-            <div className="relative">
-              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-secondary" />
-              <input
-                type="password"
-                required
-                minLength={8}
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                className={`sv-input pl-10 ${confirmPassword && confirmPassword !== newPassword ? 'border-danger' : ''}`}
-                placeholder="Repeat new password"
-              />
+            {/* New password */}
+            <div>
+              <label style={labelStyle}>New password</label>
+              <div className="relative">
+                <Lock
+                  style={{
+                    position: 'absolute',
+                    left: 10,
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    width: 14,
+                    height: 14,
+                    color: 'hsl(var(--fg-3))',
+                    pointerEvents: 'none',
+                  }}
+                  aria-hidden
+                />
+                <input
+                  type={showNew ? 'text' : 'password'}
+                  required
+                  minLength={8}
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  className="sv-input"
+                  style={{ paddingLeft: 32, paddingRight: 36 }}
+                  placeholder="Min. 8 characters"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowNew((v) => !v)}
+                  style={{
+                    position: 'absolute',
+                    right: 10,
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    color: 'hsl(var(--fg-3))',
+                    display: 'flex',
+                    alignItems: 'center',
+                    padding: 2,
+                  }}
+                  onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.color = 'hsl(var(--fg-2))'; }}
+                  onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.color = 'hsl(var(--fg-3))'; }}
+                >
+                  {showNew ? <EyeOff style={{ width: 14, height: 14 }} /> : <Eye style={{ width: 14, height: 14 }} />}
+                </button>
+              </div>
             </div>
-            {confirmPassword && confirmPassword !== newPassword && (
-              <p className="text-xs text-danger">Passwords do not match</p>
-            )}
-          </div>
 
-          <div className="pt-2">
+            {/* Confirm new password */}
+            <div>
+              <label style={labelStyle}>Confirm new password</label>
+              <div className="relative">
+                <Lock
+                  style={{
+                    position: 'absolute',
+                    left: 10,
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    width: 14,
+                    height: 14,
+                    color: 'hsl(var(--fg-3))',
+                    pointerEvents: 'none',
+                  }}
+                  aria-hidden
+                />
+                <input
+                  type="password"
+                  required
+                  minLength={8}
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  className="sv-input"
+                  style={{
+                    paddingLeft: 32,
+                    borderColor:
+                      confirmPassword && confirmPassword !== newPassword
+                        ? 'hsl(var(--danger))'
+                        : undefined,
+                  }}
+                  placeholder="Repeat new password"
+                />
+              </div>
+              {confirmPassword && confirmPassword !== newPassword && (
+                <p style={{ fontSize: 12, color: 'hsl(var(--danger))', marginTop: 4 }}>
+                  Passwords do not match
+                </p>
+              )}
+            </div>
+
+            {/* Submit */}
             <button
               type="submit"
               disabled={submitting || (!!confirmPassword && confirmPassword !== newPassword)}
-              className="sv-btn-primary w-full py-3 gap-2"
+              className="sv-btn-primary"
+              style={{ width: '100%', height: 38, marginTop: 4, fontSize: 14 }}
             >
               {submitting ? 'Saving…' : 'Set new password'}
-              {!submitting && <ArrowRight className="h-4 w-4" />}
+              {!submitting && <ArrowRight style={{ width: 14, height: 14 }} />}
             </button>
-          </div>
-        </form>
+          </form>
+        </div>
 
-        <p className="mt-6 text-center text-xs text-secondary">
-          Logged in as <span className="font-medium text-foreground">{user?.username}</span>
+        <p className="text-center mt-5" style={{ fontSize: 12, color: 'hsl(var(--fg-3))' }}>
+          Logged in as{' '}
+          <span style={{ fontWeight: 600, color: 'hsl(var(--fg-2))' }}>{user?.username}</span>
         </p>
       </motion.div>
     </div>

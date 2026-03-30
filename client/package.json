@@ -11,6 +11,8 @@
   },
   "dependencies": {
     "@adminkit/core": "^3.4.0",
+    "@fontsource/geist": "^5.2.8",
+    "@fontsource/geist-mono": "^5.2.7",
     "@types/node": "^25.5.0",
     "axios": "^1.6.0",
     "bootstrap": "^5.3.3",

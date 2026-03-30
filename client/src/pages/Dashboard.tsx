@@ -14,8 +14,21 @@ import {
 import toast from 'react-hot-toast';
 import api, { getApiErrorMessage } from '../lib/api';
 
+// Fixed hex values for Recharts (CSS vars don't work inside Recharts)
 const CHART_PRIMARY = '#3ecf8e';
 const BAR_COLORS = ['#3ecf8e', '#22c55e', '#10b981', '#34d399', '#6ee7b7', '#06b6d4', '#64748b'];
+
+// Chart theme-aware constants — use inline fixed values since Recharts doesn't read CSS vars
+const TOOLTIP_BG_LIGHT = '#ffffff';
+const TOOLTIP_BG_DARK = '#161b27';
+const TOOLTIP_BORDER_LIGHT = '#dde3ee';
+const TOOLTIP_BORDER_DARK = '#242c3d';
+const TOOLTIP_TEXT_LIGHT = '#151f38';
+const TOOLTIP_TEXT_DARK = '#ecf0f8';
+const GRID_STROKE_LIGHT = '#dde3ee';
+const GRID_STROKE_DARK = '#1f2840';
+const AXIS_STROKE_LIGHT = '#6e7f9e';
+const AXIS_STROKE_DARK = '#5a6a84';
 
 type StatsPayload = {
   servers: number;
@@ -37,12 +50,6 @@ type StatsPayload = {
 
 type ApiStatsResponse = { success: boolean; data: StatsPayload };
 
-const gridStroke = '#e2e8f0';
-const axisStroke = '#64748b';
-const tooltipBg = '#ffffff';
-const tooltipBorder = '#e2e8f0';
-const tooltipColor = '#0f172a';
-
 function formatWhen(iso: string): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return iso;
@@ -54,6 +61,10 @@ function truncateLabel(name: string, max = 14): string {
   return `${name.slice(0, max - 1)}…`;
 }
 
+function isDarkMode(): boolean {
+  return document.documentElement.classList.contains('dark');
+}
+
 const StatCard = ({
   icon: Icon,
   label,
@@ -63,20 +74,32 @@ const StatCard = ({
   label: string;
   value: string | number;
 }) => (
-  <div className="stat-card">
-    <div className="stat-card-icon">
+  <div className="sv-card stat-card">
+    <div
+      style={{
+        width: 36,
+        height: 36,
+        borderRadius: 8,
+        background: 'hsl(var(--primary) / 0.1)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        color: 'hsl(var(--primary))',
+        flexShrink: 0,
+        marginBottom: 8,
+      }}
+    >
       <Icon size={17} strokeWidth={1.75} />
     </div>
-    <div>
-      <p className="stat-card-label">{label}</p>
-      <p className="stat-card-value">{value}</p>
-    </div>
+    <p className="stat-card-label">{label}</p>
+    <p className="stat-card-value">{value}</p>
   </div>
 );
 
 export const Dashboard = () => {
   const [stats, setStats] = useState<StatsPayload | null>(null);
   const [loading, setLoading] = useState(true);
+  const [, forceUpdate] = useState(0);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -96,6 +119,13 @@ export const Dashboard = () => {
     load();
   }, [load]);
 
+  // Re-render when theme changes so chart colors update
+  useEffect(() => {
+    const observer = new MutationObserver(() => forceUpdate((n) => n + 1));
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+    return () => observer.disconnect();
+  }, []);
+
   const groupChartData =
     stats?.serversByGroup.map((g) => ({
       name: truncateLabel(g.name),
@@ -105,8 +135,15 @@ export const Dashboard = () => {
 
   const statusChartData = stats?.serversByStatus ?? [];
 
+  const dark = isDarkMode();
+  const gridStroke = dark ? GRID_STROKE_DARK : GRID_STROKE_LIGHT;
+  const axisStroke = dark ? AXIS_STROKE_DARK : AXIS_STROKE_LIGHT;
+  const tooltipBg = dark ? TOOLTIP_BG_DARK : TOOLTIP_BG_LIGHT;
+  const tooltipBorder = dark ? TOOLTIP_BORDER_DARK : TOOLTIP_BORDER_LIGHT;
+  const tooltipColor = dark ? TOOLTIP_TEXT_DARK : TOOLTIP_TEXT_LIGHT;
+
   return (
-    <div className="page animate-in">
+    <div className="page animate-in" style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
       <header className="page-header">
         <div className="page-header-text">
           <h1>Infrastructure overview</h1>
@@ -115,24 +152,33 @@ export const Dashboard = () => {
       </header>
 
       {loading && !stats ? (
-        <p className="text-sm text-secondary">Loading organization stats…</p>
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+          {[...Array(4)].map((_, i) => (
+            <div key={i} className="sv-card skeleton" style={{ height: 96 }} />
+          ))}
+        </div>
       ) : null}
 
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <StatCard icon={Server} label="Total servers" value={stats?.servers ?? '—'} />
-        <StatCard icon={FolderOpen} label="Groups" value={stats?.groups ?? '—'} />
-        <StatCard icon={Tags} label="Tags" value={stats?.tags ?? '—'} />
-        <StatCard icon={KeyRound} label="SSH keys" value={stats?.sshKeys ?? '—'} />
-      </div>
+      {!loading && (
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+          <StatCard icon={Server} label="Total servers" value={stats?.servers ?? '—'} />
+          <StatCard icon={FolderOpen} label="Groups" value={stats?.groups ?? '—'} />
+          <StatCard icon={Tags} label="Tags" value={stats?.tags ?? '—'} />
+          <StatCard icon={KeyRound} label="SSH keys" value={stats?.sshKeys ?? '—'} />
+        </div>
+      )}
 
-<div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <div className="sv-card">
           <p className="card-section-title">Servers by group</p>
-          <div className="h-[300px]">
+          <div style={{ height: 280 }}>
             {groupChartData.length === 0 ? (
-              <p className="flex h-full items-center justify-center text-sm text-secondary">
+              <div
+                className="flex items-center justify-center h-full"
+                style={{ fontSize: 13, color: 'hsl(var(--fg-2))' }}
+              >
                 No servers yet. Add servers to see distribution by group.
-              </p>
+              </div>
             ) : (
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={groupChartData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
@@ -149,7 +195,8 @@ export const Dashboard = () => {
                     contentStyle={{
                       backgroundColor: tooltipBg,
                       border: `1px solid ${tooltipBorder}`,
-                      borderRadius: '8px',
+                      borderRadius: 8,
+                      fontSize: 12,
                     }}
                     itemStyle={{ color: tooltipColor }}
                     formatter={(value: number) => [value, 'Servers']}
@@ -167,11 +214,14 @@ export const Dashboard = () => {
 
         <div className="sv-card">
           <p className="card-section-title">Servers by status</p>
-          <div className="h-[300px]">
+          <div style={{ height: 280 }}>
             {statusChartData.length === 0 ? (
-              <p className="flex h-full items-center justify-center text-sm text-secondary">
+              <div
+                className="flex items-center justify-center h-full"
+                style={{ fontSize: 13, color: 'hsl(var(--fg-2))' }}
+              >
                 No status data yet.
-              </p>
+              </div>
             ) : (
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={statusChartData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
@@ -188,7 +238,8 @@ export const Dashboard = () => {
                     contentStyle={{
                       backgroundColor: tooltipBg,
                       border: `1px solid ${tooltipBorder}`,
-                      borderRadius: '8px',
+                      borderRadius: 8,
+                      fontSize: 12,
                     }}
                     itemStyle={{ color: tooltipColor }}
                     formatter={(value: number) => [value, 'Servers']}
@@ -205,30 +256,47 @@ export const Dashboard = () => {
         </div>
       </div>
 
+      {/* Recent activity */}
       <div className="sv-card">
         <p className="card-section-title">Recent activity</p>
         {!stats || stats.recentActivity.length === 0 ? (
-          <p className="text-sm text-secondary">
+          <p style={{ fontSize: 13, color: 'hsl(var(--fg-2))' }}>
             No history yet. Changes to servers appear here after updates.
           </p>
         ) : (
-          <div className="space-y-4">
-            {stats.recentActivity.map((row) => (
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            {stats.recentActivity.map((row, i) => (
               <div
                 key={row.id}
-                className="flex flex-col gap-2 border-b border-border py-3 last:border-0 sm:flex-row sm:items-center sm:justify-between"
+                className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between"
+                style={{
+                  padding: '12px 0',
+                  borderBottom: i < stats.recentActivity.length - 1 ? '1px solid hsl(var(--border))' : 'none',
+                }}
               >
-                <div className="flex items-start gap-4">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 ring-1 ring-primary/10">
-                    <History className="h-5 w-5 text-secondary" />
+                <div className="flex items-start gap-3">
+                  <div
+                    style={{
+                      width: 36,
+                      height: 36,
+                      borderRadius: '50%',
+                      background: 'hsl(var(--primary) / 0.08)',
+                      border: '1px solid hsl(var(--primary) / 0.12)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      flexShrink: 0,
+                    }}
+                  >
+                    <History style={{ width: 16, height: 16, color: 'hsl(var(--fg-2))' }} />
                   </div>
                   <div>
-                    <p className="font-medium text-foreground">
-                      <span className="text-secondary">{row.serverName}</span>
+                    <p style={{ fontSize: 13, color: 'hsl(var(--fg))', fontWeight: 500 }}>
+                      <span style={{ color: 'hsl(var(--fg-2))' }}>{row.serverName}</span>
                       {' · '}
                       {row.action}
                     </p>
-                    <p className="text-xs text-secondary">
+                    <p style={{ fontSize: 12, color: 'hsl(var(--fg-3))', marginTop: 2 }}>
                       {formatWhen(row.createdAt)}
                       {row.username ? ` · ${row.username}` : ''}
                     </p>
@@ -236,7 +304,9 @@ export const Dashboard = () => {
                 </div>
                 <Link
                   to="/servers"
-                  className="shrink-0 text-sm text-primary hover:underline sm:text-right"
+                  style={{ fontSize: 13, color: 'hsl(var(--primary))', textDecoration: 'none', flexShrink: 0 }}
+                  onMouseEnter={(e) => { (e.currentTarget as HTMLAnchorElement).style.textDecoration = 'underline'; }}
+                  onMouseLeave={(e) => { (e.currentTarget as HTMLAnchorElement).style.textDecoration = 'none'; }}
                 >
                   View servers
                 </Link>
