@@ -49,9 +49,13 @@ export const Servers = () => {
     load();
   }, [load]);
 
-  const handleExport = async () => {
+  const [showExportMenu, setShowExportMenu] = useState(false);
+
+  const handleExport = async (format: 'json' | 'csv') => {
+    setShowExportMenu(false);
     try {
-      const response = await fetch('/api/export-import/export', {
+      const endpoint = format === 'csv' ? '/api/export-import/export/csv' : '/api/export-import/export';
+      const response = await fetch(endpoint, {
         credentials: 'include',
       });
       if (!response.ok) {
@@ -61,12 +65,12 @@ export const Servers = () => {
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = 'servervault-export.json';
+      a.download = `servervault-export.${format}`;
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
-      toast.success('Export downloaded');
+      toast.success(`${format.toUpperCase()} export downloaded`);
     } catch (err) {
       toast.error('Failed to export data');
     }
@@ -335,14 +339,69 @@ export const Servers = () => {
           >
             <Filter style={{ width: 14, height: 14 }} aria-hidden /> Filters
           </button>
-          <button
-            type="button"
-            onClick={handleExport}
-            className="sv-btn-ghost"
-            style={{ border: '1px solid hsl(var(--border-2))', gap: 6 }}
-          >
-            <Download style={{ width: 14, height: 14 }} aria-hidden /> Export
-          </button>
+          <div style={{ position: 'relative' }}>
+            <button
+              type="button"
+              onClick={() => setShowExportMenu(!showExportMenu)}
+              className="sv-btn-ghost"
+              style={{ border: '1px solid hsl(var(--border-2))', gap: 6 }}
+            >
+              <Download style={{ width: 14, height: 14 }} aria-hidden /> Export
+            </button>
+            {showExportMenu && (
+              <>
+                <div
+                  style={{ position: 'fixed', inset: 0, zIndex: 40 }}
+                  onClick={() => setShowExportMenu(false)}
+                />
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: '100%',
+                    right: 0,
+                    marginTop: 4,
+                    background: 'hsl(var(--surface))',
+                    border: '1px solid hsl(var(--border))',
+                    borderRadius: 8,
+                    overflow: 'hidden',
+                    zIndex: 50,
+                    minWidth: 140,
+                    boxShadow: '0 4px 12px hsl(var(--bg) / 0.5)',
+                  }}
+                >
+                  <button
+                    type="button"
+                    onClick={() => handleExport('json')}
+                    className="sv-btn-ghost"
+                    style={{
+                      width: '100%',
+                      justifyContent: 'flex-start',
+                      borderRadius: 0,
+                      padding: '10px 14px',
+                      fontSize: 13,
+                    }}
+                  >
+                    Export as JSON
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleExport('csv')}
+                    className="sv-btn-ghost"
+                    style={{
+                      width: '100%',
+                      justifyContent: 'flex-start',
+                      borderRadius: 0,
+                      padding: '10px 14px',
+                      fontSize: 13,
+                      borderTop: '1px solid hsl(var(--border-2))',
+                    }}
+                  >
+                    Export as CSV
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
         </div>
 
         {/* Table */}

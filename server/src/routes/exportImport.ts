@@ -27,6 +27,89 @@ async function syncSequence(client: PoolClient, table: string, sequence: string)
   }
 }
 
+router.get('/export/csv', sessionAuth, async (req, res) => {
+  try {
+    const servers = await db.query(`
+      SELECT
+        s.id, s.name, s.hostname, s.ip_address, s.os, s.cpu_cores, s.ram_gb,
+        s.status, s.notes, s.created_at, s.updated_at,
+        g.name as group_name
+      FROM servers s
+      LEFT JOIN groups g ON s.group_id = g.id
+      ORDER BY s.id
+    `);
+
+    const tags = await db.query(`
+      SELECT st.server_id, t.name
+      FROM server_tags st
+      JOIN tags t ON st.tag_id = t.id
+    `);
+
+    const customCols = await db.query('SELECT id, name, key FROM custom_columns ORDER BY position');
+    const customVals = await db.query('SELECT server_id, custom_column_id, value FROM server_custom_values');
+
+    // Build tag map
+    const tagMap: Record<number, string[]> = {};
+    for (const t of tags.rows as { server_id: number; name: string }[]) {
+      if (!tagMap[t.server_id]) tagMap[t.server_id] = [];
+      tagMap[t.server_id].push(t.name);
+    }
+
+    // Build custom values map
+    const cvMap: Record<number, Record<number, string>> = {};
+    for (const v of customVals.rows as { server_id: number; custom_column_id: number; value: string }[]) {
+      if (!cvMap[v.server_id]) cvMap[v.server_id] = {};
+      cvMap[v.server_id][v.custom_column_id] = v.value;
+    }
+
+    const cols = customCols.rows as { id: number; name: string; key: string }[];
+
+    // CSV header
+    const headers = [
+      'ID', 'Name', 'Hostname', 'IP Address', 'OS', 'CPU Cores', 'RAM (GB)',
+      'Status', 'Group', 'Tags', 'Notes', 'Created At', 'Updated At',
+      ...cols.map(c => c.name)
+    ];
+
+    const escapeCSV = (val: unknown): string => {
+      if (val === null || val === undefined) return '';
+      const str = String(val);
+      if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+        return `"${str.replace(/"/g, '""')}"`;
+      }
+      return str;
+    };
+
+    const rows = (servers.rows as any[]).map(s => [
+      s.id,
+      s.name,
+      s.hostname,
+      s.ip_address,
+      s.os,
+      s.cpu_cores,
+      s.ram_gb,
+      s.status,
+      s.group_name,
+      (tagMap[s.id] || []).join('; '),
+      s.notes,
+      s.created_at,
+      s.updated_at,
+      ...cols.map(c => cvMap[s.id]?.[c.id] || '')
+    ]);
+
+    const csv = [
+      headers.map(escapeCSV).join(','),
+      ...rows.map(row => row.map(escapeCSV).join(','))
+    ].join('\n');
+
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', 'attachment; filename=servervault-export.csv');
+    res.send(csv);
+  } catch (err: any) {
+    sendError(res, err.message);
+  }
+});
+
 router.get('/export', sessionAuth, async (req, res) => {
   try {
     const includePrivate =
