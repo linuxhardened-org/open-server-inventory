@@ -1,6 +1,5 @@
 import { NavLink, Link, useNavigate } from 'react-router-dom';
 import {
-  LayoutDashboard,
   Server,
   Layers,
   Tag,
@@ -14,11 +13,10 @@ import { useAuthStore } from '../store/useAuthStore';
 import { useSettingsStore } from '../store/useSettingsStore';
 
 const mainNav = [
-  { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard', end: true },
-  { icon: Server,          label: 'Servers',   path: '/servers',   end: false },
-  { icon: Layers,          label: 'Groups',    path: '/groups',    end: false },
-  { icon: Tag,             label: 'Tags',      path: '/tags',      end: false },
-  { icon: Key,             label: 'SSH Keys',  path: '/ssh-keys',  end: false },
+  { icon: Server,  label: 'Servers',  path: '/servers',  end: false },
+  { icon: Layers,  label: 'Groups',   path: '/groups',   end: false },
+  { icon: Tag,     label: 'Tags',     path: '/tags',     end: false },
+  { icon: Key,     label: 'SSH Keys', path: '/ssh-keys', end: false },
 ];
 
 const accountNav = [
@@ -49,7 +47,7 @@ export const Sidebar = ({ isOpen }: { isOpen?: boolean; onClose?: () => void }) 
 
   return (
     <nav className={`app-sidebar${isOpen ? ' sidebar-open' : ''}`}>
-      <Link to="/dashboard" className="app-sidebar-brand">
+      <Link to="/servers" className="app-sidebar-brand">
         {/* Terminal >_ SVG icon */}
         <svg
           width="28"

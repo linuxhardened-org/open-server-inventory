@@ -54,7 +54,7 @@ export const Login = () => {
         navigate('/change-password');
       } else {
         toast.success('Signed in');
-        navigate('/dashboard');
+        navigate('/servers');
       }
     } catch (err: unknown) {
       const e = err as { error?: string };

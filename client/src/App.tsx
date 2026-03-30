@@ -2,7 +2,6 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { useEffect, useState } from 'react';
 import { ThemeSync } from './components/ThemeSync';
 import { Login } from './pages/Login';
-import { Dashboard } from './pages/Dashboard';
 import { Servers } from './pages/Servers';
 import { Groups } from './pages/Groups';
 import { Tags } from './pages/Tags';
@@ -80,8 +79,7 @@ function App() {
         <Route path="/change-password" element={<ChangePassword />} />
 
         <Route path="/" element={<Layout />}>
-          <Route index element={<Navigate to="/dashboard" replace />} />
-          <Route path="dashboard" element={<Dashboard />} />
+          <Route index element={<Navigate to="/servers" replace />} />
           <Route path="servers" element={<Servers />} />
           <Route path="groups" element={<Groups />} />
           <Route path="tags" element={<Tags />} />
@@ -91,7 +89,7 @@ function App() {
           <Route path="settings" element={<Settings />} />
         </Route>
 
-        <Route path="*" element={<Navigate to={isSetupCompleted ? '/dashboard' : '/setup'} replace />} />
+        <Route path="*" element={<Navigate to={isSetupCompleted ? '/servers' : '/setup'} replace />} />
       </Routes>
     </Router>
   );

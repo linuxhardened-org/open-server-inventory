@@ -40,7 +40,7 @@ export const ChangePassword = () => {
         setAuth({ ...user, password_change_required: false }, token ?? 'session');
       }
       toast.success('Password changed successfully');
-      navigate('/dashboard');
+      navigate('/servers');
     } catch (err: unknown) {
       const e = err as { error?: string };
       toast.error(e?.error || 'Failed to change password');

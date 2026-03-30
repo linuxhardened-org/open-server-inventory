@@ -41,7 +41,7 @@ export default function Inventory() {
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-3xl font-bold">Inventory</h1>
           <div className="space-x-4">
-            <Link to="/dashboard" className="text-blue-600 hover:underline">Dashboard</Link>
+            <Link to="/servers" className="text-blue-600 hover:underline">Servers</Link>
             <button onClick={() => setShowWizard(true)} className="bg-green-600 text-white px-4 py-2 rounded">Add Server</button>
             <button onClick={handleExport} className="bg-gray-600 text-white px-4 py-2 rounded">Export</button>
           </div>
