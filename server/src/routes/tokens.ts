@@ -38,6 +38,29 @@ router.post('/', sessionAuth, async (req, res) => {
   }
 });
 
+router.post('/:id/regenerate', sessionAuth, async (req, res) => {
+  try {
+    // Verify ownership
+    const existing = await db.query(
+      'SELECT id, name FROM api_tokens WHERE id = $1 AND user_id = $2',
+      [req.params.id, req.session.userId]
+    );
+    if (existing.rows.length === 0) {
+      return sendError(res, 'Token not found', 404);
+    }
+
+    const token = generateApiToken();
+    const tokenHash = hashApiToken(token);
+    await db.query(
+      'UPDATE api_tokens SET token_hash = $1, created_at = CURRENT_TIMESTAMP WHERE id = $2',
+      [tokenHash, req.params.id]
+    );
+    sendSuccess(res, { name: existing.rows[0].name, token });
+  } catch (err: any) {
+    sendError(res, err.message);
+  }
+});
+
 router.delete('/:id', sessionAuth, async (req, res) => {
   try {
     await db.query('DELETE FROM api_tokens WHERE id = $1 AND user_id = $2', [req.params.id, req.session.userId]);

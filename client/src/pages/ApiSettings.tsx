@@ -48,6 +48,18 @@ export const ApiSettings = () => {
     }
   };
 
+  const handleRegenerateToken = async (id: number) => {
+    if (!confirm('Regenerate this token? The old token will stop working immediately.')) return;
+    try {
+      const response = await api.post(`/tokens/${id}/regenerate`);
+      setNewToken(response.data.token);
+      fetchTokens();
+      toast.success('Token regenerated');
+    } catch (err: any) {
+      toast.error(err?.error || 'Failed to regenerate token');
+    }
+  };
+
   const handleCopy = () => {
     if (newToken) {
       navigator.clipboard.writeText(newToken);
@@ -108,7 +120,7 @@ export const ApiSettings = () => {
           <span className="text-lg font-semibold" style={{ color: 'hsl(var(--fg))' }}>Your API Tokens</span>
         </div>
 
-        <TokenTable tokens={tokens} onRevoke={handleDeleteToken} />
+        <TokenTable tokens={tokens} onRevoke={handleDeleteToken} onRegenerate={handleRegenerateToken} />
 
         {tokens.length === 0 && (
           <div className="text-center py-8" style={{ color: 'hsl(var(--fg-2))' }}>

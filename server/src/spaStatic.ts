@@ -41,7 +41,8 @@ export function attachClientSpa(app: Express): void {
   app.use(express.static(clientDist, { index: ['index.html'] }));
 
   app.use((req, res, next) => {
-    if (req.path.startsWith('/api')) {
+    // Only catch actual API routes (/api/...), not client routes like /api-settings
+    if (req.path.startsWith('/api/') || req.path === '/api') {
       if (req.method === 'OPTIONS') {
         return next();
       }

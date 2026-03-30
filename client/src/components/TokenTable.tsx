@@ -1,12 +1,13 @@
-import { Trash2, Key, Clock, Calendar } from 'lucide-react';
+import { Trash2, Key, Clock, Calendar, RefreshCw } from 'lucide-react';
 import { ApiToken } from '../types';
 
 interface TokenTableProps {
   tokens: ApiToken[];
   onRevoke: (id: number) => void;
+  onRegenerate?: (id: number) => void;
 }
 
-export default function TokenTable({ tokens, onRevoke }: TokenTableProps) {
+export default function TokenTable({ tokens, onRevoke, onRegenerate }: TokenTableProps) {
   return (
     <div className="overflow-hidden rounded-xl border border-border bg-surface">
       <table className="w-full text-left">
@@ -42,14 +43,26 @@ export default function TokenTable({ tokens, onRevoke }: TokenTableProps) {
                 </div>
               </td>
               <td className="px-6 py-4 text-right">
-                <button
-                  type="button"
-                  onClick={() => onRevoke(token.id)}
-                  className="rounded-lg p-2 text-danger opacity-0 transition-colors hover:bg-danger/10 group-hover:opacity-100"
-                  title="Revoke Token"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </button>
+                <div className="flex items-center justify-end gap-1">
+                  {onRegenerate && (
+                    <button
+                      type="button"
+                      onClick={() => onRegenerate(token.id)}
+                      className="rounded-lg p-2 text-primary opacity-0 transition-colors hover:bg-primary/10 group-hover:opacity-100"
+                      title="Regenerate Token"
+                    >
+                      <RefreshCw className="h-4 w-4" />
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => onRevoke(token.id)}
+                    className="rounded-lg p-2 text-danger opacity-0 transition-colors hover:bg-danger/10 group-hover:opacity-100"
+                    title="Revoke Token"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
               </td>
             </tr>
           ))}
