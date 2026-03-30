@@ -123,6 +123,8 @@
     @apply space-y-5;
     width: 100%;
     max-width: 1160px;
+    margin-left: auto;
+    margin-right: auto;
   }
 
   /* Unified page header */
@@ -302,11 +304,15 @@
 .app-content {
   flex: 1;
   overflow-y: auto;
-  padding: 16px 16px;
+  padding: 16px;
 }
 
 @media (min-width: 640px) {
   .app-content { padding: 24px 28px; }
+}
+
+@media (min-width: 1280px) {
+  .app-content { padding: 28px 40px; }
 }
 
 /* ─── Stat badge variant ─── */
