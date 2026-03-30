@@ -431,7 +431,12 @@ export const Servers = () => {
       </div>
 
       {selectedServer && (
-        <ServerDrawer server={selectedServer} isOpen={!!selectedServer} onClose={() => setSelectedServer(null)} />
+        <ServerDrawer
+          server={selectedServer}
+          isOpen={!!selectedServer}
+          onClose={() => setSelectedServer(null)}
+          onUpdate={() => { load(); setSelectedServer(null); }}
+        />
       )}
 
       <AddServerModal
