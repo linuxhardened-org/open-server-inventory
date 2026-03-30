@@ -12,6 +12,9 @@ interface ExtraIp {
   ip_type: 'public' | 'private' | 'ipv6';
   label: string | null;
   created_at: string;
+  server_name?: string;
+  server_hostname?: string;
+  source?: 'server' | 'catalog';
 }
 
 interface ServerDrawerProps {
@@ -87,10 +90,14 @@ export const ServerDrawer = ({ server, isOpen, onClose, onUpdate, onRefresh }: S
     }
   };
 
-  const handleDeleteExtraIp = async (id: number) => {
-    if (!confirm('Remove this IP from the server?')) return;
+  const handleDeleteExtraIp = async (row: ExtraIp) => {
+    if (row.source === 'server' || row.id < 0) {
+      toast.error('This address is on the server record. Edit the server to change it.');
+      return;
+    }
+    if (!confirm('Remove this IP from the catalog?')) return;
     try {
-      await api.delete(`/ips/${id}`);
+      await api.delete(`/ips/${row.id}`);
       toast.success('IP removed');
       await loadExtraIps();
       onRefresh?.();
@@ -357,18 +364,21 @@ export const ServerDrawer = ({ server, isOpen, onClose, onUpdate, onRefresh }: S
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
                   <Network style={{ width: 14, height: 14, color: 'hsl(var(--primary))' }} />
                   <span style={{ fontSize: 11, color: 'hsl(var(--fg-3))', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                    Additional IPs
+                    All IPs
                   </span>
                 </div>
+                <p style={{ fontSize: 11, color: 'hsl(var(--fg-3))', marginBottom: 10 }}>
+                  Server fields + catalog. Edit server to change primary/private/IPv6 on the record.
+                </p>
                 {loadingIps ? (
                   <p style={{ fontSize: 12, color: 'hsl(var(--fg-3))' }}>Loading…</p>
                 ) : extraIps.length === 0 ? (
-                  <p style={{ fontSize: 12, color: 'hsl(var(--fg-3))', marginBottom: 10 }}>No extra addresses yet.</p>
+                  <p style={{ fontSize: 12, color: 'hsl(var(--fg-3))', marginBottom: 10 }}>No addresses yet.</p>
                 ) : (
                   <ul style={{ listStyle: 'none', margin: '0 0 10px', padding: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
                     {extraIps.map((ip) => (
                       <li
-                        key={ip.id}
+                        key={`${ip.source ?? 'c'}-${ip.id}-${ip.ip_address}`}
                         style={{
                           display: 'flex',
                           alignItems: 'center',
@@ -386,21 +396,28 @@ export const ServerDrawer = ({ server, isOpen, onClose, onUpdate, onRefresh }: S
                           {ip.label && (
                             <span style={{ marginLeft: 6, fontSize: 10, color: 'hsl(var(--fg-3))' }}>({ip.label})</span>
                           )}
+                          <span style={{ marginLeft: 8, fontSize: 9, color: 'hsl(var(--fg-3))' }}>
+                            {ip.source === 'server' || ip.id < 0 ? 'server' : 'catalog'}
+                          </span>
                         </div>
-                        <button
-                          type="button"
-                          onClick={() => handleDeleteExtraIp(ip.id)}
-                          style={{
-                            border: 'none',
-                            background: 'none',
-                            color: 'hsl(var(--danger))',
-                            cursor: 'pointer',
-                            padding: 4,
-                          }}
-                          title="Remove IP"
-                        >
-                          <Trash2 style={{ width: 12, height: 12 }} />
-                        </button>
+                        {ip.source === 'server' || ip.id < 0 ? (
+                          <span style={{ fontSize: 10, color: 'hsl(var(--fg-3))' }}>—</span>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteExtraIp(ip)}
+                            style={{
+                              border: 'none',
+                              background: 'none',
+                              color: 'hsl(var(--danger))',
+                              cursor: 'pointer',
+                              padding: 4,
+                            }}
+                            title="Remove from catalog"
+                          >
+                            <Trash2 style={{ width: 12, height: 12 }} />
+                          </button>
+                        )}
                       </li>
                     ))}
                   </ul>

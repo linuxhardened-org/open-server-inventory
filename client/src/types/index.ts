@@ -28,6 +28,8 @@ export interface Server {
   name: string;
   hostname: string;
   ip_address: string | null;
+  private_ip?: string | null;
+  ipv6_address?: string | null;
   status: 'active' | 'inactive' | 'maintenance' | 'online' | 'offline';
   group_id?: number;
   group_name?: string;

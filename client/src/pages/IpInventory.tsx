@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Network, Search, ExternalLink, Trash2, Globe, Lock, Server, Plus } from 'lucide-react';
 import { motion } from 'framer-motion';
@@ -15,6 +15,8 @@ interface ServerIp {
   server_name: string;
   server_hostname: string;
   created_at: string;
+  /** From servers.ip_address / private_ip / ipv6_address — edit on server, not deleted here */
+  source?: 'server' | 'catalog';
 }
 
 const ipTypeConfig = {
@@ -78,10 +80,14 @@ export const IpInventory = () => {
     setSearchParams(next, { replace: true });
   };
 
-  const handleDelete = async (id: number) => {
-    if (!confirm('Delete this IP address?')) return;
+  const handleDelete = async (ip: ServerIp) => {
+    if (ip.source === 'server' || ip.id < 0) {
+      toast.error('This address is stored on the server record. Edit the server under Servers to change it.');
+      return;
+    }
+    if (!confirm('Delete this IP from the catalog?')) return;
     try {
-      await api.delete(`/ips/${id}`);
+      await api.delete(`/ips/${ip.id}`);
       toast.success('IP deleted');
       fetchIps();
     } catch (err: unknown) {
@@ -128,6 +134,17 @@ export const IpInventory = () => {
   const privateCount = ips.filter((ip) => ip.ip_type === 'private').length;
   const ipv6Count = ips.filter((ip) => ip.ip_type === 'ipv6').length;
 
+  const serverRecordIpPicks = useMemo(() => {
+    if (addServerId === '') return [] as { addr: string; type: IpType; hint: string }[];
+    const sel = servers.find((s) => s.id === addServerId);
+    if (!sel) return [];
+    const out: { addr: string; type: IpType; hint: string }[] = [];
+    if (sel.ip_address?.trim()) out.push({ addr: sel.ip_address.trim(), type: 'public', hint: 'Primary' });
+    if (sel.private_ip?.trim()) out.push({ addr: sel.private_ip.trim(), type: 'private', hint: 'Private' });
+    if (sel.ipv6_address?.trim()) out.push({ addr: sel.ipv6_address.trim(), type: 'ipv6', hint: 'IPv6' });
+    return out;
+  }, [addServerId, servers]);
+
   return (
     <div className="page animate-in" style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
       <header className="page-header">
@@ -156,7 +173,8 @@ export const IpInventory = () => {
             )}
           </div>
           <p>
-            Look up which server owns an IP, or add extra addresses (public, private, or IPv6) for any server.
+            Includes every IP from your servers (primary, private, IPv6) plus extra addresses in the IP catalog.
+            Search by address or hostname to see which server it belongs to.
           </p>
         </div>
       </header>
@@ -208,6 +226,34 @@ export const IpInventory = () => {
               </select>
             </div>
           </div>
+          {serverRecordIpPicks.length > 0 && (
+            <div>
+              <p className="text-xs text-secondary mb-2">Pick from this server&apos;s saved addresses (click to fill the form):</p>
+              <div className="flex flex-wrap gap-2">
+                {serverRecordIpPicks.map((p) => (
+                  <button
+                    key={`${p.addr}-${p.type}`}
+                    type="button"
+                    className="text-xs px-2.5 py-1.5 rounded-md border border-border font-mono text-foreground transition-colors"
+                    style={{ background: 'hsl(var(--surface-2))' }}
+                    onMouseEnter={(e) => {
+                      (e.currentTarget as HTMLButtonElement).style.background = 'hsl(var(--surface-3))';
+                    }}
+                    onMouseLeave={(e) => {
+                      (e.currentTarget as HTMLButtonElement).style.background = 'hsl(var(--surface-2))';
+                    }}
+                    onClick={() => {
+                      setAddAddress(p.addr);
+                      setAddType(p.type);
+                    }}
+                  >
+                    {p.addr}
+                    <span className="text-secondary ml-1.5 font-sans">({p.hint})</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
           <div className="flex flex-wrap gap-3 items-end">
             <div className="flex-1 min-w-[200px]">
               <label className="block text-xs font-medium text-secondary mb-1.5">Label (optional)</label>
@@ -343,7 +389,7 @@ export const IpInventory = () => {
           <p style={{ fontSize: 13 }}>
             {searchTerm || filterType !== 'all'
               ? 'No IPs match your search.'
-              : 'No additional IPs yet. Use the form above to add one, or open a server from Servers to add IPs there.'}
+              : 'No IPs found. Add servers under Servers — their addresses appear here automatically.'}
           </p>
         </div>
       )}
@@ -390,6 +436,19 @@ export const IpInventory = () => {
                     color: 'hsl(var(--fg-2))',
                   }}
                 >
+                  Source
+                </th>
+                <th
+                  style={{
+                    padding: '12px 16px',
+                    textAlign: 'left',
+                    fontSize: 11,
+                    fontWeight: 600,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.05em',
+                    color: 'hsl(var(--fg-2))',
+                  }}
+                >
                   Server
                 </th>
                 <th
@@ -424,9 +483,10 @@ export const IpInventory = () => {
               {filteredIps.map((ip, index) => {
                 const typeConfig = ipTypeConfig[ip.ip_type];
                 const TypeIcon = typeConfig.icon;
+                const fromServer = ip.source === 'server' || ip.id < 0;
                 return (
                   <motion.tr
-                    key={ip.id}
+                    key={`${ip.source ?? 'catalog'}-${ip.id}-${ip.ip_address}`}
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ delay: index * 0.02 }}
@@ -462,6 +522,20 @@ export const IpInventory = () => {
                       </span>
                     </td>
                     <td style={{ padding: '12px 16px' }}>
+                      <span
+                        style={{
+                          fontSize: 11,
+                          fontWeight: 500,
+                          padding: '3px 8px',
+                          borderRadius: 6,
+                          background: fromServer ? 'hsl(var(--surface-3))' : 'hsl(var(--primary) / 0.1)',
+                          color: fromServer ? 'hsl(var(--fg-2))' : 'hsl(var(--primary))',
+                        }}
+                      >
+                        {fromServer ? 'Server' : 'Catalog'}
+                      </span>
+                    </td>
+                    <td style={{ padding: '12px 16px' }}>
                       <button
                         type="button"
                         onClick={() => navigate(`/servers?server=${ip.server_id}`)}
@@ -483,15 +557,19 @@ export const IpInventory = () => {
                     </td>
                     <td style={{ padding: '12px 16px', fontSize: 13, color: 'hsl(var(--fg-2))' }}>{ip.label || '—'}</td>
                     <td style={{ padding: '12px 16px', textAlign: 'right' }}>
-                      <button
-                        type="button"
-                        onClick={() => handleDelete(ip.id)}
-                        className="sv-btn-ghost"
-                        style={{ padding: 6, color: 'hsl(var(--danger))' }}
-                        title="Delete IP"
-                      >
-                        <Trash2 style={{ width: 14, height: 14 }} />
-                      </button>
+                      {fromServer ? (
+                        <span style={{ fontSize: 11, color: 'hsl(var(--fg-3))' }}>—</span>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => handleDelete(ip)}
+                          className="sv-btn-ghost"
+                          style={{ padding: 6, color: 'hsl(var(--danger))' }}
+                          title="Remove from catalog"
+                        >
+                          <Trash2 style={{ width: 14, height: 14 }} />
+                        </button>
+                      )}
                     </td>
                   </motion.tr>
                 );
