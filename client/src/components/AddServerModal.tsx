@@ -83,19 +83,22 @@ export const AddServerModal = ({ isOpen, onClose, customColumns, onServerCreated
   };
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+    <>
+      {/* Backdrop — separate from flex container to avoid ghost flex items */}
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         onClick={onClose}
-        className="fixed inset-0 bg-black/80 backdrop-blur-md"
+        className="fixed inset-0 z-[60] bg-black/60 backdrop-blur-sm"
       />
+      {/* Centering wrapper */}
+      <div className="fixed inset-0 z-[61] flex items-center justify-center p-4 overflow-y-auto">
       <motion.div
         initial={{ scale: 0.95, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         exit={{ scale: 0.95, opacity: 0 }}
-        className="relative z-[70] max-h-[90vh] w-full max-w-lg overflow-y-auto overflow-x-hidden rounded-2xl border border-border bg-surface shadow-2xl"
+        className="relative my-auto w-full max-w-lg rounded-2xl border border-border bg-surface shadow-2xl"
         role="dialog"
         aria-labelledby="add-server-title"
         aria-describedby="add-server-desc"
@@ -243,6 +246,7 @@ export const AddServerModal = ({ isOpen, onClose, customColumns, onServerCreated
           </div>
         </form>
       </motion.div>
-    </div>
+      </div>
+    </>
   );
 };
