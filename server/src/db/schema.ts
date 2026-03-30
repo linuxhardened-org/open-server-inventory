@@ -64,6 +64,18 @@ CREATE TABLE IF NOT EXISTS servers (
   FOREIGN KEY (ssh_key_id) REFERENCES ssh_keys(id) ON DELETE SET NULL
 );
 
+CREATE TABLE IF NOT EXISTS server_ips (
+  id SERIAL PRIMARY KEY,
+  server_id INTEGER NOT NULL,
+  ip_address VARCHAR(100) NOT NULL,
+  ip_type VARCHAR(20) NOT NULL DEFAULT 'public',
+  label VARCHAR(100),
+  created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (server_id) REFERENCES servers(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_server_ips_server_id ON server_ips(server_id);
+
 CREATE TABLE IF NOT EXISTS server_disks (
   id SERIAL PRIMARY KEY,
   server_id INTEGER NOT NULL,

@@ -24,6 +24,22 @@ async function migrateServerIpFields(pool: Pool): Promise<void> {
     ALTER TABLE servers
     ADD COLUMN IF NOT EXISTS ipv6_address VARCHAR(100)
   `);
+
+  // Create server_ips table for multiple IPs per server
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS server_ips (
+      id SERIAL PRIMARY KEY,
+      server_id INTEGER NOT NULL,
+      ip_address VARCHAR(100) NOT NULL,
+      ip_type VARCHAR(20) NOT NULL DEFAULT 'public',
+      label VARCHAR(100),
+      created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (server_id) REFERENCES servers(id) ON DELETE CASCADE
+    )
+  `);
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_server_ips_server_id ON server_ips(server_id)
+  `);
 }
 
 async function migrateApiTokenExpiry(pool: Pool): Promise<void> {

@@ -18,6 +18,7 @@ import customColumnsRoutes from './routes/customColumns';
 import userRoutes from './routes/users';
 import settingsRoutes from './routes/settings';
 import cloudProvidersRoutes from './routes/cloudProviders';
+import ipsRoutes from './routes/ips';
 
 import { sessionAuth } from './middleware/sessionAuth';
 import { bearerAuth } from './middleware/bearerAuth';
@@ -76,6 +77,7 @@ app.use('/api/export-import', sessionAuth, exportImportRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/settings', authMiddleware, settingsRoutes);
 app.use('/api/cloud-providers', sessionAuth, cloudProvidersRoutes);
+app.use('/api/ips', authMiddleware, ipsRoutes);
 
 attachClientSpa(app);
 
