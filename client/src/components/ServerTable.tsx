@@ -83,6 +83,18 @@ export const ServerTable = ({ servers, customColumns, onRowClick }: ServerTableP
                 fontWeight: 500,
               }}
             >
+              Region
+            </th>
+            <th
+              className="px-4"
+              style={{
+                fontSize: 11,
+                textTransform: 'uppercase',
+                letterSpacing: '0.06em',
+                color: 'hsl(var(--fg-3))',
+                fontWeight: 500,
+              }}
+            >
               Resources
             </th>
             <th
@@ -131,7 +143,7 @@ export const ServerTable = ({ servers, customColumns, onRowClick }: ServerTableP
           {servers.length === 0 && (
             <tr>
               <td
-                colSpan={6 + customColumns.length + 1}
+                colSpan={7 + customColumns.length + 1}
                 style={{ padding: '64px 0', textAlign: 'center' }}
               >
                 <div className="flex flex-col items-center gap-3" style={{ color: 'hsl(var(--fg-3))' }}>
@@ -232,6 +244,11 @@ export const ServerTable = ({ servers, customColumns, onRowClick }: ServerTableP
               {/* OS */}
               <td className="px-4" style={{ fontSize: 13, color: 'hsl(var(--fg-2))' }}>
                 {server.os ?? '—'}
+              </td>
+
+              {/* Region */}
+              <td className="px-4" style={{ fontSize: 13, color: 'hsl(var(--fg-2))' }}>
+                {server.region ?? '—'}
               </td>
 
               {/* Resources */}
