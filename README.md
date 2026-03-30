@@ -8,14 +8,6 @@
 
 > **Keywords:** server inventory, asset management, infrastructure tracking, self-hosted CMDB, IT asset management, server documentation, DevOps tools, data center management
 
-## Screenshot
-
-<p align="center">
-  <img src="docs/screenshots/dashboard.png" alt="ServerVault Dashboard - Server Inventory Overview" width="800"/>
-  <br/>
-  <em>Dashboard with server status overview and quick stats</em>
-</p>
-
 ## Why ServerVault?
 
 - **Self-Hosted & Private** - Your data stays on your infrastructure. No cloud dependency, no subscription fees.
