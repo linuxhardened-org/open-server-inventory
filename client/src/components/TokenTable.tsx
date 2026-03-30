@@ -48,7 +48,7 @@ export default function TokenTable({ tokens, onRevoke, onRegenerate }: TokenTabl
                     <button
                       type="button"
                       onClick={() => onRegenerate(token.id)}
-                      className="rounded-lg p-2 text-primary opacity-0 transition-colors hover:bg-primary/10 group-hover:opacity-100"
+                      className="rounded-lg p-2 text-primary transition-colors hover:bg-primary/10"
                       title="Regenerate Token"
                     >
                       <RefreshCw className="h-4 w-4" />
@@ -57,7 +57,7 @@ export default function TokenTable({ tokens, onRevoke, onRegenerate }: TokenTabl
                   <button
                     type="button"
                     onClick={() => onRevoke(token.id)}
-                    className="rounded-lg p-2 text-danger opacity-0 transition-colors hover:bg-danger/10 group-hover:opacity-100"
+                    className="rounded-lg p-2 text-danger transition-colors hover:bg-danger/10"
                     title="Revoke Token"
                   >
                     <Trash2 className="h-4 w-4" />
