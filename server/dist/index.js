@@ -41,6 +41,7 @@ const express_session_1 = __importDefault(require("express-session"));
 const connect_pg_simple_1 = __importDefault(require("connect-pg-simple"));
 const cors_1 = __importDefault(require("cors"));
 const morgan_1 = __importDefault(require("morgan"));
+const node_cron_1 = __importDefault(require("node-cron"));
 const env_1 = require("./config/env");
 const auth_1 = __importDefault(require("./routes/auth"));
 const tokens_1 = __importDefault(require("./routes/tokens"));
@@ -52,10 +53,13 @@ const stats_1 = __importDefault(require("./routes/stats"));
 const exportImport_1 = __importDefault(require("./routes/exportImport"));
 const customColumns_1 = __importDefault(require("./routes/customColumns"));
 const users_1 = __importDefault(require("./routes/users"));
+const settings_1 = __importDefault(require("./routes/settings"));
+const cloudProviders_1 = __importDefault(require("./routes/cloudProviders"));
 const sessionAuth_1 = require("./middleware/sessionAuth");
 const bearerAuth_1 = require("./middleware/bearerAuth");
 const db_1 = __importStar(require("./db"));
 const spaStatic_1 = require("./spaStatic");
+const cloudSync_1 = require("./utils/cloudSync");
 const PgSession = (0, connect_pg_simple_1.default)(express_session_1.default);
 const app = (0, express_1.default)();
 const PORT = env_1.env.port;
@@ -64,7 +68,7 @@ app.use((0, cors_1.default)({
     origin: env_1.env.clientUrl,
     credentials: true
 }));
-app.use(express_1.default.json());
+app.use(express_1.default.json({ limit: '5mb' }));
 app.use((0, express_session_1.default)({
     store: new PgSession({
         pool: db_1.default.pool,
@@ -98,6 +102,8 @@ app.use('/api/ssh-keys', authMiddleware, sshKeys_1.default);
 app.use('/api/stats', authMiddleware, stats_1.default);
 app.use('/api/export-import', sessionAuth_1.sessionAuth, exportImport_1.default);
 app.use('/api/users', users_1.default);
+app.use('/api/settings', authMiddleware, settings_1.default);
+app.use('/api/cloud-providers', sessionAuth_1.sessionAuth, cloudProviders_1.default);
 (0, spaStatic_1.attachClientSpa)(app);
 // Error handling
 app.use((err, req, res, next) => {
@@ -109,6 +115,9 @@ app.use((err, req, res, next) => {
     app.listen(PORT, () => {
         console.log(`ServerVault Backend running on http://localhost:${PORT}`);
     });
+    // Schedule cloud provider auto-sync daily at 2 AM
+    node_cron_1.default.schedule('0 2 * * *', cloudSync_1.runAutoSync);
+    console.log('Cloud auto-sync scheduled for 2 AM daily');
 }).catch(err => {
     console.error('Failed to start server due to database initialization error:', err);
     process.exit(1);

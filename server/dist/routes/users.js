@@ -24,7 +24,7 @@ const router = (0, express_1.Router)();
 router.use(sessionAuth_1.sessionAuth, adminAuth_1.adminAuth);
 router.get('/', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
-        const result = yield db_1.default.query('SELECT id, username, role, totp_enabled, created_at FROM users');
+        const result = yield db_1.default.query('SELECT id, username, real_name, role, totp_enabled, created_at FROM users');
         (0, response_1.sendSuccess)(res, result.rows);
     }
     catch (err) {
@@ -34,16 +34,17 @@ router.get('/', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
 router.post('/', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const schema = zod_1.z.object({
         username: zod_1.z.string().min(3),
-        password: zod_1.z.string().min(6),
+        password: zod_1.z.string().min(8),
+        real_name: zod_1.z.string().max(255).optional(),
         role: zod_1.z.enum(['admin', 'operator']).default('operator')
     });
     const parseResult = schema.safeParse(req.body);
     if (!parseResult.success)
         return (0, response_1.sendError)(res, 'Invalid input');
-    const { username, password, role } = parseResult.data;
+    const { username, password, real_name, role } = parseResult.data;
     try {
         const hashedPassword = yield (0, crypto_1.hashPassword)(password);
-        yield db_1.default.query('INSERT INTO users (username, password_hash, role) VALUES ($1, $2, $3)', [username, hashedPassword, role]);
+        yield db_1.default.query('INSERT INTO users (username, password_hash, real_name, role) VALUES ($1, $2, $3, $4)', [username, hashedPassword, real_name || null, role]);
         (0, response_1.sendSuccess)(res, { message: 'User created' }, 201);
     }
     catch (err) {
@@ -86,6 +87,35 @@ router.patch('/:id/role', (req, res) => __awaiter(void 0, void 0, void 0, functi
         const result = yield db_1.default.query('UPDATE users SET role = $1 WHERE id = $2', [role, id]);
         if (result.rowCount && result.rowCount > 0) {
             (0, response_1.sendSuccess)(res, { message: 'User role updated' });
+        }
+        else {
+            (0, response_1.sendError)(res, 'User not found');
+        }
+    }
+    catch (err) {
+        (0, response_1.sendError)(res, err.message);
+    }
+}));
+// Update user (admin can update any user, users can update their own real_name)
+router.patch('/:id', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const { id } = req.params;
+    const userId = parseInt(id);
+    const isAdmin = req.session.role === 'admin';
+    const isSelf = userId === req.session.userId;
+    if (!isAdmin && !isSelf) {
+        return (0, response_1.sendError)(res, 'You can only update your own profile', 403);
+    }
+    const schema = zod_1.z.object({
+        real_name: zod_1.z.string().max(255).nullable().optional(),
+    });
+    const parseResult = schema.safeParse(req.body);
+    if (!parseResult.success)
+        return (0, response_1.sendError)(res, 'Invalid input');
+    const { real_name } = parseResult.data;
+    try {
+        const result = yield db_1.default.query('UPDATE users SET real_name = $1 WHERE id = $2 RETURNING id, username, real_name, role', [real_name !== null && real_name !== void 0 ? real_name : null, userId]);
+        if (result.rowCount && result.rowCount > 0) {
+            (0, response_1.sendSuccess)(res, result.rows[0]);
         }
         else {
             (0, response_1.sendError)(res, 'User not found');

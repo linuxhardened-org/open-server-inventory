@@ -1,9 +1,20 @@
-import { useState, useEffect } from 'react';
-import { Download, Upload, Trash2, ShieldAlert, Settings2, Database, CheckCircle2, XCircle } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
+import { Download, Upload, Trash2, ShieldAlert, Settings2, Database, CheckCircle2, XCircle, Cloud, RefreshCw, Plus } from 'lucide-react';
+import { motion } from 'framer-motion';
 import axios from '../lib/api';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '../store/useAuthStore';
 import { useSettingsStore } from '../store/useSettingsStore';
+
+interface CloudProvider {
+  id: number;
+  name: string;
+  provider_type: string;
+  auto_sync: boolean;
+  last_synced_at: string | null;
+  server_count?: number;
+}
 
 type DbStatus = { connected: boolean; provider?: string; version?: string; error?: string } | null;
 
@@ -16,9 +27,29 @@ export const Settings = () => {
   const [dbStatus, setDbStatus] = useState<DbStatus>(null);
   const [dbChecking, setDbChecking] = useState(false);
 
+  // Cloud providers state
+  const [providers, setProviders] = useState<CloudProvider[]>([]);
+  const [providersLoading, setProvidersLoading] = useState(false);
+  const [addingProvider, setAddingProvider] = useState(false);
+  const [syncingId, setSyncingId] = useState<number | null>(null);
+  const [newProvider, setNewProvider] = useState({ name: '', api_token: '', auto_sync: true });
+
+  const fetchProviders = useCallback(async () => {
+    setProvidersLoading(true);
+    try {
+      const res = (await axios.get('/cloud-providers')) as { success: boolean; data: CloudProvider[] };
+      setProviders(Array.isArray(res?.data) ? res.data : []);
+    } catch {
+      // Silently fail - API might not exist yet
+    } finally {
+      setProvidersLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     checkDb();
-  }, []);
+    fetchProviders();
+  }, [fetchProviders]);
 
   const checkDb = async () => {
     setDbChecking(true);
@@ -90,6 +121,58 @@ export const Settings = () => {
       toast.error('Failed to save');
     } finally {
       setSavingName(false);
+    }
+  };
+
+  const handleAddProvider = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newProvider.name.trim() || !newProvider.api_token.trim()) return;
+    try {
+      await axios.post('/cloud-providers', {
+        name: newProvider.name.trim(),
+        provider_type: 'linode',
+        api_token: newProvider.api_token.trim(),
+        auto_sync: newProvider.auto_sync,
+      });
+      toast.success('Cloud provider added');
+      setAddingProvider(false);
+      setNewProvider({ name: '', api_token: '', auto_sync: true });
+      await fetchProviders();
+    } catch (err: unknown) {
+      toast.error((err as { error?: string })?.error || 'Failed to add provider');
+    }
+  };
+
+  const handleSyncProvider = async (id: number) => {
+    setSyncingId(id);
+    try {
+      await axios.post(`/cloud-providers/${id}/sync`);
+      toast.success('Sync started');
+      await fetchProviders();
+    } catch (err: unknown) {
+      toast.error((err as { error?: string })?.error || 'Sync failed');
+    } finally {
+      setSyncingId(null);
+    }
+  };
+
+  const handleToggleAutoSync = async (id: number, currentValue: boolean) => {
+    try {
+      await axios.patch(`/cloud-providers/${id}`, { auto_sync: !currentValue });
+      await fetchProviders();
+    } catch (err: unknown) {
+      toast.error((err as { error?: string })?.error || 'Failed to update');
+    }
+  };
+
+  const handleDeleteProvider = async (id: number) => {
+    if (!confirm('Delete this cloud provider integration? Imported servers will remain.')) return;
+    try {
+      await axios.delete(`/cloud-providers/${id}`);
+      toast.success('Provider removed');
+      await fetchProviders();
+    } catch (err: unknown) {
+      toast.error((err as { error?: string })?.error || 'Failed to delete');
     }
   };
 
@@ -243,6 +326,127 @@ export const Settings = () => {
             </div>
           </section>
 
+          {/* Cloud Integrations */}
+          <section className="sv-card">
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+              <div>
+                <h2 style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 16, fontWeight: 600, color: 'hsl(var(--fg))', margin: 0 }}>
+                  <Cloud style={{ width: 18, height: 18, color: 'hsl(var(--primary))' }} />
+                  Cloud Integrations
+                </h2>
+                <p style={{ fontSize: 13, color: 'hsl(var(--fg-2))', marginTop: 4 }}>
+                  Connect cloud providers to auto-import servers
+                </p>
+              </div>
+              <button type="button" onClick={() => setAddingProvider(true)} className="sv-btn-primary" style={{ gap: 6 }}>
+                <Plus style={{ width: 14, height: 14 }} />
+                Add Provider
+              </button>
+            </div>
+
+            {providersLoading ? (
+              <div style={{ padding: 32, textAlign: 'center', color: 'hsl(var(--fg-3))' }}>
+                <span style={{ display: 'inline-block', width: 16, height: 16, border: '2px solid hsl(var(--border))', borderTopColor: 'hsl(var(--primary))', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
+              </div>
+            ) : providers.length === 0 ? (
+              <div style={{ padding: 32, textAlign: 'center', color: 'hsl(var(--fg-3))', fontSize: 13, border: '1px dashed hsl(var(--border))', borderRadius: 8 }}>
+                No cloud providers configured yet.
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                {providers.map((provider) => (
+                  <div
+                    key={provider.id}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: '14px 16px',
+                      background: 'hsl(var(--surface-2))',
+                      border: '1px solid hsl(var(--border))',
+                      borderRadius: 8,
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                      <div style={{ width: 36, height: 36, borderRadius: 8, background: 'hsl(var(--primary) / 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <Cloud style={{ width: 18, height: 18, color: 'hsl(var(--primary))' }} />
+                      </div>
+                      <div>
+                        <div style={{ fontSize: 14, fontWeight: 500, color: 'hsl(var(--fg))' }}>{provider.name}</div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 2 }}>
+                          <span style={{ fontSize: 11, padding: '2px 6px', borderRadius: 4, background: 'hsl(var(--surface-3))', color: 'hsl(var(--fg-2))', textTransform: 'uppercase', fontWeight: 500 }}>
+                            {provider.provider_type}
+                          </span>
+                          {provider.server_count !== undefined && (
+                            <span style={{ fontSize: 11, color: 'hsl(var(--fg-3))' }}>
+                              {provider.server_count} server{provider.server_count !== 1 ? 's' : ''}
+                            </span>
+                          )}
+                          {provider.last_synced_at && (
+                            <span style={{ fontSize: 11, color: 'hsl(var(--fg-3))' }}>
+                              Last synced: {new Date(provider.last_synced_at).toLocaleString()}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      {/* Auto-sync toggle */}
+                      <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 12, color: 'hsl(var(--fg-2))' }}>
+                        <input
+                          type="checkbox"
+                          checked={provider.auto_sync}
+                          onChange={() => handleToggleAutoSync(provider.id, provider.auto_sync)}
+                          style={{ width: 14, height: 14, accentColor: 'hsl(var(--primary))' }}
+                        />
+                        Auto-sync
+                      </label>
+                      {/* Sync Now button */}
+                      <button
+                        type="button"
+                        onClick={() => handleSyncProvider(provider.id)}
+                        disabled={syncingId === provider.id}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 4,
+                          padding: '6px 10px',
+                          fontSize: 12,
+                          fontWeight: 500,
+                          color: 'hsl(var(--primary))',
+                          background: 'hsl(var(--primary) / 0.1)',
+                          border: '1px solid hsl(var(--primary) / 0.2)',
+                          borderRadius: 6,
+                          cursor: syncingId === provider.id ? 'not-allowed' : 'pointer',
+                          opacity: syncingId === provider.id ? 0.6 : 1,
+                        }}
+                      >
+                        <RefreshCw style={{ width: 13, height: 13, animation: syncingId === provider.id ? 'spin 1s linear infinite' : 'none' }} />
+                        {syncingId === provider.id ? 'Syncing...' : 'Sync Now'}
+                      </button>
+                      {/* Delete button */}
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteProvider(provider.id)}
+                        style={{
+                          padding: 6,
+                          borderRadius: 6,
+                          border: 'none',
+                          background: 'none',
+                          color: 'hsl(var(--danger))',
+                          cursor: 'pointer',
+                        }}
+                        title="Delete provider"
+                      >
+                        <Trash2 style={{ width: 15, height: 15 }} />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+
           <section className="bg-red-500/5 border border-red-500/20 rounded-xl p-6">
             <h2 className="text-xl font-semibold mb-4 flex items-center gap-2 text-red-500">
               <ShieldAlert className="w-5 h-5" />
@@ -265,6 +469,107 @@ export const Settings = () => {
             </div>
           </section>
         </div>
+
+        {/* Add Provider Modal */}
+        {addingProvider && createPortal(
+          <div
+            style={{
+              position: 'fixed',
+              inset: 0,
+              zIndex: 100,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              background: 'hsl(var(--bg) / 0.7)',
+              backdropFilter: 'blur(4px)',
+            }}
+            onClick={() => setAddingProvider(false)}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                width: '90%',
+                maxWidth: 420,
+                background: 'hsl(var(--surface))',
+                border: '1px solid hsl(var(--border))',
+                borderRadius: 12,
+                overflow: 'hidden',
+                boxShadow: '0 16px 48px hsl(var(--bg) / 0.4)',
+              }}
+            >
+              <div style={{ padding: '14px 16px', borderBottom: '1px solid hsl(var(--border))', background: 'hsl(var(--surface-2))' }}>
+                <h2 style={{ fontSize: 15, fontWeight: 600, color: 'hsl(var(--fg))', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <Cloud style={{ width: 16, height: 16, color: 'hsl(var(--primary))' }} />
+                  Add Cloud Provider
+                </h2>
+              </div>
+              <form onSubmit={handleAddProvider} style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 14 }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: 11, fontWeight: 500, color: 'hsl(var(--fg-2))', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                    Name <span style={{ color: 'hsl(var(--danger))' }}>*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={newProvider.name}
+                    onChange={(e) => setNewProvider({ ...newProvider, name: e.target.value })}
+                    className="sv-input"
+                    style={{ width: '100%' }}
+                    placeholder="e.g., Production Linode"
+                    required
+                  />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: 11, fontWeight: 500, color: 'hsl(var(--fg-2))', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                    Provider
+                  </label>
+                  <div style={{ padding: '10px 12px', background: 'hsl(var(--surface-2))', border: '1px solid hsl(var(--border))', borderRadius: 6, fontSize: 13, color: 'hsl(var(--fg-2))' }}>
+                    Linode (more providers coming soon)
+                  </div>
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: 11, fontWeight: 500, color: 'hsl(var(--fg-2))', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                    API Token <span style={{ color: 'hsl(var(--danger))' }}>*</span>
+                  </label>
+                  <input
+                    type="password"
+                    value={newProvider.api_token}
+                    onChange={(e) => setNewProvider({ ...newProvider, api_token: e.target.value })}
+                    className="sv-input"
+                    style={{ width: '100%' }}
+                    placeholder="Linode Personal Access Token"
+                    required
+                  />
+                  <p style={{ fontSize: 11, color: 'hsl(var(--fg-3))', marginTop: 6 }}>
+                    Generate a read-only token at cloud.linode.com/profile/tokens
+                  </p>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <input
+                    type="checkbox"
+                    id="auto-sync-checkbox"
+                    checked={newProvider.auto_sync}
+                    onChange={(e) => setNewProvider({ ...newProvider, auto_sync: e.target.checked })}
+                    style={{ width: 16, height: 16, accentColor: 'hsl(var(--primary))' }}
+                  />
+                  <label htmlFor="auto-sync-checkbox" style={{ fontSize: 13, color: 'hsl(var(--fg))' }}>
+                    Enable automatic sync
+                  </label>
+                </div>
+                <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                  <button type="button" onClick={() => setAddingProvider(false)} className="sv-btn-ghost" style={{ flex: 1, border: '1px solid hsl(var(--border-2))' }}>
+                    Cancel
+                  </button>
+                  <button type="submit" className="sv-btn-primary" style={{ flex: 1 }}>
+                    Add Provider
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>,
+          document.body
+        )}
       </div>
   );
 }

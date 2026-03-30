@@ -145,4 +145,18 @@ CREATE TABLE IF NOT EXISTS app_settings (
   value TEXT NOT NULL DEFAULT ''
 );
 INSERT INTO app_settings (key, value) VALUES ('app_name', 'ServerVault') ON CONFLICT (key) DO NOTHING;
+
+CREATE TABLE IF NOT EXISTS cloud_providers (
+  id SERIAL PRIMARY KEY,
+  name VARCHAR(255) NOT NULL,
+  provider VARCHAR(50) NOT NULL DEFAULT 'linode',
+  api_token TEXT NOT NULL,
+  auto_sync BOOLEAN DEFAULT TRUE,
+  last_sync_at TIMESTAMPTZ,
+  server_count INTEGER DEFAULT 0,
+  created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+
+ALTER TABLE servers ADD COLUMN IF NOT EXISTS cloud_provider_id INTEGER REFERENCES cloud_providers(id) ON DELETE SET NULL;
+ALTER TABLE servers ADD COLUMN IF NOT EXISTS cloud_instance_id VARCHAR(255);
 `;

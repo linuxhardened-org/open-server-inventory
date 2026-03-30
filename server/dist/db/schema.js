@@ -6,10 +6,12 @@ CREATE TABLE IF NOT EXISTS users (
   id SERIAL PRIMARY KEY,
   username VARCHAR(255) UNIQUE NOT NULL,
   password_hash TEXT NOT NULL,
+  real_name VARCHAR(255),
   role VARCHAR(50) DEFAULT 'operator',
   totp_secret TEXT,
   totp_enabling_secret TEXT, -- Temp storage for 2FA setup
   totp_enabled BOOLEAN DEFAULT FALSE,
+  password_change_required BOOLEAN DEFAULT FALSE,
   created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -133,4 +135,31 @@ BEGIN
 END $$;
 
 CREATE INDEX IF NOT EXISTS "IDX_session_expire" ON "session" ("expire");
+
+CREATE INDEX IF NOT EXISTS idx_servers_group_id ON servers(group_id);
+CREATE INDEX IF NOT EXISTS idx_servers_ssh_key_id ON servers(ssh_key_id);
+CREATE INDEX IF NOT EXISTS idx_api_tokens_user_id ON api_tokens(user_id);
+CREATE INDEX IF NOT EXISTS idx_server_history_server_id ON server_history(server_id);
+CREATE INDEX IF NOT EXISTS idx_server_tags_tag_id ON server_tags(tag_id);
+CREATE INDEX IF NOT EXISTS idx_server_custom_values_column_id ON server_custom_values(custom_column_id);
+
+CREATE TABLE IF NOT EXISTS app_settings (
+  key VARCHAR(100) PRIMARY KEY,
+  value TEXT NOT NULL DEFAULT ''
+);
+INSERT INTO app_settings (key, value) VALUES ('app_name', 'ServerVault') ON CONFLICT (key) DO NOTHING;
+
+CREATE TABLE IF NOT EXISTS cloud_providers (
+  id SERIAL PRIMARY KEY,
+  name VARCHAR(255) NOT NULL,
+  provider VARCHAR(50) NOT NULL DEFAULT 'linode',
+  api_token TEXT NOT NULL,
+  auto_sync BOOLEAN DEFAULT TRUE,
+  last_sync_at TIMESTAMPTZ,
+  server_count INTEGER DEFAULT 0,
+  created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+
+ALTER TABLE servers ADD COLUMN IF NOT EXISTS cloud_provider_id INTEGER REFERENCES cloud_providers(id) ON DELETE SET NULL;
+ALTER TABLE servers ADD COLUMN IF NOT EXISTS cloud_instance_id VARCHAR(255);
 `;

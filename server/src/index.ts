@@ -3,6 +3,7 @@ import session from 'express-session';
 import connectPgSimple from 'connect-pg-simple';
 import cors from 'cors';
 import morgan from 'morgan';
+import cron from 'node-cron';
 
 import { env } from './config/env';
 import authRoutes from './routes/auth';
@@ -16,12 +17,14 @@ import exportImportRoutes from './routes/exportImport';
 import customColumnsRoutes from './routes/customColumns';
 import userRoutes from './routes/users';
 import settingsRoutes from './routes/settings';
+import cloudProvidersRoutes from './routes/cloudProviders';
 
 import { sessionAuth } from './middleware/sessionAuth';
 import { bearerAuth } from './middleware/bearerAuth';
 
 import db, { initDB } from './db';
 import { attachClientSpa } from './spaStatic';
+import { runAutoSync } from './utils/cloudSync';
 
 const PgSession = connectPgSimple(session);
 
@@ -72,6 +75,7 @@ app.use('/api/stats', authMiddleware, statsRoutes);
 app.use('/api/export-import', sessionAuth, exportImportRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/settings', authMiddleware, settingsRoutes);
+app.use('/api/cloud-providers', sessionAuth, cloudProvidersRoutes);
 
 attachClientSpa(app);
 
@@ -86,6 +90,10 @@ initDB().then(() => {
   app.listen(PORT, () => {
     console.log(`ServerVault Backend running on http://localhost:${PORT}`);
   });
+
+  // Schedule cloud provider auto-sync daily at 2 AM
+  cron.schedule('0 2 * * *', runAutoSync);
+  console.log('Cloud auto-sync scheduled for 2 AM daily');
 }).catch(err => {
   console.error('Failed to start server due to database initialization error:', err);
   process.exit(1);

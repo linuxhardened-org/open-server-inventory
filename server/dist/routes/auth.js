@@ -1,4 +1,37 @@
 "use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
     return new (P || (P = Promise))(function (resolve, reject) {
@@ -8,27 +41,52 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
 const zod_1 = require("zod");
-const db_1 = __importDefault(require("../db"));
+const db_1 = __importStar(require("../db"));
 const crypto_1 = require("../utils/crypto");
 const totp_1 = require("../utils/totp");
 const response_1 = require("../utils/response");
 const sessionAuth_1 = require("../middleware/sessionAuth");
+const persistedConfig_1 = require("../utils/persistedConfig");
 const router = (0, express_1.Router)();
 const loginSchema = zod_1.z.object({
     username: zod_1.z.string().min(1),
     password: zod_1.z.string().min(1),
     totpToken: zod_1.z.string().optional(),
+    rememberMe: zod_1.z.boolean().optional(),
 });
 const setupSchema = zod_1.z.object({
-    username: zod_1.z.string().trim().min(3),
-    password: zod_1.z.string().min(8),
+    app_name: zod_1.z.string().trim().min(1).max(80).optional(),
+    database_url: zod_1.z.string().url().optional(),
 });
+// POST /api/auth/test-db — test a DATABASE_URL before committing during setup
+router.post('/test-db', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const parsed = zod_1.z.object({ database_url: zod_1.z.string().min(1) }).safeParse(req.body);
+    if (!parsed.success)
+        return (0, response_1.sendError)(res, 'database_url is required', 400);
+    const { Pool } = yield Promise.resolve().then(() => __importStar(require('pg')));
+    const pool = new Pool({
+        connectionString: parsed.data.database_url,
+        ssl: { rejectUnauthorized: false },
+        connectionTimeoutMillis: 8000,
+    });
+    try {
+        const result = yield pool.query('SELECT version() AS version');
+        const version = result.rows[0].version;
+        (0, response_1.sendSuccess)(res, {
+            connected: true,
+            version: version.split(' ').slice(0, 2).join(' '),
+        });
+    }
+    catch (err) {
+        (0, response_1.sendSuccess)(res, { connected: false, error: err.message });
+    }
+    finally {
+        yield pool.end().catch(() => { });
+    }
+}));
 router.post('/setup', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const parsed = setupSchema.safeParse(req.body);
     if (!parsed.success)
@@ -39,25 +97,51 @@ router.post('/setup', (req, res) => __awaiter(void 0, void 0, void 0, function* 
         if (existingUsers > 0) {
             return (0, response_1.sendError)(res, 'Setup already completed', 409);
         }
-        const { username, password } = parsed.data;
-        const passwordHash = yield (0, crypto_1.hashPassword)(password);
-        const created = yield db_1.default.query('INSERT INTO users (username, password_hash, role) VALUES ($1, $2, $3) RETURNING id, username, role, totp_enabled', [username, passwordHash, 'admin']);
-        const user = created.rows[0];
-        req.session.regenerate((regErr) => {
-            if (regErr) {
-                console.error('session regenerate:', regErr);
-                return (0, response_1.sendError)(res, 'Could not create session', 500);
+        const { app_name, database_url } = parsed.data;
+        // If a custom DATABASE_URL was provided, init schema on that DB and save config.
+        // The server will restart (Docker restart: always) to use the new connection.
+        let targetDb = db_1.default;
+        let requiresRestart = false;
+        if (database_url) {
+            const { Pool } = yield Promise.resolve().then(() => __importStar(require('pg')));
+            const pool = new Pool({
+                connectionString: database_url,
+                ssl: { rejectUnauthorized: false },
+                connectionTimeoutMillis: 10000,
+            });
+            try {
+                const { schema } = yield Promise.resolve().then(() => __importStar(require('../db/schema')));
+                const { runMigrations } = yield Promise.resolve().then(() => __importStar(require('../db/migrations')));
+                yield pool.query(schema);
+                yield runMigrations(pool);
+                // Seed admin on the external DB before restart
+                yield (0, db_1.seedDefaultAdmin)(pool);
+                targetDb = {
+                    query: (text, params) => pool.query(text, params),
+                    pool,
+                };
+                (0, persistedConfig_1.savePersistedConfig)({ database_url });
+                requiresRestart = true;
             }
-            req.session.userId = user.id;
-            req.session.username = user.username;
-            req.session.role = user.role;
-            (0, response_1.sendSuccess)(res, {
-                id: user.id,
-                username: user.username,
-                role: user.role,
-                totpEnabled: !!user.totp_enabled,
-            }, 201);
-        });
+            catch (err) {
+                yield pool.end().catch(() => { });
+                return (0, response_1.sendError)(res, `Database connection failed: ${err.message}`, 400);
+            }
+        }
+        if (app_name) {
+            yield targetDb.query('INSERT INTO app_settings (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value', ['app_name', app_name]);
+        }
+        if (!database_url) {
+            // Local DB: seed default admin now
+            yield (0, db_1.seedDefaultAdmin)(targetDb.pool);
+        }
+        if (requiresRestart) {
+            // Config saved — restart server so the new DATABASE_URL pool is used from the start
+            (0, response_1.sendSuccess)(res, { requiresRestart: true }, 201);
+            setTimeout(() => process.exit(0), 400);
+            return;
+        }
+        (0, response_1.sendSuccess)(res, { requiresRestart: false }, 201);
     }
     catch (err) {
         if ((err === null || err === void 0 ? void 0 : err.code) === '23505')
@@ -80,7 +164,7 @@ router.post('/login', (req, res) => __awaiter(void 0, void 0, void 0, function* 
     if (!parseResult.success)
         return (0, response_1.sendError)(res, 'Invalid input');
     try {
-        const { username, password, totpToken } = parseResult.data;
+        const { username, password, totpToken, rememberMe } = parseResult.data;
         const result = yield db_1.default.query('SELECT * FROM users WHERE username = $1', [username]);
         const user = result.rows[0];
         if (!user || !(yield (0, crypto_1.verifyPassword)(password, user.password_hash))) {
@@ -99,16 +183,51 @@ router.post('/login', (req, res) => __awaiter(void 0, void 0, void 0, function* 
             req.session.userId = user.id;
             req.session.username = user.username;
             req.session.role = user.role;
+            // If "remember me", extend session to 30 days instead of default 24h
+            if (rememberMe) {
+                req.session.cookie.maxAge = 30 * 24 * 60 * 60 * 1000; // 30 days
+            }
             (0, response_1.sendSuccess)(res, {
                 id: user.id,
                 username: user.username,
+                realName: user.real_name,
                 role: user.role,
                 totpEnabled: !!user.totp_enabled,
+                passwordChangeRequired: !!user.password_change_required,
             });
         });
     }
     catch (err) {
         (0, response_1.sendError)(res, err.message);
+    }
+}));
+// PUT /api/auth/change-password — force-change flow + voluntary change
+router.put('/change-password', sessionAuth_1.sessionAuth, (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const schema = zod_1.z.object({
+        current_password: zod_1.z.string().min(1),
+        new_password: zod_1.z.string().min(8),
+    });
+    const parsed = schema.safeParse(req.body);
+    if (!parsed.success)
+        return (0, response_1.sendError)(res, 'new_password must be at least 8 characters', 400);
+    const { current_password, new_password } = parsed.data;
+    try {
+        const result = yield db_1.default.query('SELECT password_hash FROM users WHERE id = $1', [req.session.userId]);
+        const user = result.rows[0];
+        if (!user)
+            return (0, response_1.sendError)(res, 'User not found', 404);
+        if (!(yield (0, crypto_1.verifyPassword)(current_password, user.password_hash))) {
+            return (0, response_1.sendError)(res, 'Current password is incorrect', 401);
+        }
+        if (yield (0, crypto_1.verifyPassword)(new_password, user.password_hash)) {
+            return (0, response_1.sendError)(res, 'New password must be different from the current password', 400);
+        }
+        const newHash = yield (0, crypto_1.hashPassword)(new_password);
+        yield db_1.default.query('UPDATE users SET password_hash = $1, password_change_required = FALSE WHERE id = $2', [newHash, req.session.userId]);
+        (0, response_1.sendSuccess)(res, { message: 'Password updated' });
+    }
+    catch (err) {
+        (0, response_1.sendError)(res, err.message || 'Failed to change password');
     }
 }));
 router.post('/logout', (req, res) => {
@@ -118,12 +237,34 @@ router.post('/logout', (req, res) => {
 });
 router.get('/me', sessionAuth_1.sessionAuth, (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
-        const result = yield db_1.default.query('SELECT id, username, role, totp_enabled FROM users WHERE id = $1', [req.session.userId]);
+        const result = yield db_1.default.query('SELECT id, username, real_name, role, totp_enabled, created_at FROM users WHERE id = $1', [req.session.userId]);
         const user = result.rows[0];
         (0, response_1.sendSuccess)(res, user);
     }
     catch (err) {
         (0, response_1.sendError)(res, err.message);
+    }
+}));
+// PATCH /api/auth/profile — update own profile (real_name)
+router.patch('/profile', sessionAuth_1.sessionAuth, (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const schema = zod_1.z.object({
+        real_name: zod_1.z.string().max(255).nullable().optional(),
+    });
+    const parsed = schema.safeParse(req.body);
+    if (!parsed.success)
+        return (0, response_1.sendError)(res, 'Invalid input', 400);
+    const { real_name } = parsed.data;
+    try {
+        const result = yield db_1.default.query('UPDATE users SET real_name = $1 WHERE id = $2 RETURNING id, username, real_name, role, totp_enabled, created_at', [real_name !== null && real_name !== void 0 ? real_name : null, req.session.userId]);
+        if (result.rowCount && result.rowCount > 0) {
+            (0, response_1.sendSuccess)(res, result.rows[0]);
+        }
+        else {
+            (0, response_1.sendError)(res, 'User not found', 404);
+        }
+    }
+    catch (err) {
+        (0, response_1.sendError)(res, err.message || 'Failed to update profile');
     }
 }));
 router.post('/2fa/setup', sessionAuth_1.sessionAuth, (req, res) => __awaiter(void 0, void 0, void 0, function* () {
@@ -133,7 +274,7 @@ router.post('/2fa/setup', sessionAuth_1.sessionAuth, (req, res) => __awaiter(voi
         const secret = (0, totp_1.generateTotpSecret)();
         yield db_1.default.query('UPDATE users SET totp_enabling_secret = $1 WHERE id = $2', [secret, req.session.userId]);
         const qrCode = yield (0, totp_1.generateTotpUri)(secret, user.username);
-        (0, response_1.sendSuccess)(res, { secret, qrCode });
+        (0, response_1.sendSuccess)(res, { qrCode });
     }
     catch (err) {
         (0, response_1.sendError)(res, err.message);
