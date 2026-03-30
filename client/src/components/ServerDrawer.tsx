@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { X, Server, Pencil, Trash2, Save, RefreshCw, Network } from 'lucide-react';
 import { Server as ServerType } from '../types';
 import api, { getApiErrorMessage } from '../lib/api';
-import { formatIpDisplay } from '../lib/utils';
+import { nonEmptyTrim } from '../lib/utils';
 import { LINODE_LOGO_URL } from '../lib/cloudAssets';
 import { parseLinodeNetworkExtras } from '../lib/linodeNetworkExtras';
 import toast from 'react-hot-toast';
@@ -316,18 +316,27 @@ export const ServerDrawer = ({ server, isOpen, onClose, onUpdate, onRefresh }: S
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               <Row label="Name" value={server.name || server.hostname} />
               <Row label="Hostname" value={server.hostname} mono />
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                <Row label="Public IPv4" value={formatIpDisplay(server.ip_address)} mono />
-                <Row label="Private IPv4" value={formatIpDisplay(server.private_ip)} mono />
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                <Row label="Public IPv6" value={formatIpDisplay(server.ipv6_address)} mono />
-                <Row label="Private IPv6" value={formatIpDisplay(server.private_ipv6)} mono />
-              </div>
+              {nonEmptyTrim(server.ip_address) && (
+                <Row label="Public IPv4" value={nonEmptyTrim(server.ip_address)!} mono />
+              )}
+              {nonEmptyTrim(server.private_ip) && (
+                <Row label="Private IPv4" value={nonEmptyTrim(server.private_ip)!} mono />
+              )}
+              {nonEmptyTrim(server.ipv6_address) && (
+                <Row label="Public IPv6" value={nonEmptyTrim(server.ipv6_address)!} mono />
+              )}
+              {nonEmptyTrim(server.private_ipv6) && (
+                <Row label="Private IPv6" value={nonEmptyTrim(server.private_ipv6)!} mono />
+              )}
               {(() => {
                 const ex = parseLinodeNetworkExtras(server.linode_network_extras);
                 if (!ex) return null;
-                const line = (addrs: string[]) => (addrs.length ? addrs.join(', ') : 'N/A');
+                const hasBlock =
+                  ex.vpc_ipv4.length > 0 ||
+                  ex.vpc_ipv6.length > 0 ||
+                  ex.nat_1_1_ipv4.length > 0 ||
+                  ex.vpc_subnet_lines.length > 0;
+                if (!hasBlock) return null;
                 return (
                   <div
                     style={{
@@ -357,13 +366,24 @@ export const ServerDrawer = ({ server, isOpen, onClose, onUpdate, onRefresh }: S
                         VPC / NAT 1:1
                       </span>
                     </div>
-                    <Row label="VPC IPv4 (private)" value={line(ex.vpc_ipv4)} mono />
-                    <div style={{ marginTop: 8 }}>
-                      <Row label="VPC IPv6 (private)" value={line(ex.vpc_ipv6)} mono />
-                    </div>
-                    <div style={{ marginTop: 8 }}>
-                      <Row label="NAT 1:1 (public)" value={line(ex.nat_1_1_ipv4)} mono />
-                    </div>
+                    {ex.vpc_ipv4.length > 0 && (
+                      <Row label="VPC IPv4 (private)" value={ex.vpc_ipv4.join(', ')} mono />
+                    )}
+                    {ex.vpc_ipv6.length > 0 && (
+                      <div style={{ marginTop: 8 }}>
+                        <Row label="VPC IPv6 (private)" value={ex.vpc_ipv6.join(', ')} mono />
+                      </div>
+                    )}
+                    {ex.nat_1_1_ipv4.length > 0 && (
+                      <div style={{ marginTop: 8 }}>
+                        <Row label="NAT 1:1 (public)" value={ex.nat_1_1_ipv4.join(', ')} mono />
+                      </div>
+                    )}
+                    {ex.vpc_subnet_lines.length > 0 && (
+                      <div style={{ marginTop: 8 }}>
+                        <Row label="VPC subnet" value={ex.vpc_subnet_lines.join('\n')} mono multiline />
+                      </div>
+                    )}
                   </div>
                 );
               })()}
@@ -613,11 +633,31 @@ export const ServerDrawer = ({ server, isOpen, onClose, onUpdate, onRefresh }: S
   );
 };
 
-function Row({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
+function Row({
+  label,
+  value,
+  mono,
+  multiline,
+}: {
+  label: string;
+  value: string;
+  mono?: boolean;
+  multiline?: boolean;
+}) {
   return (
     <div>
       <span style={{ fontSize: 11, color: 'hsl(var(--fg-3))', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{label}</span>
-      <p style={{ margin: '3px 0 0', fontSize: 13, color: 'hsl(var(--fg))', fontFamily: mono ? 'var(--font-mono)' : undefined }}>{value}</p>
+      <p
+        style={{
+          margin: '3px 0 0',
+          fontSize: 13,
+          color: 'hsl(var(--fg))',
+          fontFamily: mono ? 'var(--font-mono)' : undefined,
+          whiteSpace: multiline ? 'pre-line' : undefined,
+        }}
+      >
+        {value}
+      </p>
     </div>
   );
 }

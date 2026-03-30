@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { Server } from '../types';
-import { formatIpDisplay } from '../lib/utils';
+import { nonEmptyTrim } from '../lib/utils';
 import { LINODE_LOGO_URL } from '../lib/cloudAssets';
 import { parseLinodeNetworkExtras } from '../lib/linodeNetworkExtras';
 
@@ -10,10 +10,6 @@ const GAP = 8;
 const EST_POPOVER_HEIGHT = 280;
 const POPOVER_MAX_W = 340;
 
-function joinList(list: string[] | undefined): string {
-  if (!list?.length) return 'N/A';
-  return list.join(', ');
-}
 
 export function ServerAddressPopoverCell({ server }: { server: Server }) {
   const [open, setOpen] = useState(false);
@@ -31,10 +27,12 @@ export function ServerAddressPopoverCell({ server }: { server: Server }) {
   const showLinodeLogo = Boolean(server.cloud_provider_id);
 
   const primary =
-    server.ip_address?.trim() ||
-    server.ipv6_address?.trim() ||
-    (extras?.vpc_ipv4[0] ?? extras?.nat_1_1_ipv4[0]) ||
-    'N/A';
+    nonEmptyTrim(server.ip_address) ||
+    nonEmptyTrim(server.ipv6_address) ||
+    extras?.vpc_ipv4[0] ||
+    extras?.nat_1_1_ipv4[0] ||
+    extras?.vpc_subnet_lines[0] ||
+    '\u2014';
 
   const updatePos = useCallback(() => {
     const el = wrapRef.current;
@@ -118,6 +116,16 @@ export function ServerAddressPopoverCell({ server }: { server: Server }) {
     scheduleHide();
   };
 
+  const hasIpDetails =
+    nonEmptyTrim(server.ip_address) ||
+    nonEmptyTrim(server.private_ip) ||
+    nonEmptyTrim(server.ipv6_address) ||
+    nonEmptyTrim(server.private_ipv6) ||
+    (extras?.vpc_ipv4?.length ?? 0) > 0 ||
+    (extras?.vpc_ipv6?.length ?? 0) > 0 ||
+    (extras?.nat_1_1_ipv4?.length ?? 0) > 0 ||
+    (extras?.vpc_subnet_lines?.length ?? 0) > 0;
+
   return (
     <>
       <div
@@ -173,15 +181,36 @@ export function ServerAddressPopoverCell({ server }: { server: Server }) {
                 />
               </div>
             )}
-            <dl style={{ margin: 0, display: 'grid', gap: 6, fontSize: 11 }}>
-              <IpRow label="Public IPv4" value={formatIpDisplay(server.ip_address)} />
-              <IpRow label="Private IPv4" value={formatIpDisplay(server.private_ip)} />
-              <IpRow label="Public IPv6" value={formatIpDisplay(server.ipv6_address)} />
-              <IpRow label="Private IPv6" value={formatIpDisplay(server.private_ipv6)} />
-              <IpRow label="VPC IPv4 (private)" value={joinList(extras?.vpc_ipv4)} multiline />
-              <IpRow label="VPC IPv6 (private)" value={joinList(extras?.vpc_ipv6)} multiline />
-              <IpRow label="NAT 1:1 (public)" value={joinList(extras?.nat_1_1_ipv4)} multiline />
-            </dl>
+            {!hasIpDetails ? (
+              <p style={{ margin: 0, fontSize: 12, color: 'hsl(var(--fg-3))' }}>No addresses stored</p>
+            ) : (
+              <dl style={{ margin: 0, display: 'grid', gap: 6, fontSize: 11 }}>
+                {nonEmptyTrim(server.ip_address) && (
+                  <IpRow label="Public IPv4" value={nonEmptyTrim(server.ip_address)!} />
+                )}
+                {nonEmptyTrim(server.private_ip) && (
+                  <IpRow label="Private IPv4" value={nonEmptyTrim(server.private_ip)!} />
+                )}
+                {nonEmptyTrim(server.ipv6_address) && (
+                  <IpRow label="Public IPv6" value={nonEmptyTrim(server.ipv6_address)!} />
+                )}
+                {nonEmptyTrim(server.private_ipv6) && (
+                  <IpRow label="Private IPv6" value={nonEmptyTrim(server.private_ipv6)!} />
+                )}
+                {(extras?.vpc_ipv4?.length ?? 0) > 0 && (
+                  <IpRow label="VPC IPv4 (private)" value={extras!.vpc_ipv4.join(', ')} multiline />
+                )}
+                {(extras?.vpc_ipv6?.length ?? 0) > 0 && (
+                  <IpRow label="VPC IPv6 (private)" value={extras!.vpc_ipv6.join(', ')} multiline />
+                )}
+                {(extras?.nat_1_1_ipv4?.length ?? 0) > 0 && (
+                  <IpRow label="NAT 1:1 (public)" value={extras!.nat_1_1_ipv4.join(', ')} multiline />
+                )}
+                {(extras?.vpc_subnet_lines?.length ?? 0) > 0 && (
+                  <IpRow label="VPC subnet" value={extras!.vpc_subnet_lines.join('\n')} multiline />
+                )}
+              </dl>
+            )}
           </div>,
           document.body
         )}
@@ -208,7 +237,7 @@ function IpRow({
           fontSize: 11,
           color: 'hsl(var(--fg))',
           wordBreak: multiline ? 'break-all' : 'normal',
-          whiteSpace: multiline ? 'normal' : 'nowrap',
+          whiteSpace: multiline ? 'pre-line' : 'nowrap',
           overflow: multiline ? undefined : 'hidden',
           textOverflow: multiline ? undefined : 'ellipsis',
         }}
