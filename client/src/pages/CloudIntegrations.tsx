@@ -18,6 +18,13 @@ interface CloudProvider {
   server_count?: number;
 }
 
+const COMING_SOON_PROVIDERS = [
+  { name: 'AWS', logo: '/images/aws-logo.svg' },
+  { name: 'GCP', logo: '/images/gcp-logo.svg' },
+  { name: 'DigitalOcean', logo: '/images/digitalocean-logo.svg' },
+  { name: 'Vultr', logo: '/images/vultr-logo.svg' },
+] as const;
+
 function formatHour(hour: number): string {
   const h = hour % 12 || 12;
   const ampm = hour < 12 ? 'AM' : 'PM';
@@ -120,6 +127,31 @@ export const CloudIntegrations = () => {
         <div className="page-header-text">
           <h1>Cloud Integrations</h1>
           <p>Connect cloud providers to auto-import and sync servers.</p>
+          <div style={{ marginTop: 8, display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+            {COMING_SOON_PROVIDERS.map((provider) => (
+              <span
+                key={provider.name}
+                style={{
+                  fontSize: 11,
+                  padding: '3px 8px 3px 6px',
+                  borderRadius: 9999,
+                  background: 'hsl(var(--surface-3))',
+                  color: 'hsl(var(--fg-2))',
+                  border: '1px solid hsl(var(--border))',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6,
+                }}
+              >
+                <img
+                  src={provider.logo}
+                  alt={`${provider.name} logo`}
+                  style={{ width: 14, height: 14, objectFit: 'contain' }}
+                />
+                {provider.name} (coming soon)
+              </span>
+            ))}
+          </div>
         </div>
         <button type="button" onClick={() => setAddingProvider(true)} className="sv-btn-primary">
           <Plus style={{ width: 15, height: 15 }} /> Add Provider

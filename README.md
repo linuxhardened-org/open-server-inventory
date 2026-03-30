@@ -21,7 +21,7 @@
 
 | Feature | Description |
 |---------|-------------|
-| **Server Inventory** | Track hostname, IP, OS, CPU, RAM, and unlimited custom fields |
+| **Server Inventory** | Track hostname, public/private IPv4/IPv6, OS, CPU, RAM, and unlimited custom fields |
 | **Groups & Tags** | Organize servers with hierarchical groups and color-coded tags |
 | **SSH Keys** | Store and manage SSH key metadata for your infrastructure |
 | **Custom Columns** | Create any field you need - environment, location, cost center, etc. |
@@ -30,6 +30,25 @@
 | **Dashboard** | Visual overview with server counts, status breakdown, and charts |
 | **Audit History** | Track all changes with server history log |
 | **Dark Mode** | Eye-friendly dark theme that persists across sessions |
+| **Cloud Networking (Linode)** | Sync primary + additional public IPs, VPC IPs, NAT 1:1 mappings, and VPC subnet details |
+
+## Cloud Sync Networking (Linode)
+
+When syncing from Linode, ServerVault now captures:
+
+- Primary addresses: public/private IPv4 and public/private IPv6 (when present)
+- Additional public addresses from public/shared/reserved pools
+- VPC private addresses (IPv4/IPv6), NAT 1:1 public mappings, and VPC subnet metadata
+
+In the Servers table, hover an address cell to open the networking popover with available details.
+Empty fields are hidden instead of displaying placeholder values.
+
+### Cloud Providers (Coming Soon)
+
+- AWS
+- GCP
+- DigitalOcean
+- Vultr
 
 ## Quick Start
 
