@@ -1,14 +1,24 @@
 import { Link } from 'react-router-dom';
-import { ChevronDown, Sun, Moon } from 'lucide-react';
+import { ChevronDown, Sun, Moon, Menu } from 'lucide-react';
 import { useAuthStore } from '../store/useAuthStore';
 import { useThemeStore } from '../store/useThemeStore';
 
-export const TopBar = () => {
+export const TopBar = ({ onMenuToggle }: { onMenuToggle?: () => void }) => {
   const user = useAuthStore((s) => s.user);
   const { theme, toggleTheme } = useThemeStore();
 
   return (
     <header className="app-topbar">
+      {/* Hamburger — mobile only */}
+      <button
+        type="button"
+        onClick={onMenuToggle}
+        className="lg:hidden inline-flex h-8 w-8 items-center justify-center rounded-md text-secondary transition-colors hover:bg-foreground/[0.06] hover:text-foreground"
+        aria-label="Toggle navigation"
+      >
+        <Menu size={18} aria-hidden />
+      </button>
+
       <div className="flex-1" />
 
       <div className="flex items-center gap-1">

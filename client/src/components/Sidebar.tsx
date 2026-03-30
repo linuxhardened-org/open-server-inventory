@@ -42,12 +42,12 @@ function NavItem({ icon: Icon, label, path, end }: { icon: typeof Server; label:
   );
 }
 
-export const Sidebar = () => {
+export const Sidebar = ({ isOpen }: { isOpen?: boolean; onClose?: () => void }) => {
   const logout = useAuthStore((s) => s.logout);
   const navigate = useNavigate();
 
   return (
-    <nav className="app-sidebar">
+    <nav className={`app-sidebar${isOpen ? ' sidebar-open' : ''}`}>
       <Link to="/dashboard" className="app-sidebar-brand">
         <span
           style={{

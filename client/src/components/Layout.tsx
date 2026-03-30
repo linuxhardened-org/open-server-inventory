@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { Outlet, Navigate, useLocation } from 'react-router-dom';
 import { Sidebar } from './Sidebar';
 import { TopBar } from './TopBar';
@@ -7,6 +8,12 @@ import { motion, AnimatePresence } from 'framer-motion';
 export const Layout = () => {
   const location = useLocation();
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  // Close sidebar on route change (mobile nav)
+  useEffect(() => {
+    setSidebarOpen(false);
+  }, [location.pathname]);
 
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
@@ -14,9 +21,15 @@ export const Layout = () => {
 
   return (
     <div className="app-shell">
-      <Sidebar />
+      {/* Mobile overlay */}
+      <div
+        className={`sidebar-overlay${sidebarOpen ? ' sidebar-open' : ''}`}
+        onClick={() => setSidebarOpen(false)}
+        aria-hidden
+      />
+      <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       <div className="app-main">
-        <TopBar />
+        <TopBar onMenuToggle={() => setSidebarOpen((o) => !o)} />
         <main className="app-content" id="main-content" tabIndex={-1}>
           <AnimatePresence mode="wait">
             <motion.div
