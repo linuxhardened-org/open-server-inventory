@@ -45,24 +45,24 @@
     --info:         210 90% 60%;
   }
 
-  /* Accent color themes */
-  .accent-emerald { --primary: 152 69% 45%; }
-  .accent-emerald.dark { --primary: 152 69% 50%; }
+  /* Accent color themes - use html selector for higher specificity */
+  html.accent-emerald { --primary: 152 69% 45%; }
+  html.accent-emerald.dark { --primary: 152 69% 50%; }
 
-  .accent-blue { --primary: 217 91% 55%; }
-  .accent-blue.dark { --primary: 217 91% 60%; }
+  html.accent-blue { --primary: 217 91% 55%; }
+  html.accent-blue.dark { --primary: 217 91% 60%; }
 
-  .accent-purple { --primary: 262 83% 58%; }
-  .accent-purple.dark { --primary: 262 83% 63%; }
+  html.accent-purple { --primary: 262 83% 58%; }
+  html.accent-purple.dark { --primary: 262 83% 63%; }
 
-  .accent-orange { --primary: 24 95% 53%; }
-  .accent-orange.dark { --primary: 24 95% 58%; }
+  html.accent-orange { --primary: 24 95% 53%; }
+  html.accent-orange.dark { --primary: 24 95% 58%; }
 
-  .accent-pink { --primary: 330 81% 60%; }
-  .accent-pink.dark { --primary: 330 81% 65%; }
+  html.accent-pink { --primary: 330 81% 60%; }
+  html.accent-pink.dark { --primary: 330 81% 65%; }
 
-  .accent-cyan { --primary: 188 94% 43%; }
-  .accent-cyan.dark { --primary: 188 94% 48%; }
+  html.accent-cyan { --primary: 188 94% 43%; }
+  html.accent-cyan.dark { --primary: 188 94% 48%; }
 
   *, *::before, *::after { box-sizing: border-box; }
 
