@@ -34,7 +34,7 @@
 
 ## Cloud Sync Networking (Linode)
 
-When syncing from Linode, ServerVault now captures:
+When syncing from Linode, ServerVault captures:
 
 - Primary addresses: public/private IPv4 and public/private IPv6 (when present)
 - Additional public addresses from public/shared/reserved pools
@@ -45,10 +45,10 @@ Empty fields are hidden instead of displaying placeholder values.
 
 ### Cloud Providers (Coming Soon)
 
-- AWS
-- GCP
-- DigitalOcean
-- Vultr
+- AWS (official logo shown in Cloud Integrations panel)
+- GCP (official logo shown in Cloud Integrations panel)
+- DigitalOcean (official logo shown in Cloud Integrations panel)
+- Vultr (official logo shown in Cloud Integrations panel)
 
 ## Quick Start
 
