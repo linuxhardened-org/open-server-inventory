@@ -27,8 +27,7 @@ services:
     ports:
       - "8080:8080"
     env_file:
-      - path: ./server/.env
-        required: false
+      - ./server/.env
     environment:
       - PORT=8080
       - NODE_ENV=production

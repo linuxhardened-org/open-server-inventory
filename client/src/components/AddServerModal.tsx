@@ -145,11 +145,11 @@ export const AddServerModal = ({ isOpen, onClose, customColumns, onServerCreated
           {/* Header */}
           <div
             style={{
-              height: 48,
+              minHeight: 56,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
-              padding: '0 20px',
+              padding: '12px 20px',
               borderBottom: '1px solid hsl(var(--border))',
             }}
           >
@@ -352,12 +352,12 @@ export const AddServerModal = ({ isOpen, onClose, customColumns, onServerCreated
             {/* Footer */}
             <div
               style={{
-                height: 48,
+                minHeight: 56,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'flex-end',
                 gap: 8,
-                padding: '0 20px',
+                padding: '12px 20px',
                 borderTop: '1px solid hsl(var(--border))',
               }}
             >
