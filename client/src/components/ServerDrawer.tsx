@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Server, Pencil, Trash2, Save } from 'lucide-react';
+import { X, Server, Pencil, Trash2, Save, RefreshCw } from 'lucide-react';
 import { Server as ServerType } from '../types';
 import api from '../lib/api';
 import toast from 'react-hot-toast';
@@ -14,6 +14,7 @@ interface ServerDrawerProps {
 
 export const ServerDrawer = ({ server, isOpen, onClose, onUpdate }: ServerDrawerProps) => {
   const [editing, setEditing] = useState(false);
+  const [syncing, setSyncing] = useState(false);
   const [form, setForm] = useState({
     name: '',
     hostname: '',
@@ -75,6 +76,20 @@ export const ServerDrawer = ({ server, isOpen, onClose, onUpdate }: ServerDrawer
       onClose();
     } catch (err: any) {
       toast.error(err?.error || 'Failed to delete server');
+    }
+  };
+
+  const handleSync = async () => {
+    if (!server?.cloud_provider_id) return;
+    setSyncing(true);
+    try {
+      await api.post(`/cloud-providers/${server.cloud_provider_id}/sync`);
+      toast.success('Synced from cloud');
+      onUpdate?.();
+    } catch (err: any) {
+      toast.error(err?.error || 'Failed to sync');
+    } finally {
+      setSyncing(false);
     }
   };
 
@@ -205,6 +220,7 @@ export const ServerDrawer = ({ server, isOpen, onClose, onUpdate }: ServerDrawer
               <Row label="Hostname" value={server.hostname} mono />
               <Row label="IP Address" value={server.ip_address || '—'} mono />
               <Row label="OS" value={server.os || '—'} />
+              {server.region && <Row label="Region" value={server.region} />}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                 <Row label="CPU" value={server.cpu_cores ? `${server.cpu_cores} cores` : '—'} />
                 <Row label="RAM" value={server.ram_gb ? `${server.ram_gb} GB` : '—'} />
@@ -308,15 +324,28 @@ export const ServerDrawer = ({ server, isOpen, onClose, onUpdate }: ServerDrawer
                 <Trash2 style={{ width: 14, height: 14 }} />
                 Delete
               </button>
-              <button
-                type="button"
-                onClick={startEdit}
-                className="sv-btn-primary"
-                style={{ padding: '6px 12px', fontSize: 13, gap: 6 }}
-              >
-                <Pencil style={{ width: 14, height: 14 }} />
-                Edit
-              </button>
+              {server.cloud_provider_id ? (
+                <button
+                  type="button"
+                  onClick={handleSync}
+                  disabled={syncing}
+                  className="sv-btn-primary"
+                  style={{ padding: '6px 12px', fontSize: 13, gap: 6 }}
+                >
+                  <RefreshCw style={{ width: 14, height: 14, animation: syncing ? 'spin 1s linear infinite' : undefined }} />
+                  {syncing ? 'Syncing...' : 'Sync'}
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={startEdit}
+                  className="sv-btn-primary"
+                  style={{ padding: '6px 12px', fontSize: 13, gap: 6 }}
+                >
+                  <Pencil style={{ width: 14, height: 14 }} />
+                  Edit
+                </button>
+              )}
             </>
           )}
         </div>

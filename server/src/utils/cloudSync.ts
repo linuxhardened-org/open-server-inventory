@@ -1,11 +1,52 @@
 import db from '../db';
 
+/**
+ * Format Linode image string to human-readable OS name
+ * e.g., "linode/ubuntu22.04" -> "Ubuntu 22.04"
+ * e.g., "linode/debian11" -> "Debian 11"
+ * e.g., "linode/almalinux9" -> "AlmaLinux 9"
+ */
+function formatLinodeImage(image: string): string {
+  // Remove "linode/" or "private/" prefix
+  const name = image.replace(/^(linode|private)\//, '');
+
+  // Common OS mappings
+  const osMap: Record<string, string> = {
+    ubuntu: 'Ubuntu',
+    debian: 'Debian',
+    centos: 'CentOS',
+    almalinux: 'AlmaLinux',
+    rockylinux: 'Rocky Linux',
+    fedora: 'Fedora',
+    arch: 'Arch Linux',
+    gentoo: 'Gentoo',
+    opensuse: 'openSUSE',
+    slackware: 'Slackware',
+    alpine: 'Alpine',
+    kali: 'Kali Linux',
+  };
+
+  // Try to match and format
+  for (const [key, label] of Object.entries(osMap)) {
+    const regex = new RegExp(`^${key}(\\d+\\.?\\d*)`, 'i');
+    const match = name.match(regex);
+    if (match) {
+      const version = match[1] ? ` ${match[1].replace(/(\d+)(\d{2})$/, '$1.$2')}` : '';
+      return `${label}${version}`;
+    }
+  }
+
+  // Fallback: capitalize first letter
+  return name.charAt(0).toUpperCase() + name.slice(1);
+}
+
 interface LinodeInstance {
   id: number;
   label: string;
   ipv4: string[];
   region: string;
   type: string;
+  image: string | null;
   status: string;
   specs: {
     vcpus: number;
@@ -74,11 +115,13 @@ export async function syncLinodeProvider(
       const name = instance.label;
       const hostname = instance.label;
       const ipAddress = instance.ipv4[0] || null;
-      const os = 'Linux'; // Linode doesn't expose OS in basic instance data
+      // Parse OS from image (e.g., "linode/ubuntu22.04" -> "Ubuntu 22.04")
+      const os = instance.image ? formatLinodeImage(instance.image) : 'Linux';
       const cpuCores = instance.specs.vcpus;
       const ramGb = Math.round(instance.specs.memory / 1024);
+      const region = instance.region;
       const status = instance.status === 'running' ? 'active' : 'inactive';
-      const notes = `Region: ${instance.region}, Type: ${instance.type}`;
+      const notes = `Type: ${instance.type}`;
 
       // Check if server exists by cloud_instance_id and provider
       const existing = await client.query(
@@ -91,19 +134,19 @@ export async function syncLinodeProvider(
         await client.query(
           `UPDATE servers SET
             name = $1, hostname = $2, ip_address = $3, os = $4,
-            cpu_cores = $5, ram_gb = $6, status = $7, notes = $8,
+            cpu_cores = $5, ram_gb = $6, region = $7, status = $8, notes = $9,
             updated_at = CURRENT_TIMESTAMP
-          WHERE id = $9`,
-          [name, hostname, ipAddress, os, cpuCores, ramGb, status, notes, existing.rows[0].id]
+          WHERE id = $10`,
+          [name, hostname, ipAddress, os, cpuCores, ramGb, region, status, notes, existing.rows[0].id]
         );
       } else {
         // Insert new server
         await client.query(
           `INSERT INTO servers (
-            name, hostname, ip_address, os, cpu_cores, ram_gb, status, notes,
+            name, hostname, ip_address, os, cpu_cores, ram_gb, region, status, notes,
             cloud_provider_id, cloud_instance_id
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
-          [name, hostname, ipAddress, os, cpuCores, ramGb, status, notes, providerId, cloudInstanceId]
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+          [name, hostname, ipAddress, os, cpuCores, ramGb, region, status, notes, providerId, cloudInstanceId]
         );
       }
     }

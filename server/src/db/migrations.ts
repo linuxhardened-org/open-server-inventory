@@ -9,6 +9,14 @@ export async function runMigrations(pool: Pool): Promise<void> {
   await migrateLegacyApiTokens(pool);
   await migratePasswordChangeRequired(pool);
   await migrateUserRealName(pool);
+  await migrateServerRegion(pool);
+}
+
+async function migrateServerRegion(pool: Pool): Promise<void> {
+  await pool.query(`
+    ALTER TABLE servers
+    ADD COLUMN IF NOT EXISTS region VARCHAR(100)
+  `);
 }
 
 async function migrateUserRealName(pool: Pool): Promise<void> {

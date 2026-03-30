@@ -50,6 +50,7 @@ CREATE TABLE IF NOT EXISTS servers (
   os VARCHAR(100),
   cpu_cores INTEGER,
   ram_gb INTEGER,
+  region VARCHAR(100),
   group_id INTEGER,
   ssh_key_id INTEGER,
   status VARCHAR(50) DEFAULT 'active',

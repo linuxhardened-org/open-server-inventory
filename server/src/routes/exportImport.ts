@@ -32,7 +32,7 @@ router.get('/export/csv', sessionAuth, async (req, res) => {
     const servers = await db.query(`
       SELECT
         s.id, s.name, s.hostname, s.ip_address, s.os, s.cpu_cores, s.ram_gb,
-        s.status, s.notes, s.created_at, s.updated_at,
+        s.region, s.status, s.notes, s.created_at, s.updated_at,
         g.name as group_name
       FROM servers s
       LEFT JOIN groups g ON s.group_id = g.id
@@ -67,7 +67,7 @@ router.get('/export/csv', sessionAuth, async (req, res) => {
     // CSV header
     const headers = [
       'ID', 'Name', 'Hostname', 'IP Address', 'OS', 'CPU Cores', 'RAM (GB)',
-      'Status', 'Group', 'Tags', 'Notes', 'Created At', 'Updated At',
+      'Region', 'Status', 'Group', 'Tags', 'Notes', 'Created At', 'Updated At',
       ...cols.map(c => c.name)
     ];
 
@@ -88,6 +88,7 @@ router.get('/export/csv', sessionAuth, async (req, res) => {
       s.os,
       s.cpu_cores,
       s.ram_gb,
+      s.region,
       s.status,
       s.group_name,
       (tagMap[s.id] || []).join('; '),

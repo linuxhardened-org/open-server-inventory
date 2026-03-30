@@ -34,9 +34,11 @@ export interface Server {
   os?: string;
   cpu_cores?: number;
   ram_gb?: number;
+  region?: string;
   updated_at?: string;
   notes?: string;
   last_seen?: string;
+  cloud_provider_id?: number;
   /** Custom field values keyed by custom column id (string) */
   custom_values?: Record<string, string>;
 }
