@@ -137,4 +137,10 @@ CREATE INDEX IF NOT EXISTS idx_api_tokens_user_id ON api_tokens(user_id);
 CREATE INDEX IF NOT EXISTS idx_server_history_server_id ON server_history(server_id);
 CREATE INDEX IF NOT EXISTS idx_server_tags_tag_id ON server_tags(tag_id);
 CREATE INDEX IF NOT EXISTS idx_server_custom_values_column_id ON server_custom_values(custom_column_id);
+
+CREATE TABLE IF NOT EXISTS app_settings (
+  key VARCHAR(100) PRIMARY KEY,
+  value TEXT NOT NULL DEFAULT ''
+);
+INSERT INTO app_settings (key, value) VALUES ('app_name', 'ServerVault') ON CONFLICT (key) DO NOTHING;
 `;

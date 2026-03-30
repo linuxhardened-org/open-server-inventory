@@ -12,6 +12,7 @@ import {
   Database,
 } from 'lucide-react';
 import { useAuthStore } from '../store/useAuthStore';
+import { useSettingsStore } from '../store/useSettingsStore';
 
 const mainNav = [
   { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard', end: true },
@@ -45,6 +46,7 @@ function NavItem({ icon: Icon, label, path, end }: { icon: typeof Server; label:
 export const Sidebar = ({ isOpen }: { isOpen?: boolean; onClose?: () => void }) => {
   const logout = useAuthStore((s) => s.logout);
   const navigate = useNavigate();
+  const appName = useSettingsStore((s) => s.appName);
 
   return (
     <nav className={`app-sidebar${isOpen ? ' sidebar-open' : ''}`}>
@@ -64,7 +66,7 @@ export const Sidebar = ({ isOpen }: { isOpen?: boolean; onClose?: () => void }) 
         >
           <Database size={14} strokeWidth={2} />
         </span>
-        ServerVault
+        {appName}
       </Link>
 
       <div className="app-nav">

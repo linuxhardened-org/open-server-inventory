@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { ShieldCheck, Mail, Lock, User, ArrowRight } from 'lucide-react';
+import { ShieldCheck, Mail, Lock, User, ArrowRight, Building2 } from 'lucide-react';
 import { useAuthStore } from '../store/useAuthStore';
 import { motion } from 'framer-motion';
 import { useState } from 'react';
@@ -20,6 +20,7 @@ export const Setup = () => {
   const setSetupCompleted = useAuthStore((state) => state.setSetupCompleted);
   const setAuth = useAuthStore((state) => state.setAuth);
   const navigate = useNavigate();
+  const [appName, setAppName] = useState('');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [username, setUsername] = useState('');
@@ -38,6 +39,7 @@ export const Setup = () => {
       const res = (await api.post('/auth/setup', {
         username: derivedUsername,
         password,
+        app_name: appName.trim() || undefined,
       })) as SetupResponse;
       const u = res.data;
       setAuth(
@@ -80,6 +82,20 @@ export const Setup = () => {
         </div>
 
         <form onSubmit={handleComplete} className="sv-card space-y-5 border-t-4 border-t-primary pt-8">
+          <div>
+            <label className="block text-sm font-medium text-secondary mb-2">Organization / App Name</label>
+            <div className="relative">
+              <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-secondary" />
+              <input
+                type="text"
+                value={appName}
+                onChange={(e) => setAppName(e.target.value)}
+                className="sv-input pl-10"
+                placeholder="ServerVault"
+                maxLength={80}
+              />
+            </div>
+          </div>
           <div>
             <label className="block text-sm font-medium text-secondary mb-2">Administrator Name</label>
             <div className="relative">

@@ -15,6 +15,7 @@ import statsRoutes from './routes/stats';
 import exportImportRoutes from './routes/exportImport';
 import customColumnsRoutes from './routes/customColumns';
 import userRoutes from './routes/users';
+import settingsRoutes from './routes/settings';
 
 import { sessionAuth } from './middleware/sessionAuth';
 import { bearerAuth } from './middleware/bearerAuth';
@@ -70,6 +71,7 @@ app.use('/api/ssh-keys', authMiddleware, sshKeyRoutes);
 app.use('/api/stats', authMiddleware, statsRoutes);
 app.use('/api/export-import', sessionAuth, exportImportRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/settings', authMiddleware, settingsRoutes);
 
 attachClientSpa(app);
 

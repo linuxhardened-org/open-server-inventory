@@ -1,11 +1,16 @@
-import { Download, Upload, Trash2, ShieldAlert } from 'lucide-react';
+import { useState } from 'react';
+import { Download, Upload, Trash2, ShieldAlert, Settings2 } from 'lucide-react';
 import axios from '../lib/api';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '../store/useAuthStore';
+import { useSettingsStore } from '../store/useSettingsStore';
 
 export const Settings = () => {
   const currentUser = useAuthStore((s) => s.user);
   const isAdmin = currentUser?.role === 'admin';
+  const { appName, setAppName } = useSettingsStore();
+  const [appNameInput, setAppNameInput] = useState(appName);
+  const [savingName, setSavingName] = useState(false);
 
   const handleExport = async (format: 'json' | 'csv') => {
     try {
@@ -52,6 +57,22 @@ export const Settings = () => {
     }
   };
 
+  const handleSaveName = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const name = appNameInput.trim();
+    if (!name) return;
+    setSavingName(true);
+    try {
+      await axios.put('/settings', { app_name: name });
+      setAppName(name);
+      toast.success('App name updated');
+    } catch {
+      toast.error('Failed to save');
+    } finally {
+      setSavingName(false);
+    }
+  };
+
   const handleReset = async () => {
     if (!confirm('CRITICAL: This will delete ALL inventory data (servers, groups, tags, keys). This cannot be undone. Proceed?')) return;
     const password = prompt('Please enter your administrator password to confirm:');
@@ -67,11 +88,38 @@ export const Settings = () => {
   };
 
   return (
-      <div className="mx-auto max-w-4xl">
-        <h1 className="mb-2 text-3xl font-bold tracking-tight text-foreground">System Settings</h1>
-        <p className="mb-8 text-secondary">System-wide configuration, data portability, and maintenance.</p>
+      <div className="page animate-in">
+        <header className="page-header">
+          <div className="page-header-text">
+            <h1>Settings</h1>
+            <p>System-wide configuration, data portability, and maintenance.</p>
+          </div>
+        </header>
 
         <div className="space-y-6">
+          <section className="sv-card">
+            <h2 className="mb-4 flex items-center gap-2 text-base font-semibold text-foreground">
+              <Settings2 className="h-4 w-4 text-primary" />
+              General
+            </h2>
+            <form onSubmit={handleSaveName} className="flex flex-wrap items-end gap-3">
+              <div className="flex-1 min-w-[220px]">
+                <label className="block text-sm font-medium text-secondary mb-1.5">Application Name</label>
+                <input
+                  type="text"
+                  value={appNameInput}
+                  onChange={(e) => setAppNameInput(e.target.value)}
+                  className="sv-input"
+                  placeholder="ServerVault"
+                  maxLength={80}
+                  required
+                />
+              </div>
+              <button type="submit" disabled={savingName} className="sv-btn-primary h-[38px]">
+                {savingName ? 'Saving…' : 'Save'}
+              </button>
+            </form>
+          </section>
           <section className="sv-card">
             <h2 className="mb-4 flex items-center gap-2 text-xl font-semibold text-foreground">
               <Download className="h-5 w-5 text-primary" />

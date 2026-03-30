@@ -6,6 +6,7 @@ import { useThemeStore } from '../store/useThemeStore';
 export const TopBar = ({ onMenuToggle }: { onMenuToggle?: () => void }) => {
   const user = useAuthStore((s) => s.user);
   const { theme, toggleTheme } = useThemeStore();
+  const isDark = theme === 'dark';
 
   return (
     <header className="app-topbar">
@@ -22,15 +23,22 @@ export const TopBar = ({ onMenuToggle }: { onMenuToggle?: () => void }) => {
       <div className="flex-1" />
 
       <div className="flex items-center gap-1">
-        {/* Theme toggle */}
+        {/* Theme toggle — 3D flip */}
         <button
           type="button"
           onClick={toggleTheme}
-          className="inline-flex h-8 w-8 items-center justify-center rounded-md text-secondary transition-colors hover:bg-foreground/[0.06] hover:text-foreground"
-          aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-          title={theme === 'dark' ? 'Light mode' : 'Dark mode'}
+          className="theme-toggle-btn"
+          aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+          title={isDark ? 'Light mode' : 'Dark mode'}
         >
-          {theme === 'dark' ? <Sun size={16} aria-hidden /> : <Moon size={16} aria-hidden />}
+          <span className={`theme-toggle-inner${isDark ? ' flipped' : ''}`}>
+            <span className="theme-toggle-face theme-toggle-front">
+              <Moon size={15} aria-hidden />
+            </span>
+            <span className="theme-toggle-face theme-toggle-back">
+              <Sun size={15} aria-hidden />
+            </span>
+          </span>
         </button>
 
         {/* Divider */}

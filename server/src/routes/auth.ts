@@ -17,6 +17,7 @@ const loginSchema = z.object({
 const setupSchema = z.object({
   username: z.string().trim().min(3),
   password: z.string().min(8),
+  app_name: z.string().trim().min(1).max(80).optional(),
 });
 
 router.post('/setup', async (req, res) => {
@@ -30,8 +31,16 @@ router.post('/setup', async (req, res) => {
       return sendError(res, 'Setup already completed', 409);
     }
 
-    const { username, password } = parsed.data;
+    const { username, password, app_name } = parsed.data;
     const passwordHash = await hashPassword(password);
+
+    if (app_name) {
+      await db.query(
+        'INSERT INTO app_settings (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value',
+        ['app_name', app_name]
+      );
+    }
+
     const created = await db.query(
       'INSERT INTO users (username, password_hash, role) VALUES ($1, $2, $3) RETURNING id, username, role, totp_enabled',
       [username, passwordHash, 'admin']

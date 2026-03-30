@@ -15,6 +15,7 @@ import { Layout } from './components/Layout';
 import { Toaster } from 'react-hot-toast';
 import api from './lib/api';
 import { useAuthStore } from './store/useAuthStore';
+import { useSettingsStore } from './store/useSettingsStore';
 
 type SetupStatusResponse = {
   success: boolean;
@@ -27,6 +28,8 @@ function App() {
   const [setupChecked, setSetupChecked] = useState(false);
   const isSetupCompleted = useAuthStore((state) => state.isSetupCompleted);
   const setSetupCompletedInStore = useAuthStore((state) => state.setSetupCompleted);
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const fetchSettings = useSettingsStore((state) => state.fetchSettings);
 
   useEffect(() => {
     let mounted = true;
@@ -48,6 +51,11 @@ function App() {
       mounted = false;
     };
   }, [setSetupCompletedInStore]);
+
+  // Fetch settings once authenticated
+  useEffect(() => {
+    if (isAuthenticated) void fetchSettings();
+  }, [isAuthenticated, fetchSettings]);
 
   if (!setupChecked) return null;
 

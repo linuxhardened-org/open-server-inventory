@@ -277,10 +277,8 @@
   align-items: center;
   padding: 0 20px;
   gap: 12px;
-  position: sticky;
-  top: 0;
-  z-index: 30;
   flex-shrink: 0;
+  z-index: 30;
 }
 
 /* ─── Layout shell ─── */
@@ -313,6 +311,48 @@
 
 @media (min-width: 1280px) {
   .app-content { padding: 28px 40px; }
+}
+
+/* ─── 3D Theme Toggle ─── */
+.theme-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  perspective: 120px;
+  color: hsl(var(--secondary));
+  transition: background 120ms, color 120ms;
+}
+.theme-toggle-btn:hover {
+  background: hsl(var(--foreground) / 0.06);
+  color: hsl(var(--foreground));
+}
+.theme-toggle-inner {
+  position: relative;
+  width: 18px;
+  height: 18px;
+  transform-style: preserve-3d;
+  transition: transform 500ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.theme-toggle-inner.flipped {
+  transform: rotateY(180deg);
+}
+.theme-toggle-face {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+.theme-toggle-back {
+  transform: rotateY(180deg);
 }
 
 /* ─── Stat badge variant ─── */
