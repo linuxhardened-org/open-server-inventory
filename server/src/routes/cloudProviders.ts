@@ -186,8 +186,8 @@ router.post('/:id/sync', adminAuth, async (req, res) => {
       return sendError(res, `Unsupported provider type: ${provider.provider}`);
     }
 
-    // Use shared sync function
-    const syncedCount = await syncLinodeProvider(provider.id, provider.api_token);
+    // Use shared sync function (pass provider name for group creation)
+    const syncedCount = await syncLinodeProvider(provider.id, provider.api_token, provider.name);
 
     sendSuccess(res, {
       synced: syncedCount,

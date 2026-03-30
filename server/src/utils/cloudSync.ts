@@ -130,19 +130,49 @@ async function fetchLinodeInstances(apiToken: string): Promise<LinodeInstance[]>
 }
 
 /**
+ * Find or create a group for cloud provider servers
+ */
+async function getOrCreateProviderGroup(
+  client: any,
+  providerName: string
+): Promise<number> {
+  // Check if group exists
+  const existing = await client.query(
+    'SELECT id FROM groups WHERE name = $1',
+    [providerName]
+  );
+
+  if (existing.rows.length > 0) {
+    return existing.rows[0].id;
+  }
+
+  // Create new group
+  const result = await client.query(
+    'INSERT INTO groups (name, description) VALUES ($1, $2) RETURNING id',
+    [providerName, `Auto-created group for ${providerName} cloud servers`]
+  );
+
+  return result.rows[0].id;
+}
+
+/**
  * Sync servers from a Linode cloud provider
  * Upserts servers by cloud_instance_id, updates provider stats
  * Returns count of synced servers
  */
 export async function syncLinodeProvider(
   providerId: number,
-  apiToken: string
+  apiToken: string,
+  providerName: string
 ): Promise<number> {
   const instances = await fetchLinodeInstances(apiToken);
 
   const client = await db.pool.connect();
   try {
     await client.query('BEGIN');
+
+    // Get or create group for this provider
+    const groupId = await getOrCreateProviderGroup(client, providerName);
 
     for (const instance of instances) {
       const cloudInstanceId = String(instance.id);
@@ -175,23 +205,24 @@ export async function syncLinodeProvider(
       );
 
       if (existing.rows.length > 0) {
-        // Update existing server
+        // Update existing server (also set group if not already set)
         await client.query(
           `UPDATE servers SET
             name = $1, hostname = $2, ip_address = $3, os = $4,
             cpu_cores = $5, ram_gb = $6, region = $7, status = $8, notes = $9,
+            group_id = COALESCE(group_id, $10),
             updated_at = CURRENT_TIMESTAMP
-          WHERE id = $10`,
-          [name, hostname, ipAddress, os, cpuCores, ramGb, region, status, notes, existing.rows[0].id]
+          WHERE id = $11`,
+          [name, hostname, ipAddress, os, cpuCores, ramGb, region, status, notes, groupId, existing.rows[0].id]
         );
       } else {
-        // Insert new server
+        // Insert new server with group
         await client.query(
           `INSERT INTO servers (
             name, hostname, ip_address, os, cpu_cores, ram_gb, region, status, notes,
-            cloud_provider_id, cloud_instance_id
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
-          [name, hostname, ipAddress, os, cpuCores, ramGb, region, status, notes, providerId, cloudInstanceId]
+            cloud_provider_id, cloud_instance_id, group_id
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
+          [name, hostname, ipAddress, os, cpuCores, ramGb, region, status, notes, providerId, cloudInstanceId, groupId]
         );
       }
     }
@@ -249,7 +280,7 @@ export async function runAutoSync(): Promise<void> {
 
         let syncedCount = 0;
         if (provider.provider === 'linode') {
-          syncedCount = await syncLinodeProvider(provider.id, provider.api_token);
+          syncedCount = await syncLinodeProvider(provider.id, provider.api_token, provider.name);
         } else {
           console.log(`[CloudSync] Unsupported provider type: ${provider.provider}`);
           continue;
