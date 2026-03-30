@@ -12,6 +12,18 @@ export async function runMigrations(pool: Pool): Promise<void> {
   await migrateServerRegion(pool);
   await migrateCloudProviderSyncHour(pool);
   await migrateApiTokenExpiry(pool);
+  await migrateServerIpFields(pool);
+}
+
+async function migrateServerIpFields(pool: Pool): Promise<void> {
+  await pool.query(`
+    ALTER TABLE servers
+    ADD COLUMN IF NOT EXISTS private_ip VARCHAR(50)
+  `);
+  await pool.query(`
+    ALTER TABLE servers
+    ADD COLUMN IF NOT EXISTS ipv6_address VARCHAR(100)
+  `);
 }
 
 async function migrateApiTokenExpiry(pool: Pool): Promise<void> {

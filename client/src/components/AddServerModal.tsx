@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { motion } from 'framer-motion';
-import { X, Server, Key } from 'lucide-react';
+import { X, Server } from 'lucide-react';
 import toast from 'react-hot-toast';
 import type { CustomColumn } from '../types';
 import api from '../lib/api';
@@ -13,15 +13,13 @@ interface AddServerModalProps {
   onServerCreated?: () => void;
 }
 
-/**
- * Inventory-only: SSH / keys are optional metadata — ServerVault does not connect to hosts.
- */
 export const AddServerModal = ({ isOpen, onClose, customColumns, onServerCreated }: AddServerModalProps) => {
   const [serverName, setServerName] = useState('');
   const [hostname, setHostname] = useState('');
   const [ip, setIp] = useState('');
+  const [privateIp, setPrivateIp] = useState('');
+  const [ipv6, setIpv6] = useState('');
   const [notes, setNotes] = useState('');
-  const [sshKeyId, setSshKeyId] = useState('');
   const [customValues, setCustomValues] = useState<Record<number, string>>({});
   const [submitting, setSubmitting] = useState(false);
 
@@ -30,8 +28,9 @@ export const AddServerModal = ({ isOpen, onClose, customColumns, onServerCreated
       setServerName('');
       setHostname('');
       setIp('');
+      setPrivateIp('');
+      setIpv6('');
       setNotes('');
-      setSshKeyId('');
       setCustomValues({});
       setSubmitting(false);
     }
@@ -66,8 +65,9 @@ export const AddServerModal = ({ isOpen, onClose, customColumns, onServerCreated
         name: serverName.trim(),
         hostname: hostname.trim(),
         ip_address: ip.trim() || undefined,
+        private_ip: privateIp.trim() || undefined,
+        ipv6_address: ipv6.trim() || undefined,
         notes: notes.trim() || undefined,
-        ssh_key_id: sshKeyId ? Number(sshKeyId) : null,
         status: 'active',
         custom_values: Object.keys(custom_values).length ? custom_values : undefined,
       });
@@ -224,25 +224,27 @@ export const AddServerModal = ({ isOpen, onClose, customColumns, onServerCreated
                 />
               </div>
 
-              {/* Hostname + IP side by side */}
+              {/* Hostname */}
+              <div>
+                <label htmlFor="srv-hostname" style={labelStyle}>
+                  Hostname <span style={{ color: 'hsl(var(--danger))' }}>*</span>
+                </label>
+                <input
+                  id="srv-hostname"
+                  required
+                  value={hostname}
+                  onChange={(e) => setHostname(e.target.value)}
+                  className="sv-input"
+                  placeholder="node01.example.com"
+                  autoComplete="off"
+                />
+              </div>
+
+              {/* IP addresses */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label htmlFor="srv-hostname" style={labelStyle}>
-                    Hostname <span style={{ color: 'hsl(var(--danger))' }}>*</span>
-                  </label>
-                  <input
-                    id="srv-hostname"
-                    required
-                    value={hostname}
-                    onChange={(e) => setHostname(e.target.value)}
-                    className="sv-input"
-                    placeholder="node01.example.com"
-                    autoComplete="off"
-                  />
-                </div>
-                <div>
                   <label htmlFor="srv-ip" style={labelStyle}>
-                    IP address{' '}
+                    Public IP{' '}
                     <span style={{ fontSize: 10, fontWeight: 400, textTransform: 'none', letterSpacing: 0, color: 'hsl(var(--fg-3))' }}>
                       (optional)
                     </span>
@@ -252,10 +254,44 @@ export const AddServerModal = ({ isOpen, onClose, customColumns, onServerCreated
                     value={ip}
                     onChange={(e) => setIp(e.target.value)}
                     className="sv-input"
+                    placeholder="203.0.113.1"
+                    autoComplete="off"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="srv-private-ip" style={labelStyle}>
+                    Private IP{' '}
+                    <span style={{ fontSize: 10, fontWeight: 400, textTransform: 'none', letterSpacing: 0, color: 'hsl(var(--fg-3))' }}>
+                      (optional)
+                    </span>
+                  </label>
+                  <input
+                    id="srv-private-ip"
+                    value={privateIp}
+                    onChange={(e) => setPrivateIp(e.target.value)}
+                    className="sv-input"
                     placeholder="10.0.0.1"
                     autoComplete="off"
                   />
                 </div>
+              </div>
+
+              {/* IPv6 */}
+              <div>
+                <label htmlFor="srv-ipv6" style={labelStyle}>
+                  IPv6 address{' '}
+                  <span style={{ fontSize: 10, fontWeight: 400, textTransform: 'none', letterSpacing: 0, color: 'hsl(var(--fg-3))' }}>
+                    (optional)
+                  </span>
+                </label>
+                <input
+                  id="srv-ipv6"
+                  value={ipv6}
+                  onChange={(e) => setIpv6(e.target.value)}
+                  className="sv-input"
+                  placeholder="2001:db8::1"
+                  autoComplete="off"
+                />
               </div>
 
               {/* Notes */}
@@ -311,33 +347,6 @@ export const AddServerModal = ({ isOpen, onClose, customColumns, onServerCreated
                 </div>
               )}
 
-              {/* SSH key */}
-              <div style={{ borderTop: '1px solid hsl(var(--border))', paddingTop: 12 }}>
-                <div className="flex items-center gap-1.5" style={{ ...labelStyle, marginBottom: 6 }}>
-                  <Key style={{ width: 12, height: 12, color: 'hsl(var(--primary))', flexShrink: 0 }} aria-hidden />
-                  <span>SSH key reference</span>
-                  <span
-                    style={{
-                      fontSize: 10,
-                      fontWeight: 400,
-                      textTransform: 'none',
-                      letterSpacing: 0,
-                      color: 'hsl(var(--fg-3))',
-                    }}
-                  >
-                    (optional)
-                  </span>
-                </div>
-                <select
-                  id="srv-ssh"
-                  value={sshKeyId}
-                  onChange={(e) => setSshKeyId(e.target.value)}
-                  className="sv-input"
-                  style={{ appearance: 'none', cursor: 'pointer', background: 'hsl(var(--surface-2))' }}
-                >
-                  <option value="">None — inventory only</option>
-                </select>
-              </div>
             </div>
 
             {/* Footer */}

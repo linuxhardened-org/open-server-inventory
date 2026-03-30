@@ -48,6 +48,8 @@ CREATE TABLE IF NOT EXISTS servers (
   name VARCHAR(255) NOT NULL,
   hostname VARCHAR(255) NOT NULL,
   ip_address VARCHAR(50),
+  private_ip VARCHAR(50),
+  ipv6_address VARCHAR(100),
   os VARCHAR(100),
   cpu_cores INTEGER,
   ram_gb INTEGER,
