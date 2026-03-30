@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Network, Search, ExternalLink, Trash2, Globe, Lock, Server } from 'lucide-react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Network, Search, ExternalLink, Trash2, Globe, Lock, Server, Plus } from 'lucide-react';
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
-import api from '../lib/api';
+import api, { getApiErrorMessage } from '../lib/api';
+import type { Server as ServerModel } from '../types';
 
 interface ServerIp {
   id: number;
@@ -22,27 +23,60 @@ const ipTypeConfig = {
   ipv6: { label: 'IPv6', icon: Network, color: '#06b6d4' },
 };
 
+type IpType = 'public' | 'private' | 'ipv6';
+
 export const IpInventory = () => {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [ips, setIps] = useState<ServerIp[]>([]);
+  const [servers, setServers] = useState<ServerModel[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState(() => searchParams.get('q')?.trim() ?? '');
   const [filterType, setFilterType] = useState<'all' | 'public' | 'private' | 'ipv6'>('all');
+
+  const [addServerId, setAddServerId] = useState<number | ''>('');
+  const [addAddress, setAddAddress] = useState('');
+  const [addType, setAddType] = useState<IpType>('public');
+  const [addLabel, setAddLabel] = useState('');
+  const [adding, setAdding] = useState(false);
 
   const fetchIps = useCallback(async () => {
     try {
-      const res = await api.get('/ips');
-      setIps(Array.isArray(res.data) ? res.data : []);
-    } catch {
-      toast.error('Failed to load IPs');
+      const res = (await api.get('/ips')) as { success?: boolean; data?: ServerIp[] };
+      setIps(Array.isArray(res?.data) ? res.data : []);
+    } catch (err: unknown) {
+      toast.error(getApiErrorMessage(err, 'Failed to load IPs'));
     } finally {
       setLoading(false);
     }
   }, []);
 
+  const fetchServers = useCallback(async () => {
+    try {
+      const res = (await api.get('/servers')) as { success?: boolean; data?: ServerModel[] };
+      setServers(Array.isArray(res?.data) ? res.data : []);
+    } catch {
+      /* optional for add form */
+    }
+  }, []);
+
   useEffect(() => {
-    fetchIps();
-  }, [fetchIps]);
+    void fetchIps();
+    void fetchServers();
+  }, [fetchIps, fetchServers]);
+
+  // Keep search in sync with ?q= (shareable lookup links)
+  useEffect(() => {
+    setSearchTerm(searchParams.get('q')?.trim() ?? '');
+  }, [searchParams]);
+
+  const handleSearchChange = (value: string) => {
+    setSearchTerm(value);
+    const next = new URLSearchParams(searchParams);
+    if (value.trim()) next.set('q', value.trim());
+    else next.delete('q');
+    setSearchParams(next, { replace: true });
+  };
 
   const handleDelete = async (id: number) => {
     if (!confirm('Delete this IP address?')) return;
@@ -50,8 +84,33 @@ export const IpInventory = () => {
       await api.delete(`/ips/${id}`);
       toast.success('IP deleted');
       fetchIps();
-    } catch {
-      toast.error('Failed to delete IP');
+    } catch (err: unknown) {
+      toast.error(getApiErrorMessage(err, 'Failed to delete IP'));
+    }
+  };
+
+  const handleAddIp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (addServerId === '' || !addAddress.trim()) {
+      toast.error('Choose a server and enter an IP address');
+      return;
+    }
+    setAdding(true);
+    try {
+      await api.post('/ips', {
+        server_id: addServerId,
+        ip_address: addAddress.trim(),
+        ip_type: addType,
+        label: addLabel.trim() || undefined,
+      });
+      toast.success('IP added');
+      setAddAddress('');
+      setAddLabel('');
+      fetchIps();
+    } catch (err: unknown) {
+      toast.error(getApiErrorMessage(err, 'Could not add IP'));
+    } finally {
+      setAdding(false);
     }
   };
 
@@ -65,7 +124,6 @@ export const IpInventory = () => {
     return matchesSearch && matchesType;
   });
 
-  // Group by type for stats
   const publicCount = ips.filter((ip) => ip.ip_type === 'public').length;
   const privateCount = ips.filter((ip) => ip.ip_type === 'private').length;
   const ipv6Count = ips.filter((ip) => ip.ip_type === 'ipv6').length;
@@ -75,31 +133,98 @@ export const IpInventory = () => {
       <header className="page-header">
         <div className="page-header-text">
           <div className="flex items-center gap-2">
-            <h1>IP Inventory</h1>
-            <span
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                minWidth: 24,
-                height: 20,
-                borderRadius: 9999,
-                padding: '0 8px',
-                fontSize: 11,
-                fontWeight: 600,
-                background: 'hsl(var(--surface-3))',
-                color: 'hsl(var(--fg-2))',
-                border: '1px solid hsl(var(--border-2))',
-              }}
-            >
-              {ips.length}
-            </span>
+            <h1>IP addresses</h1>
+            {!loading && (
+              <span
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  minWidth: 24,
+                  height: 20,
+                  borderRadius: 9999,
+                  padding: '0 8px',
+                  fontSize: 11,
+                  fontWeight: 600,
+                  background: 'hsl(var(--surface-3))',
+                  color: 'hsl(var(--fg-2))',
+                  border: '1px solid hsl(var(--border-2))',
+                }}
+              >
+                {ips.length}
+              </span>
+            )}
           </div>
-          <p>All IP addresses across your infrastructure.</p>
+          <p>
+            Look up which server owns an IP, or add extra addresses (public, private, or IPv6) for any server.
+          </p>
         </div>
       </header>
 
-      {/* Stats */}
+      <section className="sv-card" style={{ padding: 16 }}>
+        <h2 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
+          <Plus className="h-4 w-4 text-primary" aria-hidden />
+          Add IP manually
+        </h2>
+        <form onSubmit={handleAddIp} className="flex flex-col gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 items-end">
+            <div className="min-w-0 sm:col-span-2">
+              <label className="block text-xs font-medium text-secondary mb-1.5">Server</label>
+              <select
+                className="sv-input w-full"
+                value={addServerId === '' ? '' : String(addServerId)}
+                onChange={(e) => setAddServerId(e.target.value ? parseInt(e.target.value, 10) : '')}
+                required
+              >
+                <option value="">Select server…</option>
+                {servers.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name || s.hostname} ({s.hostname})
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="min-w-0">
+              <label className="block text-xs font-medium text-secondary mb-1.5">IP address</label>
+              <input
+                className="sv-input w-full font-mono text-sm"
+                placeholder="192.0.2.10 or 2001:db8::1"
+                value={addAddress}
+                onChange={(e) => setAddAddress(e.target.value)}
+                autoComplete="off"
+                required
+              />
+            </div>
+            <div className="min-w-0">
+              <label className="block text-xs font-medium text-secondary mb-1.5">Type</label>
+              <select
+                className="sv-input w-full"
+                value={addType}
+                onChange={(e) => setAddType(e.target.value as IpType)}
+              >
+                <option value="public">Public</option>
+                <option value="private">Private</option>
+                <option value="ipv6">IPv6</option>
+              </select>
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-3 items-end">
+            <div className="flex-1 min-w-[200px]">
+              <label className="block text-xs font-medium text-secondary mb-1.5">Label (optional)</label>
+              <input
+                className="sv-input w-full"
+                placeholder="e.g. eth1, VIP, management"
+                value={addLabel}
+                onChange={(e) => setAddLabel(e.target.value)}
+              />
+            </div>
+            <button type="submit" disabled={adding} className="sv-btn-primary h-[38px] shrink-0">
+              {adding ? 'Adding…' : 'Add IP'}
+            </button>
+          </div>
+        </form>
+      </section>
+
       {!loading && (
         <div className="flex items-center gap-3 flex-wrap">
           <button
@@ -173,7 +298,6 @@ export const IpInventory = () => {
         </div>
       )}
 
-      {/* Search */}
       <div className="relative">
         <Search
           style={{
@@ -189,42 +313,111 @@ export const IpInventory = () => {
         />
         <input
           type="text"
-          placeholder="Search by IP, server, or label..."
+          placeholder="Search by IP, server name, hostname, or label…"
           className="sv-input"
-          style={{ paddingLeft: 36, width: '100%', maxWidth: 400 }}
+          style={{ paddingLeft: 36, width: '100%', maxWidth: 480 }}
           value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
+          onChange={(e) => handleSearchChange(e.target.value)}
         />
       </div>
 
-      {/* Loading */}
       {loading && (
         <div style={{ padding: 48, textAlign: 'center', color: 'hsl(var(--fg-3))' }}>
-          <span style={{ display: 'inline-block', width: 20, height: 20, border: '2px solid hsl(var(--border))', borderTopColor: 'hsl(var(--primary))', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
+          <span
+            style={{
+              display: 'inline-block',
+              width: 20,
+              height: 20,
+              border: '2px solid hsl(var(--border))',
+              borderTopColor: 'hsl(var(--primary))',
+              borderRadius: '50%',
+              animation: 'spin 1s linear infinite',
+            }}
+          />
         </div>
       )}
 
-      {/* Empty state */}
       {!loading && filteredIps.length === 0 && (
         <div className="flex flex-col items-center justify-center" style={{ padding: '48px 0', color: 'hsl(var(--fg-3))' }}>
           <Network style={{ width: 40, height: 40, opacity: 0.3, marginBottom: 12 }} />
           <p style={{ fontSize: 13 }}>
-            {searchTerm || filterType !== 'all' ? 'No IPs match your search.' : 'No IP addresses yet. Add IPs to servers from the server details.'}
+            {searchTerm || filterType !== 'all'
+              ? 'No IPs match your search.'
+              : 'No additional IPs yet. Use the form above to add one, or open a server from Servers to add IPs there.'}
           </p>
         </div>
       )}
 
-      {/* IP Table */}
       {!loading && filteredIps.length > 0 && (
         <div className="sv-card" style={{ padding: 0, overflow: 'hidden' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ borderBottom: '1px solid hsl(var(--border))' }}>
-                <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'hsl(var(--fg-2))' }}>IP Address</th>
-                <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'hsl(var(--fg-2))' }}>Type</th>
-                <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'hsl(var(--fg-2))' }}>Server</th>
-                <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'hsl(var(--fg-2))' }}>Label</th>
-                <th style={{ padding: '12px 16px', textAlign: 'right', fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'hsl(var(--fg-2))' }}>Actions</th>
+                <th
+                  style={{
+                    padding: '12px 16px',
+                    textAlign: 'left',
+                    fontSize: 11,
+                    fontWeight: 600,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.05em',
+                    color: 'hsl(var(--fg-2))',
+                  }}
+                >
+                  IP Address
+                </th>
+                <th
+                  style={{
+                    padding: '12px 16px',
+                    textAlign: 'left',
+                    fontSize: 11,
+                    fontWeight: 600,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.05em',
+                    color: 'hsl(var(--fg-2))',
+                  }}
+                >
+                  Type
+                </th>
+                <th
+                  style={{
+                    padding: '12px 16px',
+                    textAlign: 'left',
+                    fontSize: 11,
+                    fontWeight: 600,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.05em',
+                    color: 'hsl(var(--fg-2))',
+                  }}
+                >
+                  Server
+                </th>
+                <th
+                  style={{
+                    padding: '12px 16px',
+                    textAlign: 'left',
+                    fontSize: 11,
+                    fontWeight: 600,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.05em',
+                    color: 'hsl(var(--fg-2))',
+                  }}
+                >
+                  Label
+                </th>
+                <th
+                  style={{
+                    padding: '12px 16px',
+                    textAlign: 'right',
+                    fontSize: 11,
+                    fontWeight: 600,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.05em',
+                    color: 'hsl(var(--fg-2))',
+                  }}
+                >
+                  Actions
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -238,8 +431,12 @@ export const IpInventory = () => {
                     animate={{ opacity: 1 }}
                     transition={{ delay: index * 0.02 }}
                     style={{ borderBottom: '1px solid hsl(var(--border))' }}
-                    onMouseEnter={(e) => { (e.currentTarget as HTMLTableRowElement).style.background = 'hsl(var(--surface-2))'; }}
-                    onMouseLeave={(e) => { (e.currentTarget as HTMLTableRowElement).style.background = ''; }}
+                    onMouseEnter={(e) => {
+                      (e.currentTarget as HTMLTableRowElement).style.background = 'hsl(var(--surface-2))';
+                    }}
+                    onMouseLeave={(e) => {
+                      (e.currentTarget as HTMLTableRowElement).style.background = '';
+                    }}
                   >
                     <td style={{ padding: '12px 16px' }}>
                       <code style={{ fontSize: 13, fontFamily: "'Geist Mono', monospace", color: 'hsl(var(--fg))' }}>
@@ -284,9 +481,7 @@ export const IpInventory = () => {
                       </button>
                       <div style={{ fontSize: 11, color: 'hsl(var(--fg-3))' }}>{ip.server_hostname}</div>
                     </td>
-                    <td style={{ padding: '12px 16px', fontSize: 13, color: 'hsl(var(--fg-2))' }}>
-                      {ip.label || '—'}
-                    </td>
+                    <td style={{ padding: '12px 16px', fontSize: 13, color: 'hsl(var(--fg-2))' }}>{ip.label || '—'}</td>
                     <td style={{ padding: '12px 16px', textAlign: 'right' }}>
                       <button
                         type="button"

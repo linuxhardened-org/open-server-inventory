@@ -9,6 +9,7 @@ import {
   LogOut,
   Key,
   Cloud,
+  Network,
   Palette,
   Sun,
   Moon,
@@ -19,6 +20,7 @@ import { useThemeStore, accentColors } from '../store/useThemeStore';
 
 const mainNav = [
   { icon: Server, label: 'Servers', path: '/servers', end: false },
+  { icon: Network, label: 'IPs', path: '/ips', end: false },
   { icon: Layers, label: 'Groups',  path: '/groups',  end: false },
   { icon: Tag,    label: 'Tags',    path: '/tags',    end: false },
   { icon: Cloud,  label: 'Cloud',   path: '/cloud',   end: false },

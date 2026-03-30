@@ -2,7 +2,7 @@ import { useState } from "react";
 import { motion } from 'framer-motion';
 import { User, Shield, LogOut, AlertCircle, Edit2, Check, X } from 'lucide-react';
 import QrSetup from '../components/QrSetup';
-import api from '../lib/api';
+import api, { getApiErrorMessage } from '../lib/api';
 import { useAuthStore } from '../store/useAuthStore';
 import toast from 'react-hot-toast';
 
@@ -21,8 +21,8 @@ export const Profile = () => {
       const response = await api.post('/auth/2fa/setup');
       setQrData(response.data);
       setShowQrSetup(true);
-    } catch (err: any) {
-      setMessage({ type: 'error', text: err.message || 'Failed to initialize 2FA' });
+    } catch (err: unknown) {
+      setMessage({ type: 'error', text: getApiErrorMessage(err, 'Failed to initialize 2FA') });
     } finally {
       setIsLoading(false);
     }
@@ -34,8 +34,8 @@ export const Profile = () => {
       await api.post('/auth/2fa/verify', { token });
       setMessage({ type: 'success', text: '2FA has been successfully enabled' });
       setShowQrSetup(false);
-    } catch (err: any) {
-      setMessage({ type: 'error', text: err.message || 'Invalid token' });
+    } catch (err: unknown) {
+      setMessage({ type: 'error', text: getApiErrorMessage(err, 'Invalid token') });
     } finally {
       setIsLoading(false);
     }
