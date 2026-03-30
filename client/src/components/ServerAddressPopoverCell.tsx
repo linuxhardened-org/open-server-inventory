@@ -1,9 +1,14 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { Server } from '../types';
 import { formatIpDisplay } from '../lib/utils';
 import { LINODE_LOGO_URL } from '../lib/cloudAssets';
 import { parseLinodeNetworkExtras } from '../lib/linodeNetworkExtras';
+
+const GAP = 8;
+/** Rough min height to prefer flipping above; real popover is clamped with maxHeight + scroll. */
+const EST_POPOVER_HEIGHT = 280;
+const POPOVER_MAX_W = 340;
 
 function joinList(list: string[] | undefined): string {
   if (!list?.length) return 'N/A';
@@ -12,7 +17,12 @@ function joinList(list: string[] | undefined): string {
 
 export function ServerAddressPopoverCell({ server }: { server: Server }) {
   const [open, setOpen] = useState(false);
-  const [pos, setPos] = useState({ top: 0, left: 0 });
+  const [pos, setPos] = useState({
+    top: 0,
+    left: 0,
+    placement: 'below' as 'above' | 'below',
+    maxH: 420,
+  });
   const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const showTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -30,9 +40,50 @@ export function ServerAddressPopoverCell({ server }: { server: Server }) {
     const el = wrapRef.current;
     if (!el) return;
     const r = el.getBoundingClientRect();
-    const maxLeft = Math.max(8, Math.min(r.left, window.innerWidth - 300));
-    setPos({ top: r.bottom, left: maxLeft });
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const popoverW = Math.min(POPOVER_MAX_W, vw - GAP * 2);
+    const left = Math.max(GAP, Math.min(r.left, vw - popoverW - GAP));
+
+    /** Vertical room for the popover (scrolls inside if content is taller). */
+    const maxBelow = Math.max(80, vh - r.bottom - GAP * 2);
+    const maxAbove = Math.max(80, r.top - GAP * 2);
+    const cap = 420;
+
+    if (maxBelow >= EST_POPOVER_HEIGHT) {
+      setPos({
+        top: r.bottom,
+        left,
+        placement: 'below',
+        maxH: Math.min(cap, maxBelow),
+      });
+    } else if (maxAbove > maxBelow) {
+      setPos({
+        top: r.top - GAP,
+        left,
+        placement: 'above',
+        maxH: Math.min(cap, maxAbove),
+      });
+    } else {
+      setPos({
+        top: r.bottom,
+        left,
+        placement: 'below',
+        maxH: Math.min(cap, maxBelow),
+      });
+    }
   }, []);
+
+  useEffect(() => {
+    if (!open) return;
+    const onMove = () => updatePos();
+    window.addEventListener('scroll', onMove, true);
+    window.addEventListener('resize', onMove);
+    return () => {
+      window.removeEventListener('scroll', onMove, true);
+      window.removeEventListener('resize', onMove);
+    };
+  }, [open, updatePos]);
 
   const clearHide = () => {
     if (hideTimer.current) {
@@ -93,10 +144,13 @@ export function ServerAddressPopoverCell({ server }: { server: Server }) {
               position: 'fixed',
               top: pos.top,
               left: pos.left,
-              marginTop: -1,
+              transform: pos.placement === 'above' ? 'translateY(-100%)' : undefined,
+              marginTop: pos.placement === 'below' ? -1 : 0,
               zIndex: 10050,
               minWidth: 260,
-              maxWidth: 340,
+              maxWidth: POPOVER_MAX_W,
+              maxHeight: pos.maxH,
+              overflowY: 'auto',
               padding: 12,
               borderRadius: 10,
               background: 'hsl(var(--surface))',
@@ -124,8 +178,8 @@ export function ServerAddressPopoverCell({ server }: { server: Server }) {
               <IpRow label="Private IPv4" value={formatIpDisplay(server.private_ip)} />
               <IpRow label="Public IPv6" value={formatIpDisplay(server.ipv6_address)} />
               <IpRow label="Private IPv6" value={formatIpDisplay(server.private_ipv6)} />
-              <IpRow label="VPC IPv4" value={joinList(extras?.vpc_ipv4)} multiline />
-              <IpRow label="VPC IPv6" value={joinList(extras?.vpc_ipv6)} multiline />
+              <IpRow label="VPC IPv4 (private)" value={joinList(extras?.vpc_ipv4)} multiline />
+              <IpRow label="VPC IPv6 (private)" value={joinList(extras?.vpc_ipv6)} multiline />
               <IpRow label="NAT 1:1 (public)" value={joinList(extras?.nat_1_1_ipv4)} multiline />
             </dl>
           </div>,

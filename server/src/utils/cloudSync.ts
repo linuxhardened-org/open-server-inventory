@@ -123,6 +123,26 @@ function extractNat11(n: unknown): string | null {
   return null;
 }
 
+/** Linode VPC entry: private side is `address` and/or `address_range`; public NAT may be `nat_1_1` string. */
+function vpcPrivateIpv4(v: { address?: string | null; address_range?: string | null }): string | null {
+  const a = typeof v.address === 'string' ? v.address.trim() : '';
+  if (a) return a;
+  const r = typeof v.address_range === 'string' ? v.address_range.trim() : '';
+  return r || null;
+}
+
+/** Public / shared / reserved instance IPs expose NAT as `vpc_nat_1_1.address` (not only `ipv4.vpc[].nat_1_1`). */
+function collectVpcNat1To1FromInstanceIps(
+  list: Array<{ vpc_nat_1_1?: { address?: string } | null }> | undefined,
+  out: string[]
+): void {
+  if (!Array.isArray(list)) return;
+  for (const p of list) {
+    const a = p?.vpc_nat_1_1?.address?.trim();
+    if (a) out.push(a);
+  }
+}
+
 function uniqStrings(values: (string | null | undefined)[]): string[] {
   const seen = new Set<string>();
   const out: string[] = [];
@@ -179,15 +199,25 @@ async function resolveLinodeIps(
 
     const data = (await res.json()) as {
       ipv4?: {
-        public?: Array<{ address?: string }>;
+        public?: Array<{ address?: string; vpc_nat_1_1?: { address?: string } | null }>;
         private?: Array<{ address?: string }>;
-        vpc?: Array<{ address?: string; nat_1_1?: unknown }>;
+        shared?: Array<{ address?: string; vpc_nat_1_1?: { address?: string } | null }>;
+        reserved?: Array<{ address?: string; vpc_nat_1_1?: { address?: string } | null }>;
+        vpc?: Array<{
+          address?: string | null;
+          address_range?: string | null;
+          nat_1_1?: unknown;
+        }>;
       };
       ipv6?: {
         slaac?: { address?: string; subnet?: string };
         global?: Array<{ range?: string; address?: string }>;
         link_local?: { address?: string } | string;
-        vpc?: Array<{ address?: string; range?: string }>;
+        vpc?: Array<{
+          address?: string;
+          range?: string;
+          ipv6_addresses?: Array<{ slaac_address?: string }>;
+        }>;
       };
     };
 
@@ -204,12 +234,15 @@ async function resolveLinodeIps(
     const vpc4List = data.ipv4?.vpc;
     if (Array.isArray(vpc4List)) {
       for (const v of vpc4List) {
-        const addr = v?.address?.trim();
-        if (addr) extras.vpc_ipv4.push(addr);
+        const priv = vpcPrivateIpv4(v);
+        if (priv) extras.vpc_ipv4.push(priv);
         const nat = extractNat11(v?.nat_1_1);
         if (nat) extras.nat_1_1_ipv4.push(nat);
       }
     }
+    collectVpcNat1To1FromInstanceIps(data.ipv4?.public, extras.nat_1_1_ipv4);
+    collectVpcNat1To1FromInstanceIps(data.ipv4?.shared, extras.nat_1_1_ipv4);
+    collectVpcNat1To1FromInstanceIps(data.ipv4?.reserved, extras.nat_1_1_ipv4);
     extras.vpc_ipv4 = uniqStrings(extras.vpc_ipv4);
     extras.nat_1_1_ipv4 = uniqStrings(extras.nat_1_1_ipv4);
 
@@ -218,6 +251,13 @@ async function resolveLinodeIps(
       for (const v of vpc6List) {
         const a = v?.address?.trim() || v?.range?.trim();
         if (a) extras.vpc_ipv6.push(a);
+        const v6addrs = v?.ipv6_addresses;
+        if (Array.isArray(v6addrs)) {
+          for (const e of v6addrs) {
+            const s = e?.slaac_address?.trim();
+            if (s) extras.vpc_ipv6.push(s);
+          }
+        }
       }
     }
     extras.vpc_ipv6 = uniqStrings(extras.vpc_ipv6);

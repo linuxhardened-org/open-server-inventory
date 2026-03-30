@@ -357,9 +357,9 @@ export const ServerDrawer = ({ server, isOpen, onClose, onUpdate, onRefresh }: S
                         VPC / NAT 1:1
                       </span>
                     </div>
-                    <Row label="VPC IPv4" value={line(ex.vpc_ipv4)} mono />
+                    <Row label="VPC IPv4 (private)" value={line(ex.vpc_ipv4)} mono />
                     <div style={{ marginTop: 8 }}>
-                      <Row label="VPC IPv6" value={line(ex.vpc_ipv6)} mono />
+                      <Row label="VPC IPv6 (private)" value={line(ex.vpc_ipv6)} mono />
                     </div>
                     <div style={{ marginTop: 8 }}>
                       <Row label="NAT 1:1 (public)" value={line(ex.nat_1_1_ipv4)} mono />
