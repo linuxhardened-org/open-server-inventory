@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { motion } from 'framer-motion';
 import { X, Server, Key } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -82,9 +83,9 @@ export const AddServerModal = ({ isOpen, onClose, customColumns, onServerCreated
     }
   };
 
-  return (
+  return createPortal(
     <>
-      {/* Backdrop — separate from flex container to avoid ghost flex items */}
+      {/* Backdrop */}
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
@@ -92,8 +93,8 @@ export const AddServerModal = ({ isOpen, onClose, customColumns, onServerCreated
         onClick={onClose}
         className="fixed inset-0 z-[60] bg-black/60 backdrop-blur-sm"
       />
-      {/* Centering wrapper */}
-      <div className="fixed inset-0 z-[61] flex items-center justify-center p-4 overflow-y-auto">
+      {/* Centering wrapper — separate from backdrop so no ghost flex items */}
+      <div className="fixed inset-0 z-[61] flex items-center justify-center overflow-y-auto p-4">
       <motion.div
         initial={{ scale: 0.95, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
@@ -247,6 +248,7 @@ export const AddServerModal = ({ isOpen, onClose, customColumns, onServerCreated
         </form>
       </motion.div>
       </div>
-    </>
+    </>,
+    document.body
   );
 };
