@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { motion } from 'framer-motion';
 import { Key, Plus, Trash2, Search, Copy, Check } from 'lucide-react';
+import toast from 'react-hot-toast';
 import api from '../lib/api';
 import { SshKey } from '../types';
 import { format } from 'date-fns';
@@ -35,7 +36,7 @@ export const SshKeys = () => {
       setIsAdding(false);
       fetchKeys();
     } catch (err) {
-      alert('Failed to add SSH key');
+      toast.error('Failed to add SSH key');
     }
   };
 
@@ -45,7 +46,7 @@ export const SshKeys = () => {
       await api.delete(`/ssh-keys/${id}`);
       fetchKeys();
     } catch (err) {
-      alert('Failed to delete SSH key');
+      toast.error('Failed to delete SSH key');
     }
   };
 
@@ -60,16 +61,13 @@ export const SshKeys = () => {
   );
 
   return (
-      <div className="space-y-6">
-        <header className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-foreground">SSH Keys</h1>
-            <p className="text-secondary">Manage public keys for server authentication</p>
+      <div className="page">
+        <header className="page-header">
+          <div className="page-header-text">
+            <h1>SSH Keys</h1>
+            <p>Manage public keys for server authentication.</p>
           </div>
-          <button 
-            onClick={() => setIsAdding(true)}
-            className="sv-btn-primary gap-2"
-          >
+          <button onClick={() => setIsAdding(true)} className="sv-btn-primary">
             <Plus className="w-4 h-4" /> Add Key
           </button>
         </header>

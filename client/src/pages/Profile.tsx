@@ -11,7 +11,7 @@ export const Profile = () => {
   const { user, logout } = useAuthStore();
   const [tokens, setTokens] = useState<ApiToken[]>([]);
   const [showQrSetup, setShowQrSetup] = useState(false);
-  const [qrData, setQrData] = useState<{ secret: string; qrCode: string } | null>(null);
+  const [qrData, setQrData] = useState<{ qrCode: string } | null>(null);
   const [newToken, setNewToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
@@ -80,15 +80,15 @@ export const Profile = () => {
   };
 
   return (
-      <div className="mx-auto max-w-4xl space-y-8">
-        <header className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-foreground">Profile Settings</h1>
-            <p className="text-secondary">Manage your account security and access</p>
+      <div className="page">
+        <header className="page-header">
+          <div className="page-header-text">
+            <h1>Profile Settings</h1>
+            <p>Manage your account security and access.</p>
           </div>
-          <button 
+          <button
             onClick={logout}
-            className="flex items-center gap-2 px-4 py-2 text-red-500 hover:bg-red-500/10 rounded-lg transition-colors"
+            className="sv-btn-danger border border-danger/20"
           >
             <LogOut className="w-4 h-4" /> Sign Out
           </button>
@@ -144,7 +144,7 @@ export const Profile = () => {
             </div>
           </div>
 
-          <div className="md:col-span-2 space-y-8">
+          <div className="md:col-span-2 space-y-6">
             <motion.div 
               layout
               className="sv-card"
@@ -199,9 +199,8 @@ export const Profile = () => {
                     Cancel
                   </button>
                 </div>
-                <QrSetup 
-                  qrCodeUrl={qrData.qrCode} 
-                  secret={qrData.secret} 
+                <QrSetup
+                  qrCodeUrl={qrData.qrCode}
                   onVerify={verify2FA}
                   isLoading={isLoading}
                 />

@@ -81,16 +81,16 @@ export const Servers = () => {
   };
 
   return (
-    <div className="space-y-6 animate-in">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-foreground">Servers</h1>
-          <p className="mt-1 text-secondary">Manage and monitor your infrastructure nodes.</p>
+    <div className="page animate-in">
+      <header className="page-header">
+        <div className="page-header-text">
+          <h1>Servers</h1>
+          <p>Manage and monitor your infrastructure nodes.</p>
         </div>
-        <button type="button" onClick={() => setIsModalOpen(true)} className="sv-btn-primary flex items-center gap-2">
+        <button type="button" onClick={() => setIsModalOpen(true)} className="sv-btn-primary">
           <Plus className="h-4 w-4" /> Add Server
         </button>
-      </div>
+      </header>
 
       <div className="sv-card space-y-4">
         <div className="flex flex-wrap items-start gap-4 border-b border-border pb-4">

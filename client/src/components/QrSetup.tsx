@@ -4,7 +4,7 @@ import TotpInput from './TotpInput';
 
 interface QrSetupProps {
   qrCodeUrl: string;
-  secret: string;
+  secret?: string;
   onVerify: (token: string) => void;
   isLoading?: boolean;
 }
@@ -14,6 +14,7 @@ const QrSetup: React.FC<QrSetupProps> = ({ qrCodeUrl, secret, onVerify, isLoadin
   const [copied, setCopied] = useState(false);
 
   const copyToClipboard = () => {
+    if (!secret) return;
     navigator.clipboard.writeText(secret);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
@@ -26,16 +27,15 @@ const QrSetup: React.FC<QrSetupProps> = ({ qrCodeUrl, secret, onVerify, isLoadin
         <div className="inline-block p-4 bg-white rounded-2xl mb-4">
           <img src={qrCodeUrl} alt="2FA QR Code" className="w-48 h-48" />
         </div>
-        
-        <div className="flex items-center justify-center gap-2 mb-6">
-          <code className="bg-surface px-3 py-1 rounded text-sm border border-border">{secret}</code>
-          <button 
-            onClick={copyToClipboard}
-            className="p-1 hover:text-primary transition-colors"
-          >
-            {copied ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
-          </button>
-        </div>
+
+        {secret && (
+          <div className="flex items-center justify-center gap-2 mb-6">
+            <code className="bg-surface px-3 py-1 rounded text-sm border border-border">{secret}</code>
+            <button onClick={copyToClipboard} className="p-1 hover:text-primary transition-colors">
+              {copied ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
+            </button>
+          </div>
+        )}
       </div>
 
       <div className="space-y-4">

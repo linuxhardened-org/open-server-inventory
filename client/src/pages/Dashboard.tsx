@@ -63,14 +63,14 @@ const StatCard = ({
   label: string;
   value: string | number;
 }) => (
-  <div className="sv-card">
-    <div className="mb-4 flex items-start justify-between">
-      <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 ring-1 ring-primary/15">
-        <Icon className="h-6 w-6 text-primary" />
-      </div>
+  <div className="sv-card flex items-center gap-4">
+    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+      <Icon className="h-5 w-5 text-primary" />
     </div>
-    <p className="text-sm font-medium text-secondary">{label}</p>
-    <h3 className="mt-1 text-2xl font-bold text-foreground">{value}</h3>
+    <div>
+      <p className="text-xs font-medium text-secondary">{label}</p>
+      <h3 className="text-2xl font-semibold text-foreground leading-none mt-0.5">{value}</h3>
+    </div>
   </div>
 );
 
@@ -106,17 +106,19 @@ export const Dashboard = () => {
   const statusChartData = stats?.serversByStatus ?? [];
 
   return (
-    <div className="mx-auto max-w-7xl animate-in space-y-8">
+    <div className="page animate-in">
       <header className="page-header">
-        <h1>Infrastructure overview</h1>
-        <p>Health and capacity at a glance. Use the sidebar to manage servers, groups, and keys.</p>
+        <div className="page-header-text">
+          <h1>Infrastructure overview</h1>
+          <p>Health and capacity at a glance.</p>
+        </div>
       </header>
 
       {loading && !stats ? (
         <p className="text-sm text-secondary">Loading organization stats…</p>
       ) : null}
 
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <StatCard icon={Server} label="Total servers" value={stats?.servers ?? '—'} />
         <StatCard icon={FolderOpen} label="Groups" value={stats?.groups ?? '—'} />
         <StatCard icon={Tags} label="Tags" value={stats?.tags ?? '—'} />
@@ -136,7 +138,7 @@ export const Dashboard = () => {
         </div>
       ) : null}
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <div className="sv-card">
           <h3 className="mb-6 text-base font-semibold text-foreground">Servers by group</h3>
           <div className="h-[300px]">

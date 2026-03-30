@@ -57,16 +57,13 @@ export const Tags = () => {
   );
 
   return (
-      <div className="space-y-6">
-        <header className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-foreground">Labels & Tags</h1>
-            <p className="text-secondary">Categorize and filter your servers</p>
+      <div className="page">
+        <header className="page-header">
+          <div className="page-header-text">
+            <h1>Labels & Tags</h1>
+            <p>Categorize and filter your servers.</p>
           </div>
-          <button 
-            onClick={() => setIsAdding(true)}
-            className="sv-btn-primary flex items-center gap-2"
-          >
+          <button onClick={() => setIsAdding(true)} className="sv-btn-primary">
             <Plus className="w-4 h-4" /> Add Tag
           </button>
         </header>
