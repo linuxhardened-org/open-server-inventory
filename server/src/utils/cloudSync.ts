@@ -4,24 +4,12 @@ import db from '../db';
  * Format Linode image string to human-readable OS name
  * e.g., "linode/ubuntu22.04" -> "Ubuntu 22.04"
  * e.g., "linode/debian11" -> "Debian 11"
- * e.g., "linode/almalinux9" -> "AlmaLinux 9"
- * e.g., "private/12345678" -> "Custom Image"
  */
 function formatLinodeImage(image: string | null): string {
   if (!image) return 'Linux';
 
-  // Check if it's a private/custom image (just numbers after prefix)
-  if (/^(private\/)?[\d]+$/.test(image)) {
-    return 'Custom Image';
-  }
-
-  // Remove "linode/" or "private/" prefix
-  const name = image.replace(/^(linode|private)\//, '');
-
-  // If just a number after removing prefix, it's a custom image
-  if (/^[\d]+$/.test(name)) {
-    return 'Custom Image';
-  }
+  // Remove "linode/" prefix for standard images
+  const name = image.replace(/^linode\//, '');
 
   // Common OS mappings
   const osMap: Record<string, string> = {
@@ -55,6 +43,35 @@ function formatLinodeImage(image: string | null): string {
   }
 
   return 'Linux';
+}
+
+/**
+ * Fetch image details from Linode API
+ */
+async function fetchLinodeImageLabel(apiToken: string, imageId: string): Promise<string | null> {
+  try {
+    const response = await fetch(`https://api.linode.com/v4/images/${imageId}`, {
+      headers: {
+        Authorization: `Bearer ${apiToken}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) return null;
+
+    const data = await response.json() as { label?: string; description?: string };
+    return data.label || data.description || null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Check if image is a private/custom image (numeric ID or private/ prefix)
+ */
+function isPrivateImage(image: string | null): boolean {
+  if (!image) return false;
+  return image.startsWith('private/') || /^[\d]+$/.test(image);
 }
 
 interface LinodeInstance {
@@ -132,8 +149,19 @@ export async function syncLinodeProvider(
       const name = instance.label;
       const hostname = instance.label;
       const ipAddress = instance.ipv4[0] || null;
-      // Parse OS from image (e.g., "linode/ubuntu22.04" -> "Ubuntu 22.04")
-      const os = instance.image ? formatLinodeImage(instance.image) : 'Linux';
+
+      // Parse OS from image
+      let os = 'Linux';
+      if (instance.image) {
+        if (isPrivateImage(instance.image)) {
+          // Fetch private image label from Linode API
+          const imageLabel = await fetchLinodeImageLabel(apiToken, instance.image);
+          os = imageLabel || 'Custom Image';
+        } else {
+          os = formatLinodeImage(instance.image);
+        }
+      }
+
       const cpuCores = instance.specs.vcpus;
       const ramGb = Math.round(instance.specs.memory / 1024);
       const region = instance.region;
