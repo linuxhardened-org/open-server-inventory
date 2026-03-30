@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { useAuthStore } from '../store/useAuthStore';
 import { motion } from 'framer-motion';
 import { UserPlus, Shield, User, Trash2 } from 'lucide-react';
@@ -19,24 +20,23 @@ export const Users = () => {
   const { user: currentUser } = useAuthStore();
   const [users, setUsers] = useState<UserData[]>([]);
   const [isAdding, setIsAdding] = useState(false);
-  const [newUser, setNewUser] = useState<{
-    username: string;
-    password: string;
-    real_name: string;
-    role: 'admin' | 'operator';
-  }>({ username: '', password: '', real_name: '', role: 'operator' });
+  const [newUser, setNewUser] = useState({
+    username: '',
+    password: '',
+    real_name: '',
+    role: 'operator' as 'admin' | 'operator',
+  });
 
   const fetchUsers = useCallback(async () => {
     try {
       const res = (await api.get('/users')) as UsersListResponse;
-      const rows = res?.data;
-      setUsers(Array.isArray(rows) ? rows : []);
+      setUsers(Array.isArray(res?.data) ? res.data : []);
     } catch (err: unknown) {
       const e = err as { error?: string };
       const msg = e?.error || '';
       if (msg.includes('Unauthorized') || msg.includes('Session')) return;
       if (msg.includes('Forbidden') || msg.includes('Admin')) {
-        toast.error('Admin access required to list users.', { id: 'users-forbidden' });
+        toast.error('Admin access required', { id: 'users-forbidden' });
         return;
       }
       toast.error(msg || 'Could not load users', { id: 'users-fetch' });
@@ -44,199 +44,223 @@ export const Users = () => {
   }, []);
 
   useEffect(() => {
-    if (currentUser?.role !== 'admin') return;
-    void fetchUsers();
-  }, [currentUser?.role, currentUser?.id, fetchUsers]);
+    if (currentUser?.role === 'admin') void fetchUsers();
+  }, [currentUser?.role, fetchUsers]);
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
       await api.post('/users', newUser);
-      toast.success('User created successfully');
+      toast.success('User created');
       setIsAdding(false);
-      setNewUser({ username: '', password: '', real_name: '', role: 'operator' as const });
+      setNewUser({ username: '', password: '', real_name: '', role: 'operator' });
       await fetchUsers();
     } catch (err: unknown) {
-      const e = err as { error?: string };
-      toast.error(e?.error || 'Failed to create user');
+      toast.error((err as { error?: string })?.error || 'Failed to create user');
     }
   };
 
   const handleDelete = async (id: number) => {
     if (id === currentUser?.id) {
-      toast.error('You cannot delete your own account');
+      toast.error('Cannot delete yourself');
       return;
     }
-    if (!confirm('Are you sure you want to delete this user?')) return;
+    if (!confirm('Delete this user?')) return;
     try {
       await api.delete(`/users/${id}`);
       toast.success('User deleted');
       await fetchUsers();
     } catch (err: unknown) {
-      const e = err as { error?: string };
-      toast.error(e?.error || 'Failed to delete user');
+      toast.error((err as { error?: string })?.error || 'Failed to delete user');
     }
   };
 
   if (currentUser?.role !== 'admin') {
     return (
-      <div className="flex min-h-[40vh] items-center justify-center">
-        <div className="text-center">
-          <Shield className="mx-auto mb-4 h-16 w-16 text-danger" />
-          <h2 className="text-2xl font-bold text-foreground">Access denied</h2>
-          <p className="mt-2 text-secondary">Administrative privileges are required for this page.</p>
+      <div className="page" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '50vh' }}>
+        <div style={{ textAlign: 'center' }}>
+          <Shield style={{ width: 48, height: 48, color: 'hsl(var(--danger))', margin: '0 auto 16px' }} />
+          <h2 style={{ fontSize: 20, fontWeight: 600, color: 'hsl(var(--fg))', marginBottom: 8 }}>Access Denied</h2>
+          <p style={{ fontSize: 13, color: 'hsl(var(--fg-2))' }}>Admin privileges required.</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-8 text-foreground">
-      <div className="mb-8 flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-foreground">User Management</h1>
-          <p className="text-secondary">Manage system administrators and operators.</p>
+    <div className="page animate-in" style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+      <header className="page-header">
+        <div className="page-header-text">
+          <h1>Users</h1>
+          <p>Manage administrators and operators.</p>
         </div>
-        <button
-          type="button"
-          onClick={() => setIsAdding(true)}
-          className="sv-btn-primary flex items-center gap-2 px-4 py-2"
-        >
-          <UserPlus className="h-4 w-4" />
+        <button type="button" onClick={() => setIsAdding(true)} className="sv-btn-primary" style={{ gap: 6 }}>
+          <UserPlus style={{ width: 15, height: 15 }} />
           Add User
         </button>
-      </div>
+      </header>
 
-      <div className="overflow-hidden rounded-xl border border-border bg-surface">
-        <table className="w-full text-left text-foreground">
-          <thead className="border-b border-border bg-surface-lighter">
-            <tr>
-              <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-secondary">User</th>
-              <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-secondary">Role</th>
-              <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-secondary">Last Login</th>
-              <th className="px-6 py-4 text-right text-xs font-semibold uppercase tracking-wider text-secondary">Actions</th>
+      <div style={{ borderRadius: 10, border: '1px solid hsl(var(--border))', overflow: 'hidden' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <thead>
+            <tr style={{ background: 'hsl(var(--surface-3))', borderBottom: '1px solid hsl(var(--border))' }}>
+              <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: 11, fontWeight: 500, color: 'hsl(var(--fg-3))', textTransform: 'uppercase', letterSpacing: '0.04em' }}>User</th>
+              <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: 11, fontWeight: 500, color: 'hsl(var(--fg-3))', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Role</th>
+              <th style={{ padding: '12px 16px', textAlign: 'right', fontSize: 11, fontWeight: 500, color: 'hsl(var(--fg-3))', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Actions</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-border">
+          <tbody>
             {users.map((u) => (
-              <motion.tr
+              <tr
                 key={u.id}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="transition-colors hover:bg-foreground/[0.04]"
+                style={{ borderBottom: '1px solid hsl(var(--border))', transition: 'background 75ms' }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = 'hsl(var(--surface-2))'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = ''; }}
               >
-                <td className="whitespace-nowrap px-6 py-4">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10">
-                      <User className="h-4 w-4 text-primary" />
+                <td style={{ padding: '12px 16px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'hsl(var(--primary) / 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <User style={{ width: 16, height: 16, color: 'hsl(var(--primary))' }} />
                     </div>
-                    <div className="flex flex-col">
-                      <span className="font-medium text-foreground">{u.real_name || u.username}</span>
-                      {u.real_name && (
-                        <span className="text-xs text-secondary">@{u.username}</span>
-                      )}
+                    <div>
+                      <div style={{ fontSize: 13, fontWeight: 500, color: 'hsl(var(--fg))' }}>{u.real_name || u.username}</div>
+                      {u.real_name && <div style={{ fontSize: 11, color: 'hsl(var(--fg-2))' }}>@{u.username}</div>}
                     </div>
                   </div>
                 </td>
-                <td className="whitespace-nowrap px-6 py-4">
+                <td style={{ padding: '12px 16px' }}>
                   <span
-                    className={`rounded-full px-2 py-1 text-xs font-medium ${
-                      u.role === 'admin'
-                        ? 'bg-primary/15 text-primary'
-                        : 'bg-foreground/[0.06] text-secondary'
-                    }`}
+                    style={{
+                      padding: '4px 10px',
+                      borderRadius: 5,
+                      fontSize: 11,
+                      fontWeight: 500,
+                      textTransform: 'uppercase',
+                      background: u.role === 'admin' ? 'hsl(var(--primary) / 0.1)' : 'hsl(var(--surface-3))',
+                      color: u.role === 'admin' ? 'hsl(var(--primary))' : 'hsl(var(--fg-2))',
+                    }}
                   >
-                    {u.role.toUpperCase()}
+                    {u.role}
                   </span>
                 </td>
-                <td className="whitespace-nowrap px-6 py-4 text-sm text-secondary">
-                  {u.lastLogin ? new Date(u.lastLogin).toLocaleString() : 'Never'}
-                </td>
-                <td className="whitespace-nowrap px-6 py-4 text-right">
+                <td style={{ padding: '12px 16px', textAlign: 'right' }}>
                   <button
                     type="button"
                     onClick={() => handleDelete(u.id)}
-                    className="p-2 text-danger transition-colors hover:bg-danger/10 hover:text-danger disabled:opacity-40"
-                    disabled={u.id === currentUser.id}
+                    disabled={u.id === currentUser?.id}
+                    style={{
+                      padding: 6,
+                      borderRadius: 6,
+                      border: 'none',
+                      background: 'none',
+                      color: 'hsl(var(--danger))',
+                      cursor: u.id === currentUser?.id ? 'not-allowed' : 'pointer',
+                      opacity: u.id === currentUser?.id ? 0.4 : 1,
+                    }}
                     title="Delete user"
                   >
-                    <Trash2 className="h-4 w-4" />
+                    <Trash2 style={{ width: 15, height: 15 }} />
                   </button>
                 </td>
-              </motion.tr>
+              </tr>
             ))}
+            {users.length === 0 && (
+              <tr>
+                <td colSpan={3} style={{ padding: 40, textAlign: 'center', color: 'hsl(var(--fg-3))', fontSize: 13 }}>
+                  No users found.
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>
 
-      {isAdding && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+      {isAdding && createPortal(
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 100,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: 'hsl(var(--bg) / 0.7)',
+            backdropFilter: 'blur(4px)',
+          }}
+          onClick={() => setIsAdding(false)}
+        >
           <motion.div
-            initial={{ scale: 0.95, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            className="w-full max-w-md rounded-xl border border-border bg-surface p-6 text-foreground shadow-2xl"
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: '90%',
+              maxWidth: 380,
+              background: 'hsl(var(--surface))',
+              border: '1px solid hsl(var(--border))',
+              borderRadius: 12,
+              overflow: 'hidden',
+              boxShadow: '0 16px 48px hsl(var(--bg) / 0.4)',
+            }}
           >
-            <h2 className="mb-6 text-xl font-bold text-foreground">Create New User</h2>
-            <form onSubmit={handleCreate} className="space-y-4">
+            <div style={{ padding: '14px 16px', borderBottom: '1px solid hsl(var(--border))', background: 'hsl(var(--surface-2))' }}>
+              <h2 style={{ fontSize: 15, fontWeight: 600, color: 'hsl(var(--fg))', margin: 0 }}>Create User</h2>
+            </div>
+            <form onSubmit={handleCreate} style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <Field label="Username" value={newUser.username} onChange={(v) => setNewUser({ ...newUser, username: v })} required />
+              <Field label="Display Name" value={newUser.real_name} onChange={(v) => setNewUser({ ...newUser, real_name: v })} placeholder="Optional" />
+              <Field label="Password" value={newUser.password} onChange={(v) => setNewUser({ ...newUser, password: v })} type="password" required />
               <div>
-                <label className="mb-1 block text-sm font-medium text-foreground">Username</label>
-                <input
-                  type="text"
-                  required
-                  value={newUser.username}
-                  onChange={(e) => setNewUser({ ...newUser, username: e.target.value })}
-                  className="sv-input"
-                  placeholder="e.g. jdoe"
-                />
-              </div>
-              <div>
-                <label className="mb-1 block text-sm font-medium text-foreground">Display Name</label>
-                <input
-                  type="text"
-                  value={newUser.real_name}
-                  onChange={(e) => setNewUser({ ...newUser, real_name: e.target.value })}
-                  className="sv-input"
-                  placeholder="e.g. John Doe (optional)"
-                />
-              </div>
-              <div>
-                <label className="mb-1 block text-sm font-medium text-foreground">Password</label>
-                <input
-                  type="password"
-                  required
-                  value={newUser.password}
-                  onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
-                  className="sv-input"
-                  placeholder="Minimum 6 characters"
-                />
-              </div>
-              <div>
-                <label className="mb-1 block text-sm font-medium text-foreground">Role</label>
+                <label style={{ display: 'block', fontSize: 11, fontWeight: 500, color: 'hsl(var(--fg-2))', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Role</label>
                 <select
                   value={newUser.role}
-                  onChange={(e) => setNewUser({ ...newUser, role: e.target.value as 'operator' | 'admin' })}
-                  className="sv-input cursor-pointer appearance-none bg-surface-lighter text-foreground"
+                  onChange={(e) => setNewUser({ ...newUser, role: e.target.value as 'admin' | 'operator' })}
+                  className="sv-input"
+                  style={{ width: '100%' }}
                 >
-                  <option value="operator">Operator (Read/Write Inventory)</option>
-                  <option value="admin">Admin (System Management)</option>
+                  <option value="operator">Operator</option>
+                  <option value="admin">Admin</option>
                 </select>
               </div>
-              <div className="flex gap-4 pt-4">
-                <button
-                  type="button"
-                  onClick={() => setIsAdding(false)}
-                  className="sv-btn-ghost flex-1 border border-border px-4 py-2"
-                >
+              <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                <button type="button" onClick={() => setIsAdding(false)} className="sv-btn-ghost" style={{ flex: 1, border: '1px solid hsl(var(--border-2))' }}>
                   Cancel
                 </button>
-                <button type="submit" className="sv-btn-primary flex-1 px-4 py-2">
-                  Create User
+                <button type="submit" className="sv-btn-primary" style={{ flex: 1 }}>
+                  Create
                 </button>
               </div>
             </form>
           </motion.div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
 };
+
+function Field({ label, value, onChange, type = 'text', required, placeholder }: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  type?: string;
+  required?: boolean;
+  placeholder?: string;
+}) {
+  return (
+    <div>
+      <label style={{ display: 'block', fontSize: 11, fontWeight: 500, color: 'hsl(var(--fg-2))', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+        {label} {required && <span style={{ color: 'hsl(var(--danger))' }}>*</span>}
+      </label>
+      <input
+        type={type}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="sv-input"
+        style={{ width: '100%' }}
+        required={required}
+        placeholder={placeholder}
+      />
+    </div>
+  );
+}

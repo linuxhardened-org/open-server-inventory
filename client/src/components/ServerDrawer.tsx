@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Server, Pencil, Trash2, Save } from 'lucide-react';
 import { Server as ServerType } from '../types';
@@ -89,7 +90,7 @@ export const ServerDrawer = ({ server, isOpen, onClose, onUpdate }: ServerDrawer
     ? 'hsl(var(--success))'
     : 'hsl(var(--danger))';
 
-  return (
+  return createPortal(
     <AnimatePresence>
       {isOpen && (
         <>
@@ -334,7 +335,8 @@ export const ServerDrawer = ({ server, isOpen, onClose, onUpdate }: ServerDrawer
           </motion.div>
         </>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body
   );
 };
 
