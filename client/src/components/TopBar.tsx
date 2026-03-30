@@ -81,8 +81,8 @@ export const TopBar = ({ onMenuToggle }: { onMenuToggle?: () => void }) => {
           </span>
 
           {/* Username + role */}
-          <span className="hidden sm:flex flex-col">
-            <span style={{ fontSize: 13, color: 'hsl(var(--fg))', lineHeight: 1.3 }}>
+          <span className="hidden sm:flex flex-col" style={{ overflow: 'hidden', maxWidth: 140 }}>
+            <span style={{ fontSize: 13, color: 'hsl(var(--fg))', lineHeight: 1.3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
               {user?.real_name || user?.username || 'User'}
             </span>
             <span className="capitalize" style={{ fontSize: 11, color: 'hsl(var(--fg-2))', lineHeight: 1.3 }}>
