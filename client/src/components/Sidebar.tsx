@@ -1,4 +1,4 @@
-import { Link, NavLink, useMatch, useNavigate } from 'react-router-dom';
+import { NavLink, Link, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard,
   Server,
@@ -9,88 +9,87 @@ import {
   UserCircle,
   Settings,
   LogOut,
-  Hexagon,
+  Database,
 } from 'lucide-react';
-import { cn } from '../lib/utils';
 import { useAuthStore } from '../store/useAuthStore';
 
 const navItems = [
   { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard', end: true },
-  { icon: Server, label: 'Servers', path: '/servers', end: false },
-  { icon: Layers, label: 'Groups', path: '/groups', end: false },
-  { icon: Tag, label: 'Tags', path: '/tags', end: false },
-  { icon: Key, label: 'SSH Keys', path: '/ssh-keys', end: false },
-  { icon: Users, label: 'Users', path: '/users', end: false },
-  { icon: Settings, label: 'Settings', path: '/settings', end: false },
-] as const;
+  { icon: Server,          label: 'Servers',   path: '/servers',   end: false },
+  { icon: Layers,          label: 'Groups',    path: '/groups',    end: false },
+  { icon: Tag,             label: 'Tags',      path: '/tags',      end: false },
+  { icon: Key,             label: 'SSH Keys',  path: '/ssh-keys',  end: false },
+];
 
-const profileItem = { icon: UserCircle, label: 'Profile', path: '/profile', end: false } as const;
+const bottomItems = [
+  { icon: Users,      label: 'Users',    path: '/users',    end: false },
+  { icon: UserCircle, label: 'Profile',  path: '/profile',  end: false },
+  { icon: Settings,   label: 'Settings', path: '/settings', end: false },
+];
 
-function SidebarNavItem({
-  path,
-  end,
-  icon: Icon,
-  label,
-}: {
-  path: string;
-  end: boolean;
-  icon: typeof LayoutDashboard;
-  label: string;
-}) {
-  const match = useMatch({ path, end });
-  const isActive = !!match;
-
-  return (
-    <li className={cn('sidebar-item', isActive && 'active')}>
-      <NavLink end={end} className="sidebar-link" to={path}>
-        <Icon className="align-middle" size={18} strokeWidth={2} aria-hidden />
-        <span className="align-middle">{label}</span>
-      </NavLink>
-    </li>
-  );
-}
-
-type SidebarProps = {
-  collapsed: boolean;
-};
-
-export const Sidebar = ({ collapsed }: SidebarProps) => {
-  const logout = useAuthStore((state) => state.logout);
+export const Sidebar = () => {
+  const logout = useAuthStore((s) => s.logout);
   const navigate = useNavigate();
 
-  const handleLogout = () => {
-    logout();
-    navigate('/login');
-  };
-
   return (
-    <nav className={cn('sidebar', collapsed && 'collapsed')}>
-      <div className="sidebar-content">
-        <Link className="sidebar-brand" to="/dashboard">
-          <span className="align-middle text-primary">
-            <Hexagon className="d-inline-block" size={28} strokeWidth={2} aria-hidden />
-          </span>
-          <span className="align-middle">ServerVault</span>
-        </Link>
+    <nav className="app-sidebar">
+      {/* Brand */}
+      <Link to="/dashboard" className="app-sidebar-brand">
+        <span className="flex h-7 w-7 items-center justify-center rounded-md bg-primary text-white">
+          <Database size={15} strokeWidth={2.2} />
+        </span>
+        <span>ServerVault</span>
+      </Link>
 
-        <ul className="sidebar-nav">
-          <li className="sidebar-header">Apps</li>
-          {navItems.map((item) => (
-            <SidebarNavItem key={item.path} {...item} />
+      {/* Navigation */}
+      <div className="app-nav">
+        <div className="app-sidebar-section">Main</div>
+        <ul className="app-nav-list">
+          {navItems.map(({ icon: Icon, label, path, end }) => (
+            <li key={path}>
+              <NavLink
+                to={path}
+                end={end}
+                className={({ isActive }) =>
+                  `app-nav-link${isActive ? ' active' : ''}`
+                }
+              >
+                <Icon size={16} strokeWidth={1.8} aria-hidden />
+                {label}
+              </NavLink>
+            </li>
           ))}
-          <SidebarNavItem {...profileItem} />
         </ul>
 
-        <div className="mt-auto border-top border-secondary border-opacity-25 p-3">
-          <button
-            type="button"
-            onClick={handleLogout}
-            className="btn btn-outline-danger w-100 d-flex align-items-center justify-content-center gap-2"
-          >
-            <LogOut size={18} aria-hidden />
-            <span>Logout</span>
-          </button>
-        </div>
+        <div className="app-sidebar-section mt-4">Account</div>
+        <ul className="app-nav-list">
+          {bottomItems.map(({ icon: Icon, label, path, end }) => (
+            <li key={path}>
+              <NavLink
+                to={path}
+                end={end}
+                className={({ isActive }) =>
+                  `app-nav-link${isActive ? ' active' : ''}`
+                }
+              >
+                <Icon size={16} strokeWidth={1.8} aria-hidden />
+                {label}
+              </NavLink>
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      {/* Footer / Logout */}
+      <div className="app-sidebar-footer">
+        <button
+          type="button"
+          onClick={() => { logout(); navigate('/login'); }}
+          className="app-nav-link w-full cursor-pointer border-0 bg-transparent hover:!bg-danger/8 hover:!text-danger"
+        >
+          <LogOut size={16} strokeWidth={1.8} aria-hidden />
+          Sign out
+        </button>
       </div>
     </nav>
   );
