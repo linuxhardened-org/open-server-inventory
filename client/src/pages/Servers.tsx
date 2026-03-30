@@ -92,6 +92,33 @@ export const Servers = () => {
         </button>
       </header>
 
+      {!loading && (
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+          <div className="sv-card py-3">
+            <p className="stat-card-label">Total</p>
+            <p className="stat-card-value">{servers.length}</p>
+          </div>
+          <div className="sv-card py-3">
+            <p className="stat-card-label">Online</p>
+            <p className="stat-card-value text-green-600 dark:text-green-400">
+              {servers.filter((s) => s.status === 'online' || s.status === 'active').length}
+            </p>
+          </div>
+          <div className="sv-card py-3">
+            <p className="stat-card-label">Offline</p>
+            <p className="stat-card-value text-red-500">
+              {servers.filter((s) => s.status !== 'online' && s.status !== 'active' && s.status !== 'maintenance').length}
+            </p>
+          </div>
+          <div className="sv-card py-3">
+            <p className="stat-card-label">Maintenance</p>
+            <p className="stat-card-value text-yellow-500">
+              {servers.filter((s) => s.status === 'maintenance').length}
+            </p>
+          </div>
+        </div>
+      )}
+
       <div className="sv-card space-y-4">
         <div className="flex flex-wrap items-start gap-4 border-b border-border pb-4">
           <div className="flex min-w-0 flex-1 flex-col gap-2">

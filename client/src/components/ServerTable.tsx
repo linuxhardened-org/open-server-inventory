@@ -15,22 +15,22 @@ interface ServerTableProps {
 
 export const ServerTable = ({ servers, customColumns, onRowClick }: ServerTableProps) => {
   return (
-    <div className="overflow-x-auto">
+    <div className="overflow-x-auto rounded-xl border border-border">
       <table className="w-full text-left border-collapse">
         <thead>
-          <tr className="border-b border-border text-secondary text-sm font-medium">
-            <th className="py-4 px-4">Status</th>
-            <th className="py-4 px-4">Hostname</th>
-            <th className="py-4 px-4">Primary IP</th>
-            <th className="py-4 px-4">OS</th>
-            <th className="py-4 px-4">Resources</th>
-            <th className="py-4 px-4">Tags</th>
+          <tr className="border-b border-border bg-surface-lighter text-secondary text-xs font-semibold uppercase tracking-wide">
+            <th className="py-3 px-4">Status</th>
+            <th className="py-3 px-4">Hostname</th>
+            <th className="py-3 px-4">Primary IP</th>
+            <th className="py-3 px-4">OS</th>
+            <th className="py-3 px-4">Resources</th>
+            <th className="py-3 px-4">Tags</th>
             {customColumns.map((col) => (
-              <th key={col.id} className="py-4 px-4 max-w-[14rem] truncate" title={col.name}>
+              <th key={col.id} className="py-3 px-4 max-w-[14rem] truncate" title={col.name}>
                 {col.name}
               </th>
             ))}
-            <th className="py-4 px-4 text-right">Actions</th>
+            <th className="py-3 px-4 text-right">Actions</th>
           </tr>
         </thead>
         <tbody>
@@ -51,26 +51,34 @@ export const ServerTable = ({ servers, customColumns, onRowClick }: ServerTableP
               transition={{ delay: index * 0.05 }}
               key={server.id}
               onClick={() => onRowClick(server)}
-              className="border-b border-border/50 hover:bg-foreground/[0.04] cursor-pointer transition-colors group"
+              className="border-b border-border/50 hover:bg-foreground/[0.04] dark:hover:bg-foreground/[0.06] cursor-pointer transition-colors group"
             >
-              <td className="py-4 px-4">
-                <div className="flex items-center gap-2">
-                  <div className={`w-2 h-2 rounded-full animate-pulse ${
-                    server.status === 'online' || server.status === 'active' ? "bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]" : "bg-red-500"
-                  }`} />
-                  <span className="text-xs font-medium uppercase tracking-wider">{server.status}</span>
-                </div>
+              <td className="py-3 px-4">
+                {(() => {
+                  const s = server.status?.toLowerCase() ?? '';
+                  const cls =
+                    s === 'online' || s === 'active'
+                      ? 'bg-green-500/10 text-green-600 dark:text-green-400 border border-green-500/20'
+                      : s === 'maintenance'
+                      ? 'bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 border border-yellow-500/20'
+                      : 'bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20';
+                  return (
+                    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium capitalize ${cls}`}>
+                      {server.status ?? 'unknown'}
+                    </span>
+                  );
+                })()}
               </td>
-              <td className="py-4 px-4 font-mono text-sm">{server.hostname}</td>
-              <td className="py-4 px-4 font-mono text-sm text-secondary">{server.ip_address ?? '—'}</td>
-              <td className="py-4 px-4 text-sm">{server.os ?? '—'}</td>
-              <td className="py-4 px-4">
+              <td className="py-3 px-4 font-mono text-sm">{server.hostname}</td>
+              <td className="py-3 px-4 font-mono text-sm text-secondary">{server.ip_address ?? '—'}</td>
+              <td className="py-3 px-4 text-sm">{server.os ?? '—'}</td>
+              <td className="py-3 px-4">
                 <div className="space-y-1 text-[10px] text-secondary font-mono">
                   <div>CPU: {server.cpu_cores || 0} Cores</div>
                   <div>RAM: {formatBytes((server.ram_gb || 0) * 1024 * 1024 * 1024)}</div>
                 </div>
               </td>
-              <td className="py-4 px-4">
+              <td className="py-3 px-4">
                 <div className="flex flex-wrap gap-1">
                   {server.tags?.map((tag) => (
                     <span
@@ -83,11 +91,11 @@ export const ServerTable = ({ servers, customColumns, onRowClick }: ServerTableP
                 </div>
               </td>
               {customColumns.map((col) => (
-                <td key={col.id} className="py-4 px-4 text-sm text-secondary max-w-[14rem] truncate" title={server.custom_values?.[String(col.id)]}>
+                <td key={col.id} className="py-3 px-4 text-sm text-secondary max-w-[14rem] truncate" title={server.custom_values?.[String(col.id)]}>
                   {server.custom_values?.[String(col.id)]?.trim() ? server.custom_values[String(col.id)] : '—'}
                 </td>
               ))}
-              <td className="py-4 px-4 text-right">
+              <td className="py-3 px-4 text-right">
                 <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                   <button
                     type="button"
