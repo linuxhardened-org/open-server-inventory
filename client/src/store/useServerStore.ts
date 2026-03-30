@@ -31,7 +31,7 @@ export const useServerStore = create<ServerState>((set, get) => ({
   fetchServers: async (filters) => {
     set({ isLoading: true });
     try {
-      const response = await api.get('/api/servers', { params: filters });
+      const response = await api.get('/servers', { params: filters });
       set({ servers: response.data, isLoading: false });
     } catch (err: any) {
       set({ error: err.message, isLoading: false });
@@ -40,7 +40,7 @@ export const useServerStore = create<ServerState>((set, get) => ({
 
   fetchGroups: async () => {
     try {
-      const response = await api.get('/api/groups');
+      const response = await api.get('/groups');
       set({ groups: response.data });
     } catch (err: any) {
       console.error(err);
@@ -49,7 +49,7 @@ export const useServerStore = create<ServerState>((set, get) => ({
 
   fetchTags: async () => {
     try {
-      const response = await api.get('/api/tags');
+      const response = await api.get('/tags');
       set({ tags: response.data });
     } catch (err: any) {
       console.error(err);
@@ -58,7 +58,7 @@ export const useServerStore = create<ServerState>((set, get) => ({
 
   fetchSshKeys: async () => {
     try {
-      const response = await api.get('/api/ssh-keys');
+      const response = await api.get('/ssh-keys');
       set({ sshKeys: response.data });
     } catch (err: any) {
       console.error(err);
@@ -67,7 +67,7 @@ export const useServerStore = create<ServerState>((set, get) => ({
 
   addServer: async (server) => {
     try {
-      const response = await api.post('/api/servers', server);
+      const response = await api.post('/servers', server);
       set({ servers: [...get().servers, response.data] });
     } catch (err: any) {
       throw err;
@@ -76,7 +76,7 @@ export const useServerStore = create<ServerState>((set, get) => ({
 
   updateServer: async (id, server) => {
     try {
-      const response = await api.patch(`/api/servers/${id}`, server);
+      const response = await api.patch(`/servers/${id}`, server);
       set({
         servers: get().servers.map((s) => (s.id === id ? { ...s, ...response.data } : s)),
       });
@@ -87,7 +87,7 @@ export const useServerStore = create<ServerState>((set, get) => ({
 
   deleteServer: async (id) => {
     try {
-      await api.delete(`/api/servers/${id}`);
+      await api.delete(`/servers/${id}`);
       set({
         servers: get().servers.filter((s) => s.id !== id),
       });

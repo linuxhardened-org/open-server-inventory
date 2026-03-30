@@ -10,6 +10,7 @@ import { Users } from './pages/Users';
 import { Settings } from './pages/Settings';
 import { ApiSettings } from './pages/ApiSettings';
 import { CloudIntegrations } from './pages/CloudIntegrations';
+import { IpInventory } from './pages/IpInventory';
 import { Setup } from './pages/Setup';
 import { ChangePassword } from './pages/ChangePassword';
 import { Layout } from './components/Layout';
@@ -86,6 +87,7 @@ function App() {
           <Route path="groups" element={<Groups />} />
           <Route path="tags" element={<Tags />} />
           <Route path="cloud" element={<CloudIntegrations />} />
+          <Route path="ips" element={<IpInventory />} />
           <Route path="profile" element={<Profile />} />
           <Route path="users" element={<Users />} />
           <Route path="api-settings" element={<ApiSettings />} />

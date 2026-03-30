@@ -1,18 +1,30 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Server, Pencil, Trash2, Save, RefreshCw } from 'lucide-react';
+import { X, Server, Pencil, Trash2, Save, RefreshCw, Network } from 'lucide-react';
 import { Server as ServerType } from '../types';
-import api from '../lib/api';
+import api, { getApiErrorMessage } from '../lib/api';
 import toast from 'react-hot-toast';
+
+interface ExtraIp {
+  id: number;
+  server_id: number;
+  ip_address: string;
+  ip_type: 'public' | 'private' | 'ipv6';
+  label: string | null;
+  created_at: string;
+}
 
 interface ServerDrawerProps {
   server: ServerType | null;
   isOpen: boolean;
   onClose: () => void;
+  /** After save/delete server */
   onUpdate?: () => void;
+  /** Reload server list without closing (e.g. sync, IP changes) */
+  onRefresh?: () => void;
 }
 
-export const ServerDrawer = ({ server, isOpen, onClose, onUpdate }: ServerDrawerProps) => {
+export const ServerDrawer = ({ server, isOpen, onClose, onUpdate, onRefresh }: ServerDrawerProps) => {
   const [editing, setEditing] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [form, setForm] = useState({
@@ -26,6 +38,66 @@ export const ServerDrawer = ({ server, isOpen, onClose, onUpdate }: ServerDrawer
     notes: '',
   });
   const [saving, setSaving] = useState(false);
+
+  const [extraIps, setExtraIps] = useState<ExtraIp[]>([]);
+  const [loadingIps, setLoadingIps] = useState(false);
+  const [newIpAddr, setNewIpAddr] = useState('');
+  const [newIpType, setNewIpType] = useState<'public' | 'private' | 'ipv6'>('public');
+  const [newIpLabel, setNewIpLabel] = useState('');
+  const [addingIp, setAddingIp] = useState(false);
+
+  const loadExtraIps = useCallback(async () => {
+    if (!server?.id) return;
+    setLoadingIps(true);
+    try {
+      const res = (await api.get(`/ips/server/${server.id}`)) as { data?: ExtraIp[] };
+      setExtraIps(Array.isArray(res.data) ? res.data : []);
+    } catch {
+      setExtraIps([]);
+    } finally {
+      setLoadingIps(false);
+    }
+  }, [server?.id]);
+
+  useEffect(() => {
+    if (!server?.id || !isOpen) return;
+    void loadExtraIps();
+  }, [server?.id, isOpen, loadExtraIps]);
+
+  const handleAddExtraIp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!server?.id || !newIpAddr.trim()) return;
+    setAddingIp(true);
+    try {
+      await api.post('/ips', {
+        server_id: server.id,
+        ip_address: newIpAddr.trim(),
+        ip_type: newIpType,
+        label: newIpLabel.trim() || undefined,
+      });
+      toast.success('IP added');
+      setNewIpAddr('');
+      setNewIpLabel('');
+      await loadExtraIps();
+      onRefresh?.();
+    } catch (err: unknown) {
+      toast.error(getApiErrorMessage(err, 'Could not add IP'));
+    } finally {
+      setAddingIp(false);
+    }
+  };
+
+  const handleDeleteExtraIp = async (id: number) => {
+    if (!confirm('Remove this IP from the server?')) return;
+    try {
+      await api.delete(`/ips/${id}`);
+      toast.success('IP removed');
+      await loadExtraIps();
+      onRefresh?.();
+    } catch (err: unknown) {
+      toast.error(getApiErrorMessage(err, 'Could not remove IP'));
+    }
+  };
 
   const startEdit = () => {
     if (!server) return;
@@ -85,7 +157,7 @@ export const ServerDrawer = ({ server, isOpen, onClose, onUpdate }: ServerDrawer
     try {
       await api.post(`/cloud-providers/${server.cloud_provider_id}/sync`);
       toast.success('Synced from cloud');
-      onUpdate?.();
+      onRefresh?.();
     } catch (err: any) {
       toast.error(err?.error || 'Failed to sync');
     } finally {
@@ -125,7 +197,7 @@ export const ServerDrawer = ({ server, isOpen, onClose, onUpdate }: ServerDrawer
         onClick={(e) => e.stopPropagation()}
         style={{
           width: '100%',
-          maxWidth: 400,
+          maxWidth: 440,
           maxHeight: 'calc(100vh - 32px)',
           background: 'hsl(var(--surface))',
           border: '1px solid hsl(var(--border))',
@@ -275,6 +347,106 @@ export const ServerDrawer = ({ server, isOpen, onClose, onUpdate }: ServerDrawer
                 </div>
               )}
               {server.notes && <Row label="Notes" value={server.notes} />}
+              <div
+                style={{
+                  marginTop: 8,
+                  paddingTop: 12,
+                  borderTop: '1px solid hsl(var(--border))',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+                  <Network style={{ width: 14, height: 14, color: 'hsl(var(--primary))' }} />
+                  <span style={{ fontSize: 11, color: 'hsl(var(--fg-3))', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                    Additional IPs
+                  </span>
+                </div>
+                {loadingIps ? (
+                  <p style={{ fontSize: 12, color: 'hsl(var(--fg-3))' }}>Loading…</p>
+                ) : extraIps.length === 0 ? (
+                  <p style={{ fontSize: 12, color: 'hsl(var(--fg-3))', marginBottom: 10 }}>No extra addresses yet.</p>
+                ) : (
+                  <ul style={{ listStyle: 'none', margin: '0 0 10px', padding: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    {extraIps.map((ip) => (
+                      <li
+                        key={ip.id}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          gap: 8,
+                          fontSize: 12,
+                          padding: '6px 8px',
+                          borderRadius: 6,
+                          background: 'hsl(var(--surface-2))',
+                        }}
+                      >
+                        <div style={{ minWidth: 0 }}>
+                          <code style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'hsl(var(--fg))' }}>{ip.ip_address}</code>
+                          <span style={{ marginLeft: 8, fontSize: 10, color: 'hsl(var(--fg-2))' }}>{ip.ip_type}</span>
+                          {ip.label && (
+                            <span style={{ marginLeft: 6, fontSize: 10, color: 'hsl(var(--fg-3))' }}>({ip.label})</span>
+                          )}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteExtraIp(ip.id)}
+                          style={{
+                            border: 'none',
+                            background: 'none',
+                            color: 'hsl(var(--danger))',
+                            cursor: 'pointer',
+                            padding: 4,
+                          }}
+                          title="Remove IP"
+                        >
+                          <Trash2 style={{ width: 12, height: 12 }} />
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                <form onSubmit={handleAddExtraIp} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 8, alignItems: 'end' }}>
+                    <div style={{ gridColumn: '1 / -1' }}>
+                      <label style={{ fontSize: 10, color: 'hsl(var(--fg-2))', display: 'block', marginBottom: 4 }}>Address</label>
+                      <input
+                        className="sv-input"
+                        style={{ width: '100%', fontSize: 12 }}
+                        placeholder="IP or IPv6"
+                        value={newIpAddr}
+                        onChange={(e) => setNewIpAddr(e.target.value)}
+                        autoComplete="off"
+                      />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: 10, color: 'hsl(var(--fg-2))', display: 'block', marginBottom: 4 }}>Type</label>
+                      <select
+                        className="sv-input"
+                        style={{ width: '100%', fontSize: 12 }}
+                        value={newIpType}
+                        onChange={(e) => setNewIpType(e.target.value as 'public' | 'private' | 'ipv6')}
+                      >
+                        <option value="public">Public</option>
+                        <option value="private">Private</option>
+                        <option value="ipv6">IPv6</option>
+                      </select>
+                    </div>
+                    <button type="submit" disabled={addingIp || !newIpAddr.trim()} className="sv-btn-primary" style={{ padding: '6px 10px', fontSize: 12 }}>
+                      {addingIp ? '…' : 'Add'}
+                    </button>
+                    <div style={{ gridColumn: '1 / -1' }}>
+                      <label style={{ fontSize: 10, color: 'hsl(var(--fg-2))', display: 'block', marginBottom: 4 }}>Label (optional)</label>
+                      <input
+                        className="sv-input"
+                        style={{ width: '100%', fontSize: 12 }}
+                        placeholder="e.g. eth1"
+                        value={newIpLabel}
+                        onChange={(e) => setNewIpLabel(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                </form>
+              </div>
             </div>
           )}
         </div>

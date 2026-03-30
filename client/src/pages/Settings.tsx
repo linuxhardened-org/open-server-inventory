@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { Download, Upload, Trash2, ShieldAlert, Settings2, Database, CheckCircle2, XCircle, Cloud, RefreshCw, Plus } from 'lucide-react';
 import { motion } from 'framer-motion';
-import axios from '../lib/api';
+import axios, { getApiErrorMessage } from '../lib/api';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '../store/useAuthStore';
 import { useSettingsStore } from '../store/useSettingsStore';
@@ -39,8 +39,8 @@ export const Settings = () => {
     try {
       const res = (await axios.get('/cloud-providers')) as { success: boolean; data: CloudProvider[] };
       setProviders(Array.isArray(res?.data) ? res.data : []);
-    } catch {
-      // Silently fail - API might not exist yet
+    } catch (err: unknown) {
+      toast.error(getApiErrorMessage(err, 'Could not load cloud providers'));
     } finally {
       setProvidersLoading(false);
     }
@@ -186,11 +186,11 @@ export const Settings = () => {
     if (!password) return;
 
     try {
-      await axios.post('/api/settings/reset', { password });
+      await axios.post('/settings/reset', { password });
       toast.success('System reset complete');
       window.location.reload();
-    } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Reset failed');
+    } catch (err: unknown) {
+      toast.error(getApiErrorMessage(err, 'Reset failed'));
     }
   };
 
@@ -458,6 +458,7 @@ export const Settings = () => {
             )}
           </section>
 
+          {isAdmin && (
           <section className="bg-red-500/5 border border-red-500/20 rounded-xl p-6">
             <h2 className="text-xl font-semibold mb-4 flex items-center gap-2 text-red-500">
               <ShieldAlert className="w-5 h-5" />
@@ -471,6 +472,7 @@ export const Settings = () => {
                 </div>
               </div>
               <button
+                type="button"
                 onClick={handleReset}
                 className="bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/20 rounded-lg px-6 py-2 transition-colors flex items-center gap-2"
               >
@@ -479,6 +481,7 @@ export const Settings = () => {
               </button>
             </div>
           </section>
+          )}
         </div>
 
         {/* Add Provider Modal */}

@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { Cloud, RefreshCw, Plus, Trash2 } from 'lucide-react';
 import { motion } from 'framer-motion';
-import axios from '../lib/api';
+import axios, { getApiErrorMessage } from '../lib/api';
 import toast from 'react-hot-toast';
 
 interface CloudProvider {
@@ -32,8 +32,8 @@ export const CloudIntegrations = () => {
     try {
       const res = (await axios.get('/cloud-providers')) as { success: boolean; data: CloudProvider[] };
       setProviders(Array.isArray(res?.data) ? res.data : []);
-    } catch {
-      // Silently fail
+    } catch (err: unknown) {
+      toast.error(getApiErrorMessage(err, 'Could not load cloud providers'));
     } finally {
       setLoading(false);
     }

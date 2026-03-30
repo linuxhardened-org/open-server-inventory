@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import { X, Server } from 'lucide-react';
 import toast from 'react-hot-toast';
 import type { CustomColumn } from '../types';
-import api from '../lib/api';
+import api, { getApiErrorMessage } from '../lib/api';
 
 interface AddServerModalProps {
   isOpen: boolean;
@@ -75,9 +75,7 @@ export const AddServerModal = ({ isOpen, onClose, customColumns, onServerCreated
       onServerCreated?.();
       onClose();
     } catch (err: unknown) {
-      const msg =
-        typeof err === 'object' && err && 'message' in err ? String((err as { message: string }).message) : 'Could not save server';
-      toast.error(msg);
+      toast.error(getApiErrorMessage(err, 'Could not save server'));
     } finally {
       setSubmitting(false);
     }

@@ -25,6 +25,7 @@ export const Servers = () => {
   // Get filter params from URL
   const filterGroupId = searchParams.get('group');
   const filterTagId = searchParams.get('tag');
+  const serverIdFromUrl = searchParams.get('server');
 
   const load = useCallback(async () => {
     try {
@@ -69,7 +70,25 @@ export const Servers = () => {
     load();
   }, [load]);
 
+  // Open server drawer when linked from IP inventory (?server=id)
+  useEffect(() => {
+    if (!serverIdFromUrl || loading) return;
+    const id = parseInt(serverIdFromUrl, 10);
+    if (Number.isNaN(id)) return;
+    const match = servers.find((s) => s.id === id);
+    if (match) setSelectedServer(match);
+  }, [serverIdFromUrl, servers, loading]);
+
   const [showExportMenu, setShowExportMenu] = useState(false);
+
+  const closeDrawer = () => {
+    setSelectedServer(null);
+    if (searchParams.get('server')) {
+      const next = new URLSearchParams(searchParams);
+      next.delete('server');
+      setSearchParams(next, { replace: true });
+    }
+  };
 
   const handleExport = async (format: 'json' | 'csv') => {
     setShowExportMenu(false);
@@ -106,9 +125,7 @@ export const Servers = () => {
       toast.success('Column added');
       await load();
     } catch (err: unknown) {
-      const msg =
-        typeof err === 'object' && err && 'message' in err ? String((err as { message: string }).message) : 'Could not add column';
-      toast.error(msg);
+      toast.error(getApiErrorMessage(err, 'Could not add column'));
     }
   };
 
@@ -119,11 +136,7 @@ export const Servers = () => {
       toast.success('Column removed');
       await load();
     } catch (err: unknown) {
-      const msg =
-        typeof err === 'object' && err && 'message' in err
-          ? String((err as { message: string }).message)
-          : 'Could not remove column';
-      toast.error(msg);
+      toast.error(getApiErrorMessage(err, 'Could not remove column'));
     }
   };
 
@@ -507,8 +520,17 @@ export const Servers = () => {
         <ServerDrawer
           server={selectedServer}
           isOpen={!!selectedServer}
-          onClose={() => setSelectedServer(null)}
-          onUpdate={() => { load(); setSelectedServer(null); }}
+          onClose={closeDrawer}
+          onUpdate={() => {
+            load();
+            setSelectedServer(null);
+            if (searchParams.get('server')) {
+              const next = new URLSearchParams(searchParams);
+              next.delete('server');
+              setSearchParams(next, { replace: true });
+            }
+          }}
+          onRefresh={load}
         />
       )}
 
