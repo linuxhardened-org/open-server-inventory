@@ -19,6 +19,7 @@ export const AddServerModal = ({ isOpen, onClose, customColumns, onServerCreated
   const [ip, setIp] = useState('');
   const [privateIp, setPrivateIp] = useState('');
   const [ipv6, setIpv6] = useState('');
+  const [privateIpv6, setPrivateIpv6] = useState('');
   const [notes, setNotes] = useState('');
   const [customValues, setCustomValues] = useState<Record<number, string>>({});
   const [submitting, setSubmitting] = useState(false);
@@ -30,6 +31,7 @@ export const AddServerModal = ({ isOpen, onClose, customColumns, onServerCreated
       setIp('');
       setPrivateIp('');
       setIpv6('');
+      setPrivateIpv6('');
       setNotes('');
       setCustomValues({});
       setSubmitting(false);
@@ -67,6 +69,7 @@ export const AddServerModal = ({ isOpen, onClose, customColumns, onServerCreated
         ip_address: ip.trim() || undefined,
         private_ip: privateIp.trim() || undefined,
         ipv6_address: ipv6.trim() || undefined,
+        private_ipv6: privateIpv6.trim() || undefined,
         notes: notes.trim() || undefined,
         status: 'active',
         custom_values: Object.keys(custom_values).length ? custom_values : undefined,
@@ -275,21 +278,39 @@ export const AddServerModal = ({ isOpen, onClose, customColumns, onServerCreated
               </div>
 
               {/* IPv6 */}
-              <div>
-                <label htmlFor="srv-ipv6" style={labelStyle}>
-                  IPv6 address{' '}
-                  <span style={{ fontSize: 10, fontWeight: 400, textTransform: 'none', letterSpacing: 0, color: 'hsl(var(--fg-3))' }}>
-                    (optional)
-                  </span>
-                </label>
-                <input
-                  id="srv-ipv6"
-                  value={ipv6}
-                  onChange={(e) => setIpv6(e.target.value)}
-                  className="sv-input"
-                  placeholder="2001:db8::1"
-                  autoComplete="off"
-                />
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label htmlFor="srv-ipv6" style={labelStyle}>
+                    Public IPv6{' '}
+                    <span style={{ fontSize: 10, fontWeight: 400, textTransform: 'none', letterSpacing: 0, color: 'hsl(var(--fg-3))' }}>
+                      (optional)
+                    </span>
+                  </label>
+                  <input
+                    id="srv-ipv6"
+                    value={ipv6}
+                    onChange={(e) => setIpv6(e.target.value)}
+                    className="sv-input"
+                    placeholder="2001:db8::1"
+                    autoComplete="off"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="srv-private-ipv6" style={labelStyle}>
+                    Private IPv6{' '}
+                    <span style={{ fontSize: 10, fontWeight: 400, textTransform: 'none', letterSpacing: 0, color: 'hsl(var(--fg-3))' }}>
+                      (optional)
+                    </span>
+                  </label>
+                  <input
+                    id="srv-private-ipv6"
+                    value={privateIpv6}
+                    onChange={(e) => setPrivateIpv6(e.target.value)}
+                    className="sv-input"
+                    placeholder="fd00::1"
+                    autoComplete="off"
+                  />
+                </div>
               </div>
 
               {/* Notes */}

@@ -1,6 +1,6 @@
 import { Edit2, Server as ServerIcon } from 'lucide-react';
 import type { CustomColumn, Server, ServerTag } from '../types';
-import { formatBytes } from '../lib/utils';
+import { formatBytes, formatIpDisplay } from '../lib/utils';
 import { motion } from 'framer-motion';
 
 function tagLabel(tag: ServerTag | string): string {
@@ -59,7 +59,7 @@ export const ServerTable = ({ servers, customColumns, onRowClick }: ServerTableP
                 fontWeight: 500,
               }}
             >
-              Primary IP
+              Addresses
             </th>
             <th
               className="px-4"
@@ -231,14 +231,29 @@ export const ServerTable = ({ servers, customColumns, onRowClick }: ServerTableP
                 </span>
               </td>
 
-              {/* IP */}
+              {/* IPs */}
               <td className="px-4">
-                <span
+                <div
                   className="font-mono"
-                  style={{ fontSize: 12, color: 'hsl(var(--fg-2))' }}
+                  style={{ fontSize: 10, color: 'hsl(var(--fg-2))', lineHeight: 1.55 }}
                 >
-                  {server.ip_address ?? '—'}
-                </span>
+                  <div>
+                    <span style={{ color: 'hsl(var(--fg-3))' }}>Pub4 </span>
+                    {formatIpDisplay(server.ip_address)}
+                  </div>
+                  <div>
+                    <span style={{ color: 'hsl(var(--fg-3))' }}>Prv4 </span>
+                    {formatIpDisplay(server.private_ip)}
+                  </div>
+                  <div>
+                    <span style={{ color: 'hsl(var(--fg-3))' }}>Pub6 </span>
+                    {formatIpDisplay(server.ipv6_address)}
+                  </div>
+                  <div>
+                    <span style={{ color: 'hsl(var(--fg-3))' }}>Prv6 </span>
+                    {formatIpDisplay(server.private_ipv6)}
+                  </div>
+                </div>
               </td>
 
               {/* OS */}

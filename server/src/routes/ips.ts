@@ -13,12 +13,13 @@ const ipSchema = z.object({
 });
 
 type IpType = 'public' | 'private' | 'ipv6';
+type EmbeddedIpKind = 'public' | 'private' | 'ipv6' | 'private_ipv6';
 
 type MergedIpRow = {
   id: number;
   server_id: number;
   ip_address: string;
-  ip_type: IpType;
+  ip_type: IpType | 'private_ipv6';
   label: string | null;
   created_at: string;
   server_name: string;
@@ -26,14 +27,15 @@ type MergedIpRow = {
   source: 'server' | 'catalog';
 };
 
-function slotForEmbedded(kind: 'public' | 'private' | 'ipv6'): number {
+function slotForEmbedded(kind: EmbeddedIpKind): number {
   if (kind === 'public') return 1;
   if (kind === 'private') return 2;
-  return 3;
+  if (kind === 'ipv6') return 3;
+  return 4;
 }
 
 /** Negative id encodes server + field so UI can tell embedded rows apart */
-function embeddedId(serverId: number, kind: 'public' | 'private' | 'ipv6'): number {
+function embeddedId(serverId: number, kind: EmbeddedIpKind): number {
   return -(serverId * 1000 + slotForEmbedded(kind));
 }
 
@@ -54,7 +56,7 @@ async function listAllIpsMerged(): Promise<MergedIpRow[]> {
       JOIN servers s ON s.id = ip.server_id
     `),
     db.query(`
-      SELECT id, name, hostname, ip_address, private_ip, ipv6_address, created_at, updated_at
+      SELECT id, name, hostname, ip_address, private_ip, ipv6_address, private_ipv6, created_at, updated_at
       FROM servers
     `),
   ]);
@@ -80,6 +82,7 @@ async function listAllIpsMerged(): Promise<MergedIpRow[]> {
     ip_address: string | null;
     private_ip: string | null;
     ipv6_address: string | null;
+    private_ipv6: string | null;
     created_at: string;
     updated_at: string;
   }[];
@@ -87,17 +90,25 @@ async function listAllIpsMerged(): Promise<MergedIpRow[]> {
   const pushIf = (
     s: (typeof servers)[0],
     addr: string | null | undefined,
-    kind: 'public' | 'private' | 'ipv6',
+    kind: EmbeddedIpKind,
     defaultLabel: string
   ) => {
     const a = addr?.trim();
     if (!a) return;
     if (catalogKeys.has(dedupeKey(s.id, a))) return;
+    const ipType: MergedIpRow['ip_type'] =
+      kind === 'public'
+        ? 'public'
+        : kind === 'private'
+          ? 'private'
+          : kind === 'ipv6'
+            ? 'ipv6'
+            : 'private_ipv6';
     embedded.push({
       id: embeddedId(s.id, kind),
       server_id: s.id,
       ip_address: a,
-      ip_type: kind === 'public' ? 'public' : kind === 'private' ? 'private' : 'ipv6',
+      ip_type: ipType,
       label: defaultLabel,
       created_at: s.updated_at || s.created_at,
       server_name: s.name,
@@ -107,9 +118,10 @@ async function listAllIpsMerged(): Promise<MergedIpRow[]> {
   };
 
   for (const s of servers) {
-    pushIf(s, s.ip_address, 'public', 'Primary (server)');
-    pushIf(s, s.private_ip, 'private', 'Private (server)');
-    pushIf(s, s.ipv6_address, 'ipv6', 'IPv6 (server)');
+    pushIf(s, s.ip_address, 'public', 'Public IPv4 (server)');
+    pushIf(s, s.private_ip, 'private', 'Private IPv4 (server)');
+    pushIf(s, s.ipv6_address, 'ipv6', 'Public IPv6 (server)');
+    pushIf(s, s.private_ipv6, 'private_ipv6', 'Private IPv6 (server)');
   }
 
   const catalogMerged: MergedIpRow[] = catalog.map((r) => ({
@@ -142,7 +154,7 @@ async function listServerIpsMerged(serverId: number): Promise<MergedIpRow[]> {
       [serverId]
     ),
     db.query(
-      `SELECT id, name, hostname, ip_address, private_ip, ipv6_address, created_at, updated_at FROM servers WHERE id = $1`,
+      `SELECT id, name, hostname, ip_address, private_ip, ipv6_address, private_ipv6, created_at, updated_at FROM servers WHERE id = $1`,
       [serverId]
     ),
   ]);
@@ -169,21 +181,30 @@ async function listServerIpsMerged(serverId: number): Promise<MergedIpRow[]> {
         ip_address: string | null;
         private_ip: string | null;
         ipv6_address: string | null;
+        private_ipv6: string | null;
         created_at: string;
         updated_at: string;
       }
     | undefined;
 
   if (s) {
-    const pushIf = (addr: string | null | undefined, kind: 'public' | 'private' | 'ipv6', defaultLabel: string) => {
+    const pushIf = (addr: string | null | undefined, kind: EmbeddedIpKind, defaultLabel: string) => {
       const a = addr?.trim();
       if (!a) return;
       if (catalogKeys.has(dedupeKey(s.id, a))) return;
+      const ipType: MergedIpRow['ip_type'] =
+        kind === 'public'
+          ? 'public'
+          : kind === 'private'
+            ? 'private'
+            : kind === 'ipv6'
+              ? 'ipv6'
+              : 'private_ipv6';
       embedded.push({
         id: embeddedId(s.id, kind),
         server_id: s.id,
         ip_address: a,
-        ip_type: kind === 'public' ? 'public' : kind === 'private' ? 'private' : 'ipv6',
+        ip_type: ipType,
         label: defaultLabel,
         created_at: s.updated_at || s.created_at,
         server_name: s.name,
@@ -191,9 +212,10 @@ async function listServerIpsMerged(serverId: number): Promise<MergedIpRow[]> {
         source: 'server',
       });
     };
-    pushIf(s.ip_address, 'public', 'Primary (server)');
-    pushIf(s.private_ip, 'private', 'Private (server)');
-    pushIf(s.ipv6_address, 'ipv6', 'IPv6 (server)');
+    pushIf(s.ip_address, 'public', 'Public IPv4 (server)');
+    pushIf(s.private_ip, 'private', 'Private IPv4 (server)');
+    pushIf(s.ipv6_address, 'ipv6', 'Public IPv6 (server)');
+    pushIf(s.private_ipv6, 'private_ipv6', 'Private IPv6 (server)');
   }
 
   const catalogMerged: MergedIpRow[] = catalog.map((r) => ({

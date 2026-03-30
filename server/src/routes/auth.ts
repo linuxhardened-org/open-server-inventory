@@ -120,7 +120,10 @@ router.get('/setup-status', async (_req, res) => {
   try {
     const result = await db.query('SELECT COUNT(*)::int AS count FROM users');
     const count = (result.rows[0] as { count: number }).count;
-    sendSuccess(res, { isSetupCompleted: count > 0 });
+    const nameResult = await db.query(`SELECT value FROM app_settings WHERE key = 'app_name'`);
+    const row = nameResult.rows[0] as { value: string } | undefined;
+    const app_name = row?.value?.trim() || 'ServerVault';
+    sendSuccess(res, { isSetupCompleted: count > 0, app_name });
   } catch (err: any) {
     sendError(res, err.message || 'Could not check setup status', 500);
   }

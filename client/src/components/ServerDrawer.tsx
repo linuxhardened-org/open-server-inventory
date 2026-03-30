@@ -3,13 +3,14 @@ import { createPortal } from 'react-dom';
 import { X, Server, Pencil, Trash2, Save, RefreshCw, Network } from 'lucide-react';
 import { Server as ServerType } from '../types';
 import api, { getApiErrorMessage } from '../lib/api';
+import { formatIpDisplay } from '../lib/utils';
 import toast from 'react-hot-toast';
 
 interface ExtraIp {
   id: number;
   server_id: number;
   ip_address: string;
-  ip_type: 'public' | 'private' | 'ipv6';
+  ip_type: 'public' | 'private' | 'ipv6' | 'private_ipv6';
   label: string | null;
   created_at: string;
   server_name?: string;
@@ -34,6 +35,9 @@ export const ServerDrawer = ({ server, isOpen, onClose, onUpdate, onRefresh }: S
     name: '',
     hostname: '',
     ip_address: '',
+    private_ip: '',
+    ipv6_address: '',
+    private_ipv6: '',
     os: '',
     cpu_cores: '',
     ram_gb: '',
@@ -112,6 +116,9 @@ export const ServerDrawer = ({ server, isOpen, onClose, onUpdate, onRefresh }: S
       name: server.name || '',
       hostname: server.hostname || '',
       ip_address: server.ip_address || '',
+      private_ip: server.private_ip || '',
+      ipv6_address: server.ipv6_address || '',
+      private_ipv6: server.private_ipv6 || '',
       os: server.os || '',
       cpu_cores: server.cpu_cores?.toString() || '',
       ram_gb: server.ram_gb?.toString() || '',
@@ -129,6 +136,9 @@ export const ServerDrawer = ({ server, isOpen, onClose, onUpdate, onRefresh }: S
         name: form.name || form.hostname,
         hostname: form.hostname,
         ip_address: form.ip_address || null,
+        private_ip: form.private_ip || null,
+        ipv6_address: form.ipv6_address || null,
+        private_ipv6: form.private_ipv6 || null,
         os: form.os || null,
         cpu_cores: form.cpu_cores ? parseInt(form.cpu_cores) : null,
         ram_gb: form.ram_gb ? parseInt(form.ram_gb) : null,
@@ -259,7 +269,14 @@ export const ServerDrawer = ({ server, isOpen, onClose, onUpdate, onRefresh }: S
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               <Field label="Name" value={form.name} onChange={(v) => setForm({ ...form, name: v })} />
               <Field label="Hostname" value={form.hostname} onChange={(v) => setForm({ ...form, hostname: v })} required />
-              <Field label="IP Address" value={form.ip_address} onChange={(v) => setForm({ ...form, ip_address: v })} />
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <Field label="Public IPv4" value={form.ip_address} onChange={(v) => setForm({ ...form, ip_address: v })} />
+                <Field label="Private IPv4" value={form.private_ip} onChange={(v) => setForm({ ...form, private_ip: v })} />
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <Field label="Public IPv6" value={form.ipv6_address} onChange={(v) => setForm({ ...form, ipv6_address: v })} />
+                <Field label="Private IPv6" value={form.private_ipv6} onChange={(v) => setForm({ ...form, private_ipv6: v })} />
+              </div>
               <Field label="OS" value={form.os} onChange={(v) => setForm({ ...form, os: v })} />
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                 <Field label="CPU Cores" value={form.cpu_cores} onChange={(v) => setForm({ ...form, cpu_cores: v })} type="number" />
@@ -297,7 +314,14 @@ export const ServerDrawer = ({ server, isOpen, onClose, onUpdate, onRefresh }: S
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               <Row label="Name" value={server.name || server.hostname} />
               <Row label="Hostname" value={server.hostname} mono />
-              <Row label="IP Address" value={server.ip_address || '—'} mono />
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <Row label="Public IPv4" value={formatIpDisplay(server.ip_address)} mono />
+                <Row label="Private IPv4" value={formatIpDisplay(server.private_ip)} mono />
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <Row label="Public IPv6" value={formatIpDisplay(server.ipv6_address)} mono />
+                <Row label="Private IPv6" value={formatIpDisplay(server.private_ipv6)} mono />
+              </div>
               <Row label="OS" value={server.os || '—'} />
               {server.region && <Row label="Region" value={server.region} />}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
@@ -368,7 +392,7 @@ export const ServerDrawer = ({ server, isOpen, onClose, onUpdate, onRefresh }: S
                   </span>
                 </div>
                 <p style={{ fontSize: 11, color: 'hsl(var(--fg-3))', marginBottom: 10 }}>
-                  Server fields + catalog. Edit server to change primary/private/IPv6 on the record.
+                  Server fields + catalog. Edit server to change public/private IPv4 and IPv6 on the record.
                 </p>
                 {loadingIps ? (
                   <p style={{ fontSize: 12, color: 'hsl(var(--fg-3))' }}>Loading…</p>
