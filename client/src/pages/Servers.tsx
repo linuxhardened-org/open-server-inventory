@@ -49,6 +49,29 @@ export const Servers = () => {
     load();
   }, [load]);
 
+  const handleExport = async () => {
+    try {
+      const response = await fetch('/api/export', {
+        credentials: 'include',
+      });
+      if (!response.ok) {
+        throw new Error('Export failed');
+      }
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'servervault-export.json';
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      toast.success('Export downloaded');
+    } catch (err) {
+      toast.error('Failed to export data');
+    }
+  };
+
   const handleAddColumn = async (e: React.FormEvent) => {
     e.preventDefault();
     const name = newColumnName.trim();
@@ -314,6 +337,7 @@ export const Servers = () => {
           </button>
           <button
             type="button"
+            onClick={handleExport}
             className="sv-btn-ghost"
             style={{ border: '1px solid hsl(var(--border-2))', gap: 6 }}
           >
