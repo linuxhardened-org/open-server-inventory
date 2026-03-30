@@ -4,11 +4,14 @@ import { Cloud, RefreshCw, Plus, Trash2 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import axios, { getApiErrorMessage } from '../lib/api';
 import toast from 'react-hot-toast';
+import { LINODE_LOGO_URL } from '../lib/cloudAssets';
 
 interface CloudProvider {
   id: number;
   name: string;
-  provider_type: string;
+  /** API column */
+  provider?: string;
+  provider_type?: string;
   auto_sync: boolean;
   sync_hour: number;
   last_synced_at: string | null;
@@ -19,6 +22,10 @@ function formatHour(hour: number): string {
   const h = hour % 12 || 12;
   const ampm = hour < 12 ? 'AM' : 'PM';
   return `${h}:00 ${ampm}`;
+}
+
+function providerKind(p: CloudProvider): string {
+  return p.provider ?? p.provider_type ?? '';
 }
 
 export const CloudIntegrations = () => {
@@ -146,14 +153,34 @@ export const CloudIntegrations = () => {
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-                  <div style={{ width: 42, height: 42, borderRadius: 10, background: 'hsl(var(--primary) / 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <Cloud style={{ width: 20, height: 20, color: 'hsl(var(--primary))' }} />
+                  <div
+                    style={{
+                      width: 42,
+                      height: 42,
+                      borderRadius: 10,
+                      background: 'hsl(var(--primary) / 0.08)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      padding: 6,
+                    }}
+                  >
+                    {providerKind(provider) === 'linode' ? (
+                      <img
+                        src={LINODE_LOGO_URL}
+                        alt=""
+                        style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                        referrerPolicy="no-referrer"
+                      />
+                    ) : (
+                      <Cloud style={{ width: 20, height: 20, color: 'hsl(var(--primary))' }} />
+                    )}
                   </div>
                   <div>
                     <div style={{ fontSize: 15, fontWeight: 600, color: 'hsl(var(--fg))' }}>{provider.name}</div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 4 }}>
                       <span style={{ fontSize: 11, padding: '3px 8px', borderRadius: 5, background: 'hsl(var(--surface-3))', color: 'hsl(var(--fg-2))', textTransform: 'uppercase', fontWeight: 600, letterSpacing: '0.03em' }}>
-                        {provider.provider_type}
+                        {providerKind(provider)}
                       </span>
                       {provider.server_count !== undefined && (
                         <span style={{ fontSize: 12, color: 'hsl(var(--fg-2))' }}>

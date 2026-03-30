@@ -4,6 +4,8 @@ import { X, Server, Pencil, Trash2, Save, RefreshCw, Network } from 'lucide-reac
 import { Server as ServerType } from '../types';
 import api, { getApiErrorMessage } from '../lib/api';
 import { formatIpDisplay } from '../lib/utils';
+import { LINODE_LOGO_URL } from '../lib/cloudAssets';
+import { parseLinodeNetworkExtras } from '../lib/linodeNetworkExtras';
 import toast from 'react-hot-toast';
 
 interface ExtraIp {
@@ -322,6 +324,49 @@ export const ServerDrawer = ({ server, isOpen, onClose, onUpdate, onRefresh }: S
                 <Row label="Public IPv6" value={formatIpDisplay(server.ipv6_address)} mono />
                 <Row label="Private IPv6" value={formatIpDisplay(server.private_ipv6)} mono />
               </div>
+              {(() => {
+                const ex = parseLinodeNetworkExtras(server.linode_network_extras);
+                if (!ex) return null;
+                const line = (addrs: string[]) => (addrs.length ? addrs.join(', ') : 'N/A');
+                return (
+                  <div
+                    style={{
+                      padding: 10,
+                      borderRadius: 8,
+                      background: 'hsl(var(--surface-2))',
+                      border: '1px solid hsl(var(--border))',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                      {server.cloud_provider_id ? (
+                        <img
+                          src={LINODE_LOGO_URL}
+                          alt="Linode"
+                          style={{ height: 22, width: 'auto', maxWidth: 120, objectFit: 'contain' }}
+                          referrerPolicy="no-referrer"
+                        />
+                      ) : null}
+                      <span
+                        style={{
+                          fontSize: 11,
+                          color: 'hsl(var(--fg-3))',
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.04em',
+                        }}
+                      >
+                        VPC / NAT 1:1
+                      </span>
+                    </div>
+                    <Row label="VPC IPv4" value={line(ex.vpc_ipv4)} mono />
+                    <div style={{ marginTop: 8 }}>
+                      <Row label="VPC IPv6" value={line(ex.vpc_ipv6)} mono />
+                    </div>
+                    <div style={{ marginTop: 8 }}>
+                      <Row label="NAT 1:1 (public)" value={line(ex.nat_1_1_ipv4)} mono />
+                    </div>
+                  </div>
+                );
+              })()}
               <Row label="OS" value={server.os || '—'} />
               {server.region && <Row label="Region" value={server.region} />}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>

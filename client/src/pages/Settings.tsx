@@ -6,17 +6,23 @@ import axios, { getApiErrorMessage } from '../lib/api';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '../store/useAuthStore';
 import { useSettingsStore } from '../store/useSettingsStore';
+import { LINODE_LOGO_URL } from '../lib/cloudAssets';
 
 interface CloudProvider {
   id: number;
   name: string;
-  provider_type: string;
+  provider?: string;
+  provider_type?: string;
   auto_sync: boolean;
   last_synced_at: string | null;
   server_count?: number;
 }
 
 type DbStatus = { connected: boolean; provider?: string; version?: string; error?: string } | null;
+
+function providerKind(p: CloudProvider): string {
+  return p.provider ?? p.provider_type ?? '';
+}
 
 export const Settings = () => {
   const currentUser = useAuthStore((s) => s.user);
@@ -134,7 +140,7 @@ export const Settings = () => {
     try {
       await axios.post('/cloud-providers', {
         name: newProvider.name.trim(),
-        provider_type: 'linode',
+        provider: 'linode',
         api_token: newProvider.api_token.trim(),
         auto_sync: newProvider.auto_sync,
       });
@@ -379,14 +385,34 @@ export const Settings = () => {
                     }}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                      <div style={{ width: 36, height: 36, borderRadius: 8, background: 'hsl(var(--primary) / 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <Cloud style={{ width: 18, height: 18, color: 'hsl(var(--primary))' }} />
+                      <div
+                        style={{
+                          width: 36,
+                          height: 36,
+                          borderRadius: 8,
+                          background: 'hsl(var(--primary) / 0.08)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          padding: 5,
+                        }}
+                      >
+                        {providerKind(provider) === 'linode' ? (
+                          <img
+                            src={LINODE_LOGO_URL}
+                            alt=""
+                            style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                            referrerPolicy="no-referrer"
+                          />
+                        ) : (
+                          <Cloud style={{ width: 18, height: 18, color: 'hsl(var(--primary))' }} />
+                        )}
                       </div>
                       <div>
                         <div style={{ fontSize: 14, fontWeight: 500, color: 'hsl(var(--fg))' }}>{provider.name}</div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 2 }}>
                           <span style={{ fontSize: 11, padding: '2px 6px', borderRadius: 4, background: 'hsl(var(--surface-3))', color: 'hsl(var(--fg-2))', textTransform: 'uppercase', fontWeight: 500 }}>
-                            {provider.provider_type}
+                            {providerKind(provider)}
                           </span>
                           {provider.server_count !== undefined && (
                             <span style={{ fontSize: 11, color: 'hsl(var(--fg-3))' }}>
