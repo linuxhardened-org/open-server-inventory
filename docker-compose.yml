@@ -25,14 +25,14 @@ services:
       context: .
       dockerfile: server/Dockerfile
     ports:
-      - "3001:3000"
+      - "8080:8080"
     env_file:
       - path: ./server/.env
         required: false
     environment:
-      - PORT=3000
+      - PORT=8080
       - NODE_ENV=production
-      - CLIENT_URL=http://localhost:3001
+      - CLIENT_URL=http://localhost:8080
       - SESSION_SECRET=servervault-docker-session-secret-min-32-chars
       # ── Option A: Local PostgreSQL (default when DATABASE_URL is not set) ──
       - POSTGRES_HOST=db
