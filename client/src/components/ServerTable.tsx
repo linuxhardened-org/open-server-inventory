@@ -1,4 +1,4 @@
-import { Terminal, Activity, Settings, Server } from 'lucide-react';
+import { Terminal, Activity, Settings, Server as ServerIcon } from 'lucide-react';
 import type { CustomColumn, Server, ServerTag } from '../types';
 import { formatBytes } from '../lib/utils';
 import { motion } from 'framer-motion';
@@ -38,7 +38,7 @@ export const ServerTable = ({ servers, customColumns, onRowClick }: ServerTableP
             <tr>
               <td colSpan={6 + customColumns.length + 1} className="py-16 text-center">
                 <div className="flex flex-col items-center gap-3 text-secondary">
-                  <Server className="h-10 w-10 opacity-30" />
+                  <ServerIcon className="h-10 w-10 opacity-30" />
                   <p className="text-sm">No servers found. Add one to get started.</p>
                 </div>
               </td>
