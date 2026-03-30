@@ -1,172 +1,183 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700&family=DM+Mono:wght@400;500&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* Supabase-inspired light theme */
+/* ─── Design tokens ─── */
 @layer base {
   :root {
-    /* Page background: off-white like Supabase's canvas */
-    --background: 210 20% 98%;
-    /* Foreground: near-black */
-    --foreground: 222 47% 11%;
-    /* Surface: pure white cards/sidebar */
-    --surface: 0 0% 100%;
-    --surface-lighter: 210 20% 97%;
-    /* Borders */
-    --border: 220 13% 91%;
-    --border-strong: 220 13% 82%;
+    --background:      210 17% 97%;
+    --foreground:      220 39% 11%;
+    --surface:         0 0% 100%;
+    --surface-raised:  210 17% 99%;
+    --surface-lighter: 210 17% 96%;
+    --muted:           215 16% 93%;
+    --border:          220 14% 90%;
+    --border-strong:   220 14% 80%;
+
     /* Supabase green */
-    --primary: 153 60% 53%;
-    --primary-hover: 153 60% 44%;
-    --primary-foreground: 0 0% 100%;
-    /* Muted text */
-    --secondary: 215 14% 47%;
-    /* Status */
-    --success: 153 60% 40%;
-    --warning: 38 92% 50%;
-    --danger: 0 72% 51%;
-    /* Sidebar */
-    --sidebar-width: 240px;
-    --topbar-height: 56px;
-    --sv-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+    --primary:          153 62% 46%;
+    --primary-hover:    153 62% 38%;
+    --primary-fg:       0 0% 100%;
+    --primary-muted:    153 62% 46%;   /* same, used with / opacity */
+
+    --secondary:        215 14% 48%;
+    --success:          153 62% 38%;
+    --warning:          38 92% 50%;
+    --danger:           0 72% 51%;
+
+    --sidebar-width:    232px;
+    --topbar-height:    52px;
+    --radius:           8px;
+    --sv-ease:          cubic-bezier(0.22, 1, 0.36, 1);
   }
+
+  /* ─── Dark theme ─── */
+  .dark {
+    --background:      222 20% 10%;
+    --foreground:      210 20% 94%;
+    --surface:         222 18% 13%;
+    --surface-raised:  222 18% 15%;
+    --surface-lighter: 222 18% 16%;
+    --muted:           222 14% 20%;
+    --border:          222 14% 20%;
+    --border-strong:   222 14% 28%;
+    --primary:         153 62% 46%;
+    --primary-hover:   153 62% 54%;
+    --secondary:       215 14% 58%;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; }
 
   html, body {
     @apply bg-background text-foreground antialiased;
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
     font-size: 14px;
-    line-height: 1.5;
-    text-rendering: optimizeLegibility;
-    -webkit-font-smoothing: antialiased;
+    line-height: 1.55;
   }
 
-  #root {
-    @apply h-screen overflow-hidden;
-  }
+  #root { @apply h-screen overflow-hidden; }
 
-  h1, h2, h3, h4, h5, h6 {
-    @apply font-semibold tracking-tight text-foreground;
-  }
+  h1,h2,h3,h4,h5,h6 { @apply font-semibold tracking-tight text-foreground; }
 
-  ::-webkit-scrollbar { width: 5px; height: 5px; }
+  ::-webkit-scrollbar { width: 4px; height: 4px; }
   ::-webkit-scrollbar-track { background: transparent; }
-  ::-webkit-scrollbar-thumb {
-    @apply rounded-full bg-border;
-  }
-  ::-webkit-scrollbar-thumb:hover {
-    @apply bg-secondary/30;
-  }
+  ::-webkit-scrollbar-thumb { @apply rounded-full bg-border; }
+  ::-webkit-scrollbar-thumb:hover { background: hsl(var(--border-strong)); }
 
   input:-webkit-autofill,
   input:-webkit-autofill:hover,
   input:-webkit-autofill:focus {
     -webkit-text-fill-color: hsl(var(--foreground));
-    -webkit-box-shadow: 0 0 0px 1000px hsl(var(--surface)) inset;
-    transition: background-color 5000s ease-in-out 0s;
+    -webkit-box-shadow: 0 0 0 1000px hsl(var(--surface)) inset;
+    transition: background-color 5000s;
   }
 }
 
+/* ─── Components ─── */
 @layer components {
-  /* ─── Buttons ─── */
+
+  /* Buttons */
   .sv-btn {
-    @apply inline-flex items-center justify-center gap-2 rounded-md px-3.5 py-2 text-sm font-medium transition-all duration-150 disabled:cursor-not-allowed disabled:opacity-50 active:scale-[0.98];
+    @apply inline-flex items-center justify-center gap-1.5 rounded-md px-3.5 py-[7px] text-sm font-medium
+           transition-all duration-100 select-none
+           disabled:cursor-not-allowed disabled:opacity-50 active:scale-[0.98];
   }
-
   .sv-btn-primary {
-    @apply sv-btn bg-primary text-white hover:bg-primary-hover shadow-sm;
+    @apply sv-btn text-white;
+    background: hsl(var(--primary));
+    &:hover { background: hsl(var(--primary-hover)); }
+    box-shadow: 0 1px 2px hsl(var(--primary) / 0.25);
   }
-
   .sv-btn-ghost {
     @apply sv-btn text-secondary hover:bg-foreground/[0.05] hover:text-foreground;
   }
-
   .sv-btn-outline {
     @apply sv-btn border border-border text-foreground hover:bg-foreground/[0.04];
   }
-
   .sv-btn-danger {
-    @apply sv-btn text-danger hover:bg-danger/10;
+    @apply sv-btn text-danger hover:bg-danger/[0.08];
   }
 
-  /* ─── Cards ─── */
+  /* Card */
   .sv-card {
     @apply rounded-lg border border-border bg-surface p-5;
-    box-shadow: 0 1px 3px hsl(220 14% 46% / 0.06);
+    box-shadow: 0 1px 2px hsl(220 14% 46% / 0.05), 0 0 0 0 transparent;
+    transition: box-shadow 150ms var(--sv-ease);
   }
 
-  /* ─── Inputs ─── */
+  /* Input */
   .sv-input {
-    @apply w-full rounded-md border border-border bg-surface px-3 py-2 text-sm text-foreground placeholder:text-secondary/60 outline-none transition-colors;
-    @apply focus:border-primary focus:ring-2 focus:ring-primary/15;
+    @apply w-full rounded-md border border-border bg-surface-lighter px-3 py-[7px]
+           text-sm text-foreground placeholder:text-secondary/50
+           outline-none transition-colors duration-100;
+    &:focus {
+      @apply border-primary;
+      box-shadow: 0 0 0 3px hsl(var(--primary) / 0.12);
+    }
   }
 
-  /* ─── Page layout ─── */
+  /* Page scaffold */
   .page {
-    @apply space-y-6;
-    max-width: 1200px;
+    @apply space-y-5;
+    width: 100%;
+    max-width: 1160px;
   }
 
+  /* Unified page header */
   .page-header {
-    @apply flex items-start justify-between gap-4;
+    @apply flex items-center justify-between gap-4 pb-5 border-b border-border;
   }
-
   .page-header-text h1 {
-    @apply text-xl font-semibold tracking-tight text-foreground;
+    @apply text-[18px] font-semibold tracking-tight text-foreground leading-tight;
+  }
+  .page-header-text p {
+    @apply mt-0.5 text-[13px] text-secondary;
   }
 
-  .page-header-text p {
-    @apply mt-0.5 text-sm text-secondary;
+  /* Section title inside a card */
+  .card-section-title {
+    @apply text-[13px] font-semibold text-foreground mb-3;
   }
 }
 
 /* ─── Sidebar ─── */
 .app-sidebar {
   width: var(--sidebar-width);
-  min-height: 100vh;
   height: 100vh;
   position: fixed;
-  top: 0;
-  left: 0;
+  top: 0; left: 0;
   z-index: 40;
   display: flex;
   flex-direction: column;
   background: hsl(var(--surface));
   border-right: 1px solid hsl(var(--border));
-  overflow: hidden; /* never scrolls */
+  overflow: hidden;
 }
 
+/* Brand / logo row */
 .app-sidebar-brand {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 0 16px;
+  gap: 9px;
   height: var(--topbar-height);
+  padding: 0 14px;
   border-bottom: 1px solid hsl(var(--border));
+  font-size: 14px;
   font-weight: 600;
-  font-size: 15px;
   color: hsl(var(--foreground));
   text-decoration: none;
   flex-shrink: 0;
+  letter-spacing: -0.01em;
 }
+.app-sidebar-brand:hover { color: hsl(var(--foreground)); text-decoration: none; }
 
-.app-sidebar-brand:hover {
-  color: hsl(var(--foreground));
-  text-decoration: none;
-}
-
-.app-sidebar-section {
-  padding: 8px 12px 4px;
-  font-size: 11px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: hsl(var(--secondary) / 0.65);
-}
-
+/* Nav area — fills remaining height */
 .app-nav {
   flex: 1;
   overflow: hidden;
-  padding: 8px 0;
+  padding: 6px 0;
   display: flex;
   flex-direction: column;
 }
@@ -174,42 +185,53 @@
 .app-nav-list {
   list-style: none;
   margin: 0;
-  padding: 0 8px;
+  padding: 0;           /* no horizontal padding — items span full width */
   display: flex;
   flex-direction: column;
   gap: 1px;
 }
 
+/* Nav item — full-width, left-border approach */
 .app-nav-link {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 7px 10px;
-  border-radius: 6px;
-  font-size: 13.5px;
-  font-weight: 450;
+  gap: 9px;
+  padding: 7px 14px;
+  font-size: 13px;
+  font-weight: 400;
   color: hsl(var(--secondary));
   text-decoration: none;
-  transition: background 120ms, color 120ms;
+  border-left: 2px solid transparent;
+  transition: background 100ms, color 100ms;
   white-space: nowrap;
 }
-
 .app-nav-link:hover {
   background: hsl(var(--foreground) / 0.04);
   color: hsl(var(--foreground));
   text-decoration: none;
 }
-
 .app-nav-link.active {
-  background: hsl(var(--primary) / 0.09);
+  border-left-color: hsl(var(--primary));
+  background: hsl(var(--primary) / 0.07);
   color: hsl(var(--primary));
   font-weight: 500;
-  box-shadow: inset 2px 0 0 hsl(var(--primary));
 }
 
+/* Nav group label */
+.app-nav-group {
+  padding: 12px 14px 3px;
+  font-size: 10.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: hsl(var(--secondary) / 0.55);
+  user-select: none;
+}
+
+/* Footer / logout */
 .app-sidebar-footer {
   flex-shrink: 0;
-  padding: 8px;
+  padding: 6px 0;
   border-top: 1px solid hsl(var(--border));
 }
 
@@ -228,7 +250,7 @@
   flex-shrink: 0;
 }
 
-/* ─── Main layout ─── */
+/* ─── Layout shell ─── */
 .app-shell {
   display: flex;
   height: 100vh;
@@ -243,6 +265,7 @@
   height: 100vh;
   overflow: hidden;
   background: hsl(var(--background));
+  min-width: 0;
 }
 
 .app-content {
@@ -251,16 +274,31 @@
   padding: 24px 28px;
 }
 
-/* ─── Animations ─── */
-.animate-in {
-  animation: sv-fade-up 220ms var(--sv-ease) both;
+/* ─── Stat badge variant ─── */
+.stat-card {
+  @apply sv-card flex items-center gap-3.5;
+}
+.stat-card-icon {
+  @apply flex h-9 w-9 shrink-0 items-center justify-center rounded-md;
+  background: hsl(var(--primary) / 0.1);
+  color: hsl(var(--primary));
+}
+.stat-card-label { @apply text-[11px] font-medium uppercase tracking-wider text-secondary; }
+.stat-card-value { @apply text-2xl font-semibold leading-none text-foreground mt-0.5; }
+
+/* ─── Divider utility ─── */
+.sv-divider {
+  @apply my-4 border-t border-border;
 }
 
-@keyframes sv-fade-up {
-  from { opacity: 0; transform: translateY(8px); }
+/* ─── Page entry animation ─── */
+.animate-in {
+  animation: sv-rise 210ms var(--sv-ease) both;
+}
+@keyframes sv-rise {
+  from { opacity: 0; transform: translateY(6px); }
   to   { opacity: 1; transform: translateY(0); }
 }
-
 @media (prefers-reduced-motion: reduce) {
   .animate-in { animation: none !important; }
 }

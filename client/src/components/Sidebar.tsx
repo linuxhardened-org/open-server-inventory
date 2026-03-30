@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 import { useAuthStore } from '../store/useAuthStore';
 
-const navItems = [
+const mainNav = [
   { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard', end: true },
   { icon: Server,          label: 'Servers',   path: '/servers',   end: false },
   { icon: Layers,          label: 'Groups',    path: '/groups',    end: false },
@@ -21,11 +21,26 @@ const navItems = [
   { icon: Key,             label: 'SSH Keys',  path: '/ssh-keys',  end: false },
 ];
 
-const bottomItems = [
+const accountNav = [
   { icon: Users,      label: 'Users',    path: '/users',    end: false },
   { icon: UserCircle, label: 'Profile',  path: '/profile',  end: false },
   { icon: Settings,   label: 'Settings', path: '/settings', end: false },
 ];
+
+function NavItem({ icon: Icon, label, path, end }: { icon: typeof Server; label: string; path: string; end: boolean }) {
+  return (
+    <li>
+      <NavLink
+        to={path}
+        end={end}
+        className={({ isActive }) => `app-nav-link${isActive ? ' active' : ''}`}
+      >
+        <Icon size={15} strokeWidth={1.75} aria-hidden />
+        {label}
+      </NavLink>
+    </li>
+  );
+}
 
 export const Sidebar = () => {
   const logout = useAuthStore((s) => s.logout);
@@ -33,61 +48,53 @@ export const Sidebar = () => {
 
   return (
     <nav className="app-sidebar">
-      {/* Brand */}
       <Link to="/dashboard" className="app-sidebar-brand">
-        <span className="flex h-7 w-7 items-center justify-center rounded-md bg-primary text-white">
-          <Database size={15} strokeWidth={2.2} />
+        <span
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: 26,
+            height: 26,
+            borderRadius: 6,
+            background: 'hsl(var(--primary))',
+            color: '#fff',
+            flexShrink: 0,
+          }}
+        >
+          <Database size={14} strokeWidth={2} />
         </span>
-        <span>ServerVault</span>
+        ServerVault
       </Link>
 
-      {/* Navigation */}
       <div className="app-nav">
-        <div className="app-sidebar-section">Main</div>
+        <div className="app-nav-group">Inventory</div>
         <ul className="app-nav-list">
-          {navItems.map(({ icon: Icon, label, path, end }) => (
-            <li key={path}>
-              <NavLink
-                to={path}
-                end={end}
-                className={({ isActive }) =>
-                  `app-nav-link${isActive ? ' active' : ''}`
-                }
-              >
-                <Icon size={16} strokeWidth={1.8} aria-hidden />
-                {label}
-              </NavLink>
-            </li>
-          ))}
+          {mainNav.map((item) => <NavItem key={item.path} {...item} />)}
         </ul>
 
-        <div className="app-sidebar-section mt-4">Account</div>
+        <div className="app-nav-group" style={{ marginTop: 8 }}>Account</div>
         <ul className="app-nav-list">
-          {bottomItems.map(({ icon: Icon, label, path, end }) => (
-            <li key={path}>
-              <NavLink
-                to={path}
-                end={end}
-                className={({ isActive }) =>
-                  `app-nav-link${isActive ? ' active' : ''}`
-                }
-              >
-                <Icon size={16} strokeWidth={1.8} aria-hidden />
-                {label}
-              </NavLink>
-            </li>
-          ))}
+          {accountNav.map((item) => <NavItem key={item.path} {...item} />)}
         </ul>
       </div>
 
-      {/* Footer / Logout */}
       <div className="app-sidebar-footer">
         <button
           type="button"
           onClick={() => { logout(); navigate('/login'); }}
-          className="app-nav-link w-full cursor-pointer border-0 bg-transparent hover:!bg-danger/8 hover:!text-danger"
+          className="app-nav-link"
+          style={{ width: '100%', background: 'none', border: 'none', cursor: 'pointer' }}
+          onMouseEnter={(e) => {
+            (e.currentTarget as HTMLButtonElement).style.color = 'hsl(var(--danger))';
+            (e.currentTarget as HTMLButtonElement).style.background = 'hsl(var(--danger) / 0.07)';
+          }}
+          onMouseLeave={(e) => {
+            (e.currentTarget as HTMLButtonElement).style.color = '';
+            (e.currentTarget as HTMLButtonElement).style.background = '';
+          }}
         >
-          <LogOut size={16} strokeWidth={1.8} aria-hidden />
+          <LogOut size={15} strokeWidth={1.75} aria-hidden />
           Sign out
         </button>
       </div>

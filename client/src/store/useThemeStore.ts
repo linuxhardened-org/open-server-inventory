@@ -3,11 +3,13 @@ import { persist } from 'zustand/middleware';
 
 export type ThemeMode = 'light' | 'dark';
 
-function applyDomTheme(_mode: ThemeMode) {
+export function applyDomTheme(mode: ThemeMode) {
   const root = document.documentElement;
-  // Theme is locked to light paper mode.
-  root.classList.remove('dark');
-  root.setAttribute('data-bs-theme', 'light');
+  if (mode === 'dark') {
+    root.classList.add('dark');
+  } else {
+    root.classList.remove('dark');
+  }
 }
 
 export const useThemeStore = create<{
@@ -18,16 +20,17 @@ export const useThemeStore = create<{
   persist(
     (set, get) => ({
       theme: 'light' as ThemeMode,
-      setTheme: (_theme) => {
-        set({ theme: 'light' });
-        applyDomTheme('light');
+      setTheme: (theme) => {
+        set({ theme });
+        applyDomTheme(theme);
       },
       toggleTheme: () => {
-        get().setTheme('light');
+        const next = get().theme === 'light' ? 'dark' : 'light';
+        get().setTheme(next);
       },
     }),
     {
-      name: 'theme-storage',
+      name: 'sv-theme',
       partialize: (s) => ({ theme: s.theme }),
       onRehydrateStorage: () => (state) => {
         if (state?.theme) applyDomTheme(state.theme);
@@ -36,7 +39,12 @@ export const useThemeStore = create<{
   )
 );
 
-/** Call once on app load (before paint handled by index.html script). */
 export function initThemeFromStorage() {
-  applyDomTheme('light');
+  try {
+    const raw = localStorage.getItem('sv-theme');
+    const parsed = raw ? JSON.parse(raw) : null;
+    applyDomTheme(parsed?.state?.theme === 'dark' ? 'dark' : 'light');
+  } catch {
+    applyDomTheme('light');
+  }
 }

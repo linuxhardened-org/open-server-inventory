@@ -14,8 +14,8 @@ import {
 import toast from 'react-hot-toast';
 import api, { getApiErrorMessage } from '../lib/api';
 
-const CHART_PRIMARY = '#6366f1';
-const BAR_COLORS = ['#6366f1', '#8b5cf6', '#22c55e', '#f59e0b', '#ec4899', '#06b6d4', '#64748b'];
+const CHART_PRIMARY = '#3ecf8e';
+const BAR_COLORS = ['#3ecf8e', '#22c55e', '#10b981', '#34d399', '#6ee7b7', '#06b6d4', '#64748b'];
 
 type StatsPayload = {
   servers: number;
@@ -63,13 +63,13 @@ const StatCard = ({
   label: string;
   value: string | number;
 }) => (
-  <div className="sv-card flex items-center gap-4">
-    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10">
-      <Icon className="h-5 w-5 text-primary" />
+  <div className="stat-card">
+    <div className="stat-card-icon">
+      <Icon size={17} strokeWidth={1.75} />
     </div>
     <div>
-      <p className="text-xs font-medium text-secondary">{label}</p>
-      <h3 className="text-2xl font-semibold text-foreground leading-none mt-0.5">{value}</h3>
+      <p className="stat-card-label">{label}</p>
+      <p className="stat-card-value">{value}</p>
     </div>
   </div>
 );
@@ -126,7 +126,7 @@ export const Dashboard = () => {
       </div>
 
       {stats && stats.servers > 0 && (stats.capacity.avgCpuCores > 0 || stats.capacity.totalRamGb > 0) ? (
-        <div className="rounded-xl border border-border bg-muted/30 px-4 py-3 text-sm text-secondary">
+        <div className="rounded-lg border border-border bg-muted/[0.5] px-4 py-2.5 text-sm text-secondary">
           <span className="font-medium text-foreground">Inventory capacity: </span>
           {stats.capacity.avgCpuCores > 0 ? (
             <span>Avg {stats.capacity.avgCpuCores.toFixed(1)} CPU cores per server</span>
@@ -140,7 +140,7 @@ export const Dashboard = () => {
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <div className="sv-card">
-          <h3 className="mb-6 text-base font-semibold text-foreground">Servers by group</h3>
+          <p className="card-section-title">Servers by group</p>
           <div className="h-[300px]">
             {groupChartData.length === 0 ? (
               <p className="flex h-full items-center justify-center text-sm text-secondary">
@@ -179,7 +179,7 @@ export const Dashboard = () => {
         </div>
 
         <div className="sv-card">
-          <h3 className="mb-6 text-base font-semibold text-foreground">Servers by status</h3>
+          <p className="card-section-title">Servers by status</p>
           <div className="h-[300px]">
             {statusChartData.length === 0 ? (
               <p className="flex h-full items-center justify-center text-sm text-secondary">
@@ -219,7 +219,7 @@ export const Dashboard = () => {
       </div>
 
       <div className="sv-card">
-        <h3 className="mb-6 text-lg font-bold text-foreground">Recent activity</h3>
+        <p className="card-section-title">Recent activity</p>
         {!stats || stats.recentActivity.length === 0 ? (
           <p className="text-sm text-secondary">
             No history yet. Changes to servers appear here after updates.
