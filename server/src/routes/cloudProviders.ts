@@ -12,18 +12,20 @@ const createProviderSchema = z.object({
   provider: z.enum(['linode']).default('linode'),
   api_token: z.string().min(1, 'API token is required'),
   auto_sync: z.boolean().default(true),
+  sync_hour: z.number().int().min(0).max(23).default(0),
 });
 
 const updateProviderSchema = z.object({
   name: z.string().min(1).optional(),
   auto_sync: z.boolean().optional(),
+  sync_hour: z.number().int().min(0).max(23).optional(),
 });
 
 // GET / - List all cloud providers (without api_token)
 router.get('/', adminAuth, async (req, res) => {
   try {
     const result = await db.query(`
-      SELECT id, name, provider, auto_sync, last_sync_at, server_count, created_at
+      SELECT id, name, provider, auto_sync, sync_hour, last_sync_at, server_count, created_at
       FROM cloud_providers
       ORDER BY created_at DESC
     `);
@@ -41,13 +43,13 @@ router.post('/', adminAuth, async (req, res) => {
       return sendError(res, parsed.error.issues[0].message);
     }
 
-    const { name, provider, api_token, auto_sync } = parsed.data;
+    const { name, provider, api_token, auto_sync, sync_hour } = parsed.data;
 
     const result = await db.query(
-      `INSERT INTO cloud_providers (name, provider, api_token, auto_sync)
-       VALUES ($1, $2, $3, $4)
-       RETURNING id, name, provider, auto_sync, last_sync_at, server_count, created_at`,
-      [name, provider, api_token, auto_sync]
+      `INSERT INTO cloud_providers (name, provider, api_token, auto_sync, sync_hour)
+       VALUES ($1, $2, $3, $4, $5)
+       RETURNING id, name, provider, auto_sync, sync_hour, last_sync_at, server_count, created_at`,
+      [name, provider, api_token, auto_sync, sync_hour]
     );
 
     sendSuccess(res, result.rows[0], 201);
@@ -130,6 +132,10 @@ router.patch('/:id', adminAuth, async (req, res) => {
       setClauses.push(`auto_sync = $${paramIndex++}`);
       values.push(updates.auto_sync);
     }
+    if (updates.sync_hour !== undefined) {
+      setClauses.push(`sync_hour = $${paramIndex++}`);
+      values.push(updates.sync_hour);
+    }
 
     values.push(providerId);
 
@@ -137,7 +143,7 @@ router.patch('/:id', adminAuth, async (req, res) => {
       `UPDATE cloud_providers
        SET ${setClauses.join(', ')}
        WHERE id = $${paramIndex}
-       RETURNING id, name, provider, auto_sync, last_sync_at, server_count, created_at`,
+       RETURNING id, name, provider, auto_sync, sync_hour, last_sync_at, server_count, created_at`,
       values
     );
 

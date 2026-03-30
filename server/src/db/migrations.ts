@@ -10,6 +10,14 @@ export async function runMigrations(pool: Pool): Promise<void> {
   await migratePasswordChangeRequired(pool);
   await migrateUserRealName(pool);
   await migrateServerRegion(pool);
+  await migrateCloudProviderSyncHour(pool);
+}
+
+async function migrateCloudProviderSyncHour(pool: Pool): Promise<void> {
+  await pool.query(`
+    ALTER TABLE cloud_providers
+    ADD COLUMN IF NOT EXISTS sync_hour INTEGER DEFAULT 0
+  `);
 }
 
 async function migrateServerRegion(pool: Pool): Promise<void> {

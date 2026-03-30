@@ -153,6 +153,7 @@ CREATE TABLE IF NOT EXISTS cloud_providers (
   provider VARCHAR(50) NOT NULL DEFAULT 'linode',
   api_token TEXT NOT NULL,
   auto_sync BOOLEAN DEFAULT TRUE,
+  sync_hour INTEGER DEFAULT 0,
   last_sync_at TIMESTAMPTZ,
   server_count INTEGER DEFAULT 0,
   created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP

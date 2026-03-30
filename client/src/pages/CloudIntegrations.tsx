@@ -10,8 +10,15 @@ interface CloudProvider {
   name: string;
   provider_type: string;
   auto_sync: boolean;
+  sync_hour: number;
   last_synced_at: string | null;
   server_count?: number;
+}
+
+function formatHour(hour: number): string {
+  const h = hour % 12 || 12;
+  const ampm = hour < 12 ? 'AM' : 'PM';
+  return `${h}:00 ${ampm}`;
 }
 
 export const CloudIntegrations = () => {
@@ -19,7 +26,7 @@ export const CloudIntegrations = () => {
   const [loading, setLoading] = useState(true);
   const [addingProvider, setAddingProvider] = useState(false);
   const [syncingId, setSyncingId] = useState<number | null>(null);
-  const [newProvider, setNewProvider] = useState({ name: '', api_token: '', auto_sync: true });
+  const [newProvider, setNewProvider] = useState({ name: '', api_token: '', auto_sync: true, sync_hour: 0 });
 
   const fetchProviders = useCallback(async () => {
     try {
@@ -42,13 +49,14 @@ export const CloudIntegrations = () => {
     try {
       await axios.post('/cloud-providers', {
         name: newProvider.name.trim(),
-        provider_type: 'linode',
+        provider: 'linode',
         api_token: newProvider.api_token.trim(),
         auto_sync: newProvider.auto_sync,
+        sync_hour: newProvider.sync_hour,
       });
       toast.success('Cloud provider added');
       setAddingProvider(false);
-      setNewProvider({ name: '', api_token: '', auto_sync: true });
+      setNewProvider({ name: '', api_token: '', auto_sync: true, sync_hour: 0 });
       await fetchProviders();
     } catch (err: unknown) {
       toast.error((err as { error?: string })?.error || 'Failed to add provider');
@@ -73,6 +81,16 @@ export const CloudIntegrations = () => {
       await axios.patch(`/cloud-providers/${id}`, { auto_sync: !currentValue });
       await fetchProviders();
       toast.success(`Auto-sync ${!currentValue ? 'enabled' : 'disabled'}`);
+    } catch (err: unknown) {
+      toast.error((err as { error?: string })?.error || 'Failed to update');
+    }
+  };
+
+  const handleUpdateSyncHour = async (id: number, syncHour: number) => {
+    try {
+      await axios.patch(`/cloud-providers/${id}`, { sync_hour: syncHour });
+      await fetchProviders();
+      toast.success(`Sync time updated to ${formatHour(syncHour)}`);
     } catch (err: unknown) {
       toast.error((err as { error?: string })?.error || 'Failed to update');
     }
@@ -160,6 +178,19 @@ export const CloudIntegrations = () => {
                     />
                     Auto-sync
                   </label>
+                  {provider.auto_sync && (
+                    <select
+                      value={provider.sync_hour}
+                      onChange={(e) => handleUpdateSyncHour(provider.id, parseInt(e.target.value, 10))}
+                      className="sv-input"
+                      style={{ padding: '4px 8px', fontSize: 11, width: 'auto', minWidth: 90 }}
+                      title="Daily sync time"
+                    >
+                      {Array.from({ length: 24 }, (_, i) => (
+                        <option key={i} value={i}>{formatHour(i)}</option>
+                      ))}
+                    </select>
+                  )}
                   <button
                     type="button"
                     onClick={() => handleSyncProvider(provider.id)}
@@ -270,9 +301,26 @@ export const CloudIntegrations = () => {
                   style={{ width: 16, height: 16, accentColor: 'hsl(var(--primary))' }}
                 />
                 <label htmlFor="auto-sync-checkbox" style={{ fontSize: 13, color: 'hsl(var(--fg))' }}>
-                  Enable automatic daily sync (2 AM)
+                  Enable automatic daily sync
                 </label>
               </div>
+              {newProvider.auto_sync && (
+                <div>
+                  <label style={{ display: 'block', fontSize: 11, fontWeight: 500, color: 'hsl(var(--fg-2))', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                    Sync Time
+                  </label>
+                  <select
+                    value={newProvider.sync_hour}
+                    onChange={(e) => setNewProvider({ ...newProvider, sync_hour: parseInt(e.target.value, 10) })}
+                    className="sv-input"
+                    style={{ width: '100%' }}
+                  >
+                    {Array.from({ length: 24 }, (_, i) => (
+                      <option key={i} value={i}>{formatHour(i)}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
               <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
                 <button type="button" onClick={() => setAddingProvider(false)} className="sv-btn-ghost" style={{ flex: 1, border: '1px solid hsl(var(--border-2))' }}>
                   Cancel

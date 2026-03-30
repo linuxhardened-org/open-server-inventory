@@ -5,10 +5,23 @@ import db from '../db';
  * e.g., "linode/ubuntu22.04" -> "Ubuntu 22.04"
  * e.g., "linode/debian11" -> "Debian 11"
  * e.g., "linode/almalinux9" -> "AlmaLinux 9"
+ * e.g., "private/12345678" -> "Custom Image"
  */
-function formatLinodeImage(image: string): string {
+function formatLinodeImage(image: string | null): string {
+  if (!image) return 'Linux';
+
+  // Check if it's a private/custom image (just numbers after prefix)
+  if (/^(private\/)?[\d]+$/.test(image)) {
+    return 'Custom Image';
+  }
+
   // Remove "linode/" or "private/" prefix
   const name = image.replace(/^(linode|private)\//, '');
+
+  // If just a number after removing prefix, it's a custom image
+  if (/^[\d]+$/.test(name)) {
+    return 'Custom Image';
+  }
 
   // Common OS mappings
   const osMap: Record<string, string> = {
@@ -36,8 +49,12 @@ function formatLinodeImage(image: string): string {
     }
   }
 
-  // Fallback: capitalize first letter
-  return name.charAt(0).toUpperCase() + name.slice(1);
+  // Fallback: capitalize first letter (only if it starts with a letter)
+  if (/^[a-zA-Z]/.test(name)) {
+    return name.charAt(0).toUpperCase() + name.slice(1);
+  }
+
+  return 'Linux';
 }
 
 interface LinodeInstance {
@@ -171,15 +188,17 @@ export async function syncLinodeProvider(
 }
 
 /**
- * Run auto-sync for all providers with auto_sync enabled
- * Called by cron job and can be used for manual sync
+ * Run auto-sync for providers scheduled at the current hour
+ * Called by cron job every hour
  */
 export async function runAutoSync(): Promise<void> {
-  console.log('[CloudSync] Starting auto-sync...');
+  const currentHour = new Date().getHours();
+  console.log(`[CloudSync] Checking for providers scheduled at hour ${currentHour}...`);
 
   try {
     const result = await db.query(
-      'SELECT id, name, provider, api_token FROM cloud_providers WHERE auto_sync = TRUE'
+      'SELECT id, name, provider, api_token FROM cloud_providers WHERE auto_sync = TRUE AND sync_hour = $1',
+      [currentHour]
     );
 
     const providers = result.rows as {
@@ -190,9 +209,11 @@ export async function runAutoSync(): Promise<void> {
     }[];
 
     if (providers.length === 0) {
-      console.log('[CloudSync] No providers with auto_sync enabled');
+      console.log(`[CloudSync] No providers scheduled for hour ${currentHour}`);
       return;
     }
+
+    console.log(`[CloudSync] Found ${providers.length} provider(s) to sync`);
 
     for (const provider of providers) {
       try {
