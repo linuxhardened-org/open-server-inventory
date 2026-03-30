@@ -147,7 +147,7 @@ router.post('/2fa/setup', sessionAuth, async (req, res) => {
     const secret = generateTotpSecret();
     await db.query('UPDATE users SET totp_enabling_secret = $1 WHERE id = $2', [secret, req.session.userId]);
     const qrCode = await generateTotpUri(secret, user.username);
-    sendSuccess(res, { secret, qrCode });
+    sendSuccess(res, { qrCode });
   } catch (err: any) {
     sendError(res, err.message);
   }

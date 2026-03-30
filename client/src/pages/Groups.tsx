@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { motion } from 'framer-motion';
 import { Folder, Plus, Trash2, Edit2, Search } from 'lucide-react';
+import toast from 'react-hot-toast';
 import api from '../lib/api';
 import { Group } from '../types';
 
@@ -20,7 +21,7 @@ export const Groups = () => {
       const response = await api.get('/groups');
       setGroups(response.data);
     } catch (err) {
-      console.error('Failed to fetch groups', err);
+      toast.error('Failed to load groups');
     }
   };
 
@@ -33,7 +34,7 @@ export const Groups = () => {
       setIsAdding(false);
       fetchGroups();
     } catch (err) {
-      alert('Failed to add group');
+      toast.error('Failed to add group');
     }
   };
 
@@ -43,7 +44,7 @@ export const Groups = () => {
       await api.delete(`/groups/${id}`);
       fetchGroups();
     } catch (err) {
-      alert('Failed to delete group');
+      toast.error('Failed to delete group');
     }
   };
 
@@ -114,6 +115,12 @@ export const Groups = () => {
               </div>
             </form>
           </motion.div>
+        )}
+
+        {filteredGroups.length === 0 && (
+          <p className="py-12 text-center text-sm text-secondary">
+            {searchTerm ? 'No groups match your search.' : 'No groups yet. Create one to organize your servers.'}
+          </p>
         )}
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

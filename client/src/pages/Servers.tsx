@@ -16,6 +16,7 @@ export const Servers = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedServer, setSelectedServer] = useState<Server | null>(null);
   const [newColumnName, setNewColumnName] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
 
   const load = useCallback(async () => {
     try {
@@ -144,6 +145,8 @@ export const Servers = () => {
               type="text"
               placeholder="Search by hostname, IP, or tag..."
               className="sv-input h-11 w-full pl-10"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
           <button type="button" className="sv-btn-ghost flex h-11 items-center gap-2 border border-border px-4">
@@ -155,9 +158,27 @@ export const Servers = () => {
         </div>
 
         {loading ? (
-          <p className="py-8 text-center text-secondary">Loading…</p>
+          <div className="space-y-2 py-4">
+            {[...Array(5)].map((_, i) => (
+              <div key={i} className="h-14 animate-pulse rounded-lg bg-foreground/[0.04]" />
+            ))}
+          </div>
         ) : (
-          <ServerTable servers={servers} customColumns={customColumns} onRowClick={(server) => setSelectedServer(server)} />
+          <ServerTable
+            servers={servers.filter((s) => {
+              if (!searchTerm) return true;
+              const q = searchTerm.toLowerCase();
+              return (
+                s.hostname?.toLowerCase().includes(q) ||
+                s.ip_address?.toLowerCase().includes(q) ||
+                s.name?.toLowerCase().includes(q) ||
+                s.os?.toLowerCase().includes(q) ||
+                s.tags?.some((t) => (typeof t === 'string' ? t : t.name).toLowerCase().includes(q))
+              );
+            })}
+            customColumns={customColumns}
+            onRowClick={(server) => setSelectedServer(server)}
+          />
         )}
       </div>
 

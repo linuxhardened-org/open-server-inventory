@@ -32,7 +32,7 @@ app.use(cors({
   origin: env.clientUrl,
   credentials: true
 }));
-app.use(express.json());
+app.use(express.json({ limit: '5mb' }));
 
 app.use(session({
   store: new PgSession({

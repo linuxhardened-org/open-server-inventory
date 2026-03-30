@@ -130,4 +130,11 @@ BEGIN
 END $$;
 
 CREATE INDEX IF NOT EXISTS "IDX_session_expire" ON "session" ("expire");
+
+CREATE INDEX IF NOT EXISTS idx_servers_group_id ON servers(group_id);
+CREATE INDEX IF NOT EXISTS idx_servers_ssh_key_id ON servers(ssh_key_id);
+CREATE INDEX IF NOT EXISTS idx_api_tokens_user_id ON api_tokens(user_id);
+CREATE INDEX IF NOT EXISTS idx_server_history_server_id ON server_history(server_id);
+CREATE INDEX IF NOT EXISTS idx_server_tags_tag_id ON server_tags(tag_id);
+CREATE INDEX IF NOT EXISTS idx_server_custom_values_column_id ON server_custom_values(custom_column_id);
 `;

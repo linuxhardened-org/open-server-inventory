@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { motion } from 'framer-motion';
 import { Tag as TagIcon, Plus, Trash2, Search } from 'lucide-react';
+import toast from 'react-hot-toast';
 import api from '../lib/api';
 import { Tag } from '../types';
 
@@ -25,7 +26,7 @@ export const Tags = () => {
       const response = await api.get('/tags');
       setTags(response.data);
     } catch (err) {
-      console.error('Failed to fetch tags', err);
+      toast.error('Failed to load tags');
     }
   };
 
@@ -37,7 +38,7 @@ export const Tags = () => {
       setIsAdding(false);
       fetchTags();
     } catch (err) {
-      alert('Failed to add tag');
+      toast.error('Failed to add tag');
     }
   };
 
@@ -47,7 +48,7 @@ export const Tags = () => {
       await api.delete(`/tags/${id}`);
       fetchTags();
     } catch (err) {
-      alert('Failed to delete tag');
+      toast.error('Failed to delete tag');
     }
   };
 
@@ -127,6 +128,12 @@ export const Tags = () => {
               </div>
             </form>
           </motion.div>
+        )}
+
+        {filteredTags.length === 0 && (
+          <p className="py-12 text-center text-sm text-secondary">
+            {searchTerm ? 'No tags match your search.' : 'No tags yet. Create one to label your servers.'}
+          </p>
         )}
 
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
