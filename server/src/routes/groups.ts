@@ -12,7 +12,13 @@ const groupSchema = z.object({
 
 router.get('/', async (req, res) => {
   try {
-    const result = await db.query('SELECT * FROM groups');
+    const result = await db.query(`
+      SELECT g.*, COUNT(s.id)::int AS "serverCount"
+      FROM groups g
+      LEFT JOIN servers s ON s.group_id = g.id
+      GROUP BY g.id
+      ORDER BY g.name
+    `);
     sendSuccess(res, result.rows);
   } catch (err: any) {
     sendError(res, err.message);
