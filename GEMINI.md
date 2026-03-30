@@ -20,6 +20,9 @@ This document provides foundational context and instructions for AI agents worki
 
 ## Building and Running
 
+### Mandatory Rule
+**CRITICAL:** This project requires a full container rebuild after every `git pull`. Always run `docker-compose down && docker-compose up --build -d` to apply changes.
+
 ### Prerequisites
 - Node.js 18+
 - PostgreSQL 15+ (or Docker)
