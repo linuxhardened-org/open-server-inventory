@@ -9,20 +9,21 @@ import type { Server as ServerModel } from '../types';
 interface ServerIp {
   id: number;
   ip_address: string;
-  ip_type: 'public' | 'private' | 'ipv6';
+  ip_type: 'public' | 'private' | 'ipv6' | 'private_ipv6';
   label: string | null;
   server_id: number;
   server_name: string;
   server_hostname: string;
   created_at: string;
-  /** From servers.ip_address / private_ip / ipv6_address — edit on server, not deleted here */
+  /** From servers.* columns — edit on server, not deleted here */
   source?: 'server' | 'catalog';
 }
 
 const ipTypeConfig = {
-  public: { label: 'Public', icon: Globe, color: '#3b82f6' },
-  private: { label: 'Private', icon: Lock, color: '#8b5cf6' },
-  ipv6: { label: 'IPv6', icon: Network, color: '#06b6d4' },
+  public: { label: 'Public IPv4', icon: Globe, color: '#3b82f6' },
+  private: { label: 'Private IPv4', icon: Lock, color: '#8b5cf6' },
+  ipv6: { label: 'Public IPv6', icon: Network, color: '#06b6d4' },
+  private_ipv6: { label: 'Private IPv6', icon: Lock, color: '#d946ef' },
 };
 
 type IpType = 'public' | 'private' | 'ipv6';
@@ -34,7 +35,7 @@ export const IpInventory = () => {
   const [servers, setServers] = useState<ServerModel[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState(() => searchParams.get('q')?.trim() ?? '');
-  const [filterType, setFilterType] = useState<'all' | 'public' | 'private' | 'ipv6'>('all');
+  const [filterType, setFilterType] = useState<'all' | 'public' | 'private' | 'ipv6' | 'private_ipv6'>('all');
 
   const [addServerId, setAddServerId] = useState<number | ''>('');
   const [addAddress, setAddAddress] = useState('');
@@ -133,15 +134,17 @@ export const IpInventory = () => {
   const publicCount = ips.filter((ip) => ip.ip_type === 'public').length;
   const privateCount = ips.filter((ip) => ip.ip_type === 'private').length;
   const ipv6Count = ips.filter((ip) => ip.ip_type === 'ipv6').length;
+  const privateIpv6Count = ips.filter((ip) => ip.ip_type === 'private_ipv6').length;
 
   const serverRecordIpPicks = useMemo(() => {
     if (addServerId === '') return [] as { addr: string; type: IpType; hint: string }[];
     const sel = servers.find((s) => s.id === addServerId);
     if (!sel) return [];
     const out: { addr: string; type: IpType; hint: string }[] = [];
-    if (sel.ip_address?.trim()) out.push({ addr: sel.ip_address.trim(), type: 'public', hint: 'Primary' });
-    if (sel.private_ip?.trim()) out.push({ addr: sel.private_ip.trim(), type: 'private', hint: 'Private' });
-    if (sel.ipv6_address?.trim()) out.push({ addr: sel.ipv6_address.trim(), type: 'ipv6', hint: 'IPv6' });
+    if (sel.ip_address?.trim()) out.push({ addr: sel.ip_address.trim(), type: 'public', hint: 'Public IPv4' });
+    if (sel.private_ip?.trim()) out.push({ addr: sel.private_ip.trim(), type: 'private', hint: 'Private IPv4' });
+    if (sel.ipv6_address?.trim()) out.push({ addr: sel.ipv6_address.trim(), type: 'ipv6', hint: 'Public IPv6' });
+    if (sel.private_ipv6?.trim()) out.push({ addr: sel.private_ipv6.trim(), type: 'ipv6', hint: 'Private IPv6 (catalog uses IPv6 type)' });
     return out;
   }, [addServerId, servers]);
 
@@ -173,7 +176,7 @@ export const IpInventory = () => {
             )}
           </div>
           <p>
-            Includes every IP from your servers (primary, private, IPv6) plus extra addresses in the IP catalog.
+            Includes every IP from your servers (public/private IPv4 and IPv6) plus extra addresses in the IP catalog.
             Search by address or hostname to see which server it belongs to.
           </p>
         </div>
@@ -338,7 +341,24 @@ export const IpInventory = () => {
           >
             <Network style={{ width: 12, height: 12, color: '#06b6d4' }} />
             <span style={{ fontSize: 13, color: 'hsl(var(--fg-2))' }}>
-              <span style={{ fontWeight: 600, color: '#06b6d4' }}>{ipv6Count}</span> IPv6
+              <span style={{ fontWeight: 600, color: '#06b6d4' }}>{ipv6Count}</span> pub IPv6
+            </span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setFilterType('private_ipv6')}
+            className="flex items-center gap-2"
+            style={{
+              padding: '6px 12px',
+              borderRadius: 8,
+              background: filterType === 'private_ipv6' ? 'hsl(292 84% 61% / 0.1)' : 'hsl(var(--surface-2))',
+              border: filterType === 'private_ipv6' ? '1px solid hsl(292 84% 61% / 0.3)' : '1px solid hsl(var(--border))',
+              cursor: 'pointer',
+            }}
+          >
+            <Lock style={{ width: 12, height: 12, color: '#d946ef' }} />
+            <span style={{ fontSize: 13, color: 'hsl(var(--fg-2))' }}>
+              <span style={{ fontWeight: 600, color: '#d946ef' }}>{privateIpv6Count}</span> prv IPv6
             </span>
           </button>
         </div>
@@ -482,7 +502,9 @@ export const IpInventory = () => {
             <tbody>
               {filteredIps.map((ip, index) => {
                 const typeConfig = ipTypeConfig[ip.ip_type];
-                const TypeIcon = typeConfig.icon;
+                const TypeIcon = typeConfig?.icon ?? Network;
+                const typeLabel = typeConfig?.label ?? ip.ip_type;
+                const typeColor = typeConfig?.color ?? 'hsl(var(--fg-2))';
                 const fromServer = ip.source === 'server' || ip.id < 0;
                 return (
                   <motion.tr
@@ -513,12 +535,12 @@ export const IpInventory = () => {
                           borderRadius: 6,
                           fontSize: 11,
                           fontWeight: 500,
-                          background: `${typeConfig.color}15`,
-                          color: typeConfig.color,
+                          background: `${typeColor}15`,
+                          color: typeColor,
                         }}
                       >
                         <TypeIcon style={{ width: 12, height: 12 }} />
-                        {typeConfig.label}
+                        {typeLabel}
                       </span>
                     </td>
                     <td style={{ padding: '12px 16px' }}>

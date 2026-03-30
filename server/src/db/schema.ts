@@ -50,6 +50,7 @@ CREATE TABLE IF NOT EXISTS servers (
   ip_address VARCHAR(50),
   private_ip VARCHAR(50),
   ipv6_address VARCHAR(100),
+  private_ipv6 VARCHAR(100),
   os VARCHAR(100),
   cpu_cores INTEGER,
   ram_gb INTEGER,

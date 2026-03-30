@@ -14,6 +14,7 @@ const serverSchema = z.object({
   ip_address: z.string().optional(),
   private_ip: z.string().optional(),
   ipv6_address: z.string().optional(),
+  private_ipv6: z.string().optional(),
   os: z.string().optional(),
   cpu_cores: z.number().optional(),
   ram_gb: z.number().optional(),
@@ -173,10 +174,10 @@ router.post('/', async (req, res) => {
   try {
     await client.query('BEGIN');
     const insertResult = await client.query(`
-      INSERT INTO servers (name, hostname, ip_address, private_ip, ipv6_address, os, cpu_cores, ram_gb, group_id, ssh_key_id, status, notes)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+      INSERT INTO servers (name, hostname, ip_address, private_ip, ipv6_address, private_ipv6, os, cpu_cores, ram_gb, group_id, ssh_key_id, status, notes)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
       RETURNING id
-    `, [data.name, data.hostname, data.ip_address || null, data.private_ip || null, data.ipv6_address || null, data.os || null, data.cpu_cores || null, data.ram_gb || null, data.group_id || null, data.ssh_key_id || null, data.status || 'active', data.notes || null]);
+    `, [data.name, data.hostname, data.ip_address || null, data.private_ip || null, data.ipv6_address || null, data.private_ipv6 || null, data.os || null, data.cpu_cores || null, data.ram_gb || null, data.group_id || null, data.ssh_key_id || null, data.status || 'active', data.notes || null]);
 
     const serverId = insertResult.rows[0].id;
 
@@ -216,9 +217,9 @@ router.put('/:id', async (req, res) => {
   try {
     await client.query('BEGIN');
     await client.query(`
-      UPDATE servers SET name = $1, hostname = $2, ip_address = $3, private_ip = $4, ipv6_address = $5, os = $6, cpu_cores = $7, ram_gb = $8, group_id = $9, ssh_key_id = $10, status = $11, notes = $12, updated_at = CURRENT_TIMESTAMP
-      WHERE id = $13
-    `, [data.name, data.hostname, data.ip_address || null, data.private_ip || null, data.ipv6_address || null, data.os || null, data.cpu_cores || null, data.ram_gb || null, data.group_id || null, data.ssh_key_id || null, data.status || 'active', data.notes || null, serverId]);
+      UPDATE servers SET name = $1, hostname = $2, ip_address = $3, private_ip = $4, ipv6_address = $5, private_ipv6 = $6, os = $7, cpu_cores = $8, ram_gb = $9, group_id = $10, ssh_key_id = $11, status = $12, notes = $13, updated_at = CURRENT_TIMESTAMP
+      WHERE id = $14
+    `, [data.name, data.hostname, data.ip_address || null, data.private_ip || null, data.ipv6_address || null, data.private_ipv6 || null, data.os || null, data.cpu_cores || null, data.ram_gb || null, data.group_id || null, data.ssh_key_id || null, data.status || 'active', data.notes || null, serverId]);
 
     if (custom_values !== undefined) {
       await saveCustomValues(client, Number(serverId), custom_values);

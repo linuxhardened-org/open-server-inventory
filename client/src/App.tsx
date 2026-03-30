@@ -23,6 +23,7 @@ type SetupStatusResponse = {
   success: boolean;
   data: {
     isSetupCompleted: boolean;
+    app_name?: string;
   };
 };
 
@@ -32,6 +33,12 @@ function App() {
   const setSetupCompletedInStore = useAuthStore((state) => state.setSetupCompleted);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const fetchSettings = useSettingsStore((state) => state.fetchSettings);
+  const appName = useSettingsStore((state) => state.appName);
+
+  useEffect(() => {
+    const t = appName.trim() || 'ServerVault';
+    document.title = t;
+  }, [appName]);
 
   useEffect(() => {
     let mounted = true;
@@ -41,6 +48,10 @@ function App() {
         if (!mounted) return;
         const completed = !!res.data?.isSetupCompleted;
         setSetupCompletedInStore(completed);
+        const name = res.data?.app_name?.trim();
+        if (name) {
+          useSettingsStore.getState().setAppName(name);
+        }
       } catch {
         // Do not assume setup completed on network/API failure — avoids sending users to
         // login when the server is unreachable or misconfigured.
