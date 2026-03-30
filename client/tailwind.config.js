@@ -26,6 +26,11 @@ export default {
       fontFamily: {
         sans: ['"Geist"', 'system-ui', 'sans-serif'],
         mono: ['"Geist Mono"', 'ui-monospace', 'monospace'],
+        display: ['"JetBrains Mono"', '"Geist Mono"', 'ui-monospace', 'monospace'],
+      },
+      boxShadow: {
+        glow: '0 0 24px -4px hsl(var(--primary) / 0.35)',
+        'glow-sm': '0 0 16px -6px hsl(var(--primary) / 0.25)',
       },
     },
   },
