@@ -13,6 +13,7 @@ const loginSchema = z.object({
   username: z.string().min(1),
   password: z.string().min(1),
   totpToken: z.string().optional(),
+  rememberMe: z.boolean().optional(),
 });
 
 const setupSchema = z.object({
@@ -130,11 +131,12 @@ router.post('/login', async (req, res) => {
   if (!parseResult.success) return sendError(res, 'Invalid input');
 
   try {
-    const { username, password, totpToken } = parseResult.data;
+    const { username, password, totpToken, rememberMe } = parseResult.data;
     const result = await db.query('SELECT * FROM users WHERE username = $1', [username]);
     const user = result.rows[0] as {
       id: number;
       username: string;
+      real_name: string | null;
       role: string;
       password_hash: string;
       totp_enabled: boolean;
@@ -160,9 +162,16 @@ router.post('/login', async (req, res) => {
       req.session.userId = user.id;
       req.session.username = user.username;
       req.session.role = user.role;
+
+      // If "remember me", extend session to 30 days instead of default 24h
+      if (rememberMe) {
+        req.session.cookie.maxAge = 30 * 24 * 60 * 60 * 1000; // 30 days
+      }
+
       sendSuccess(res, {
         id: user.id,
         username: user.username,
+        realName: user.real_name,
         role: user.role,
         totpEnabled: !!user.totp_enabled,
         passwordChangeRequired: !!user.password_change_required,
@@ -216,11 +225,35 @@ router.post('/logout', (req, res) => {
 
 router.get('/me', sessionAuth, async (req, res) => {
   try {
-    const result = await db.query('SELECT id, username, role, totp_enabled FROM users WHERE id = $1', [req.session.userId]);
+    const result = await db.query('SELECT id, username, real_name, role, totp_enabled, created_at FROM users WHERE id = $1', [req.session.userId]);
     const user = result.rows[0] as any;
     sendSuccess(res, user);
   } catch (err: any) {
     sendError(res, err.message);
+  }
+});
+
+// PATCH /api/auth/profile — update own profile (real_name)
+router.patch('/profile', sessionAuth, async (req, res) => {
+  const schema = z.object({
+    real_name: z.string().max(255).nullable().optional(),
+  });
+  const parsed = schema.safeParse(req.body);
+  if (!parsed.success) return sendError(res, 'Invalid input', 400);
+
+  const { real_name } = parsed.data;
+  try {
+    const result = await db.query(
+      'UPDATE users SET real_name = $1 WHERE id = $2 RETURNING id, username, real_name, role, totp_enabled, created_at',
+      [real_name ?? null, req.session.userId]
+    );
+    if (result.rowCount && result.rowCount > 0) {
+      sendSuccess(res, result.rows[0]);
+    } else {
+      sendError(res, 'User not found', 404);
+    }
+  } catch (err: any) {
+    sendError(res, err.message || 'Failed to update profile');
   }
 });
 

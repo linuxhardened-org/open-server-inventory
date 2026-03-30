@@ -8,6 +8,7 @@ import toast from 'react-hot-toast';
 interface UserData {
   id: number;
   username: string;
+  real_name?: string;
   role: 'admin' | 'operator';
   lastLogin?: string;
 }
@@ -21,8 +22,9 @@ export const Users = () => {
   const [newUser, setNewUser] = useState<{
     username: string;
     password: string;
+    real_name: string;
     role: 'admin' | 'operator';
-  }>({ username: '', password: '', role: 'operator' });
+  }>({ username: '', password: '', real_name: '', role: 'operator' });
 
   const fetchUsers = useCallback(async () => {
     try {
@@ -52,7 +54,7 @@ export const Users = () => {
       await api.post('/users', newUser);
       toast.success('User created successfully');
       setIsAdding(false);
-      setNewUser({ username: '', password: '', role: 'operator' as const });
+      setNewUser({ username: '', password: '', real_name: '', role: 'operator' as const });
       await fetchUsers();
     } catch (err: unknown) {
       const e = err as { error?: string };
@@ -128,7 +130,12 @@ export const Users = () => {
                     <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10">
                       <User className="h-4 w-4 text-primary" />
                     </div>
-                    <span className="font-medium text-foreground">{u.username}</span>
+                    <div className="flex flex-col">
+                      <span className="font-medium text-foreground">{u.real_name || u.username}</span>
+                      {u.real_name && (
+                        <span className="text-xs text-secondary">@{u.username}</span>
+                      )}
+                    </div>
                   </div>
                 </td>
                 <td className="whitespace-nowrap px-6 py-4">
@@ -180,6 +187,16 @@ export const Users = () => {
                   onChange={(e) => setNewUser({ ...newUser, username: e.target.value })}
                   className="sv-input"
                   placeholder="e.g. jdoe"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-foreground">Display Name</label>
+                <input
+                  type="text"
+                  value={newUser.real_name}
+                  onChange={(e) => setNewUser({ ...newUser, real_name: e.target.value })}
+                  className="sv-input"
+                  placeholder="e.g. John Doe (optional)"
                 />
               </div>
               <div>

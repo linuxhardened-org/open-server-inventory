@@ -13,7 +13,7 @@ router.use(sessionAuth, adminAuth);
 
 router.get('/', async (req, res) => {
   try {
-    const result = await db.query('SELECT id, username, role, totp_enabled, created_at FROM users');
+    const result = await db.query('SELECT id, username, real_name, role, totp_enabled, created_at FROM users');
     sendSuccess(res, result.rows);
   } catch (err: any) {
     sendError(res, err.message);
@@ -24,19 +24,20 @@ router.post('/', async (req, res) => {
   const schema = z.object({
     username: z.string().min(3),
     password: z.string().min(8),
+    real_name: z.string().max(255).optional(),
     role: z.enum(['admin', 'operator']).default('operator')
   });
 
   const parseResult = schema.safeParse(req.body);
   if (!parseResult.success) return sendError(res, 'Invalid input');
 
-  const { username, password, role } = parseResult.data;
-  
+  const { username, password, real_name, role } = parseResult.data;
+
   try {
     const hashedPassword = await hashPassword(password);
     await db.query(
-      'INSERT INTO users (username, password_hash, role) VALUES ($1, $2, $3)',
-      [username, hashedPassword, role]
+      'INSERT INTO users (username, password_hash, real_name, role) VALUES ($1, $2, $3, $4)',
+      [username, hashedPassword, real_name || null, role]
     );
     sendSuccess(res, { message: 'User created' }, 201);
   } catch (err: any) {
@@ -84,6 +85,41 @@ router.patch('/:id/role', async (req, res) => {
     const result = await db.query('UPDATE users SET role = $1 WHERE id = $2', [role, id]);
     if (result.rowCount && result.rowCount > 0) {
       sendSuccess(res, { message: 'User role updated' });
+    } else {
+      sendError(res, 'User not found');
+    }
+  } catch (err: any) {
+    sendError(res, err.message);
+  }
+});
+
+// Update user (admin can update any user, users can update their own real_name)
+router.patch('/:id', async (req, res) => {
+  const { id } = req.params;
+  const userId = parseInt(id);
+  const isAdmin = req.session.role === 'admin';
+  const isSelf = userId === req.session.userId;
+
+  if (!isAdmin && !isSelf) {
+    return sendError(res, 'You can only update your own profile', 403);
+  }
+
+  const schema = z.object({
+    real_name: z.string().max(255).nullable().optional(),
+  });
+
+  const parseResult = schema.safeParse(req.body);
+  if (!parseResult.success) return sendError(res, 'Invalid input');
+
+  const { real_name } = parseResult.data;
+
+  try {
+    const result = await db.query(
+      'UPDATE users SET real_name = $1 WHERE id = $2 RETURNING id, username, real_name, role',
+      [real_name ?? null, userId]
+    );
+    if (result.rowCount && result.rowCount > 0) {
+      sendSuccess(res, result.rows[0]);
     } else {
       sendError(res, 'User not found');
     }

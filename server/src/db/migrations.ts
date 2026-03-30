@@ -8,6 +8,14 @@ import { hashApiToken } from '../utils/token';
 export async function runMigrations(pool: Pool): Promise<void> {
   await migrateLegacyApiTokens(pool);
   await migratePasswordChangeRequired(pool);
+  await migrateUserRealName(pool);
+}
+
+async function migrateUserRealName(pool: Pool): Promise<void> {
+  await pool.query(`
+    ALTER TABLE users
+    ADD COLUMN IF NOT EXISTS real_name VARCHAR(255)
+  `);
 }
 
 async function migratePasswordChangeRequired(pool: Pool): Promise<void> {

@@ -11,6 +11,7 @@ type LoginResponse = {
   data: {
     id: number;
     username: string;
+    realName?: string;
     role: string;
     totpEnabled: boolean;
     passwordChangeRequired?: boolean;
@@ -20,6 +21,7 @@ type LoginResponse = {
 export const Login = () => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [rememberMe, setRememberMe] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const setAuth = useAuthStore((state) => state.setAuth);
   const setSetupCompleted = useAuthStore((state) => state.setSetupCompleted);
@@ -32,12 +34,14 @@ export const Login = () => {
       const res = (await api.post('/auth/login', {
         username: username.trim(),
         password,
+        rememberMe,
       })) as LoginResponse;
       const u = res.data;
       setAuth(
         {
           id: u.id,
           username: u.username,
+          real_name: u.realName,
           role: u.role as 'admin' | 'operator',
           totp_enabled: u.totpEnabled,
           password_change_required: !!u.passwordChangeRequired,
@@ -264,6 +268,32 @@ export const Login = () => {
                   />
                 </div>
               </div>
+
+              {/* Remember Me */}
+              <label
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  fontSize: 13,
+                  color: 'hsl(var(--fg-2))',
+                  cursor: 'pointer',
+                  userSelect: 'none',
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={rememberMe}
+                  onChange={(e) => setRememberMe(e.target.checked)}
+                  style={{
+                    width: 16,
+                    height: 16,
+                    accentColor: 'hsl(var(--primary))',
+                    cursor: 'pointer',
+                  }}
+                />
+                Remember me for 30 days
+              </label>
 
               {/* Submit */}
               <button
