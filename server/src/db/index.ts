@@ -1,15 +1,12 @@
-import { Pool } from 'pg';
+import { Pool, PoolConfig } from 'pg';
 import { env } from '../config/env';
 import { schema } from './schema';
 import { runMigrations } from './migrations';
 
-function buildPoolConfig() {
-  if (env.databaseUrl) {
-    console.log('Using DATABASE_URL for database connection (SSL enabled)');
-    return {
-      connectionString: env.databaseUrl,
-      ssl: { rejectUnauthorized: false },
-    };
+export function buildPoolConfig(databaseUrl?: string | null): PoolConfig {
+  const url = databaseUrl ?? env.databaseUrl;
+  if (url) {
+    return { connectionString: url, ssl: { rejectUnauthorized: false } };
   }
   const isLocal =
     env.postgres.host === 'localhost' ||
@@ -25,10 +22,19 @@ function buildPoolConfig() {
   };
 }
 
+/** Create and verify a pool, then init schema + migrations on it. */
+export async function initPoolWithConfig(config: PoolConfig): Promise<Pool> {
+  const p = new Pool(config);
+  await p.query(schema);
+  await runMigrations(p);
+  return p;
+}
+
 const pool = new Pool(buildPoolConfig());
 
 export const initDB = async () => {
   try {
+    console.log(env.databaseUrl ? 'Using DATABASE_URL (SSL)' : 'Using local PostgreSQL');
     await pool.query(schema);
     await runMigrations(pool);
     console.log('Database initialized successfully');

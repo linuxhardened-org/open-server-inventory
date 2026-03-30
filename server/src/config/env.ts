@@ -1,6 +1,13 @@
 import dotenv from 'dotenv';
+import { loadPersistedConfig } from '../utils/persistedConfig';
 
 dotenv.config();
+
+// Persisted config (written during setup) overrides env vars
+const persisted = loadPersistedConfig();
+if (persisted.database_url && !process.env.DATABASE_URL) {
+  process.env.DATABASE_URL = persisted.database_url;
+}
 
 const isProduction = process.env.NODE_ENV === 'production';
 

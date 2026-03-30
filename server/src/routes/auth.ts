@@ -5,6 +5,7 @@ import { verifyPassword, hashPassword } from '../utils/crypto';
 import { generateTotpSecret, generateTotpUri, verifyTotp } from '../utils/totp';
 import { sendSuccess, sendError } from '../utils/response';
 import { sessionAuth } from '../middleware/sessionAuth';
+import { savePersistedConfig } from '../utils/persistedConfig';
 
 const router = Router();
 
@@ -18,6 +19,32 @@ const setupSchema = z.object({
   username: z.string().trim().min(3),
   password: z.string().min(8),
   app_name: z.string().trim().min(1).max(80).optional(),
+  database_url: z.string().url().optional(),
+});
+
+// POST /api/auth/test-db — test a DATABASE_URL before committing during setup
+router.post('/test-db', async (req, res) => {
+  const parsed = z.object({ database_url: z.string().min(1) }).safeParse(req.body);
+  if (!parsed.success) return sendError(res, 'database_url is required', 400);
+
+  const { Pool } = await import('pg');
+  const pool = new Pool({
+    connectionString: parsed.data.database_url,
+    ssl: { rejectUnauthorized: false },
+    connectionTimeoutMillis: 8000,
+  });
+  try {
+    const result = await pool.query('SELECT version() AS version');
+    const version = (result.rows[0] as { version: string }).version;
+    sendSuccess(res, {
+      connected: true,
+      version: version.split(' ').slice(0, 2).join(' '),
+    });
+  } catch (err: any) {
+    sendSuccess(res, { connected: false, error: err.message });
+  } finally {
+    await pool.end().catch(() => {});
+  }
 });
 
 router.post('/setup', async (req, res) => {
@@ -31,17 +58,47 @@ router.post('/setup', async (req, res) => {
       return sendError(res, 'Setup already completed', 409);
     }
 
-    const { username, password, app_name } = parsed.data;
+    const { username, password, app_name, database_url } = parsed.data;
+
+    // If a custom DATABASE_URL was provided, init schema on that DB and save config.
+    // The server will restart (Docker restart: always) to use the new connection.
+    let targetDb = db;
+    let requiresRestart = false;
+
+    if (database_url) {
+      const { Pool } = await import('pg');
+      const pool = new Pool({
+        connectionString: database_url,
+        ssl: { rejectUnauthorized: false },
+        connectionTimeoutMillis: 10000,
+      });
+      try {
+        const { schema } = await import('../db/schema');
+        const { runMigrations } = await import('../db/migrations');
+        await pool.query(schema);
+        await runMigrations(pool);
+        targetDb = {
+          query: (text: string, params?: any[]) => pool.query(text, params),
+          pool,
+        } as typeof db;
+        savePersistedConfig({ database_url });
+        requiresRestart = true;
+      } catch (err: any) {
+        await pool.end().catch(() => {});
+        return sendError(res, `Database connection failed: ${err.message}`, 400);
+      }
+    }
+
     const passwordHash = await hashPassword(password);
 
     if (app_name) {
-      await db.query(
+      await targetDb.query(
         'INSERT INTO app_settings (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value',
         ['app_name', app_name]
       );
     }
 
-    const created = await db.query(
+    const created = await targetDb.query(
       'INSERT INTO users (username, password_hash, role) VALUES ($1, $2, $3) RETURNING id, username, role, totp_enabled',
       [username, passwordHash, 'admin']
     );
@@ -51,6 +108,19 @@ router.post('/setup', async (req, res) => {
       role: string;
       totp_enabled: boolean;
     };
+
+    if (requiresRestart) {
+      // Config saved — restart server so the new DATABASE_URL pool is used from the start
+      sendSuccess(res, {
+        id: user.id,
+        username: user.username,
+        role: user.role,
+        totpEnabled: !!user.totp_enabled,
+        requiresRestart: true,
+      }, 201);
+      setTimeout(() => process.exit(0), 400);
+      return;
+    }
 
     req.session.regenerate((regErr) => {
       if (regErr) {
