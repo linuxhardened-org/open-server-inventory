@@ -5,7 +5,6 @@ import { Login } from './pages/Login';
 import { Servers } from './pages/Servers';
 import { Groups } from './pages/Groups';
 import { Tags } from './pages/Tags';
-import { SshKeys } from './pages/SshKeys';
 import { Profile } from './pages/Profile';
 import { Users } from './pages/Users';
 import { Settings } from './pages/Settings';
@@ -83,7 +82,6 @@ function App() {
           <Route path="servers" element={<Servers />} />
           <Route path="groups" element={<Groups />} />
           <Route path="tags" element={<Tags />} />
-          <Route path="ssh-keys" element={<SshKeys />} />
           <Route path="profile" element={<Profile />} />
           <Route path="users" element={<Users />} />
           <Route path="settings" element={<Settings />} />

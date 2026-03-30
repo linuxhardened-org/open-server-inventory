@@ -1,4 +1,4 @@
-import { Terminal, Activity, Settings, Server as ServerIcon } from 'lucide-react';
+import { Edit2, Server as ServerIcon } from 'lucide-react';
 import type { CustomColumn, Server, ServerTag } from '../types';
 import { formatBytes } from '../lib/utils';
 import { motion } from 'framer-motion';
@@ -302,41 +302,17 @@ export const ServerTable = ({ servers, customColumns, onRowClick }: ServerTableP
 
               {/* Actions */}
               <td className="px-4 text-right">
-                <div className="flex items-center justify-end gap-1">
-                  <button
-                    type="button"
-                    className="rounded-lg p-1.5 transition-colors"
-                    title="Terminal"
-                    style={{ color: 'hsl(var(--fg-2))', background: 'none', border: 'none', cursor: 'pointer' }}
-                    onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'hsl(var(--surface-3))'; }}
-                    onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'none'; }}
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <Terminal style={{ width: 15, height: 15 }} />
-                  </button>
-                  <button
-                    type="button"
-                    className="rounded-lg p-1.5 transition-colors"
-                    title="Monitoring"
-                    style={{ color: 'hsl(var(--fg-2))', background: 'none', border: 'none', cursor: 'pointer' }}
-                    onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'hsl(var(--surface-3))'; }}
-                    onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'none'; }}
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <Activity style={{ width: 15, height: 15 }} />
-                  </button>
-                  <button
-                    type="button"
-                    className="rounded-lg p-1.5 transition-colors"
-                    title="Settings"
-                    style={{ color: 'hsl(var(--fg-2))', background: 'none', border: 'none', cursor: 'pointer' }}
-                    onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'hsl(var(--surface-3))'; }}
-                    onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'none'; }}
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <Settings style={{ width: 15, height: 15 }} />
-                  </button>
-                </div>
+                <button
+                  type="button"
+                  className="rounded-lg p-1.5 transition-colors"
+                  title="Edit server"
+                  style={{ color: 'hsl(var(--fg-2))', background: 'none', border: 'none', cursor: 'pointer' }}
+                  onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'hsl(var(--surface-3))'; }}
+                  onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'none'; }}
+                  onClick={(e) => { e.stopPropagation(); onRowClick(server); }}
+                >
+                  <Edit2 style={{ width: 15, height: 15 }} />
+                </button>
               </td>
             </motion.tr>
           ))}

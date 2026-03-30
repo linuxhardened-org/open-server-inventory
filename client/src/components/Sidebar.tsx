@@ -3,7 +3,6 @@ import {
   Server,
   Layers,
   Tag,
-  Key,
   Users,
   UserCircle,
   Settings,
@@ -13,10 +12,9 @@ import { useAuthStore } from '../store/useAuthStore';
 import { useSettingsStore } from '../store/useSettingsStore';
 
 const mainNav = [
-  { icon: Server,  label: 'Servers',  path: '/servers',  end: false },
-  { icon: Layers,  label: 'Groups',   path: '/groups',   end: false },
-  { icon: Tag,     label: 'Tags',     path: '/tags',     end: false },
-  { icon: Key,     label: 'SSH Keys', path: '/ssh-keys', end: false },
+  { icon: Server, label: 'Servers', path: '/servers', end: false },
+  { icon: Layers, label: 'Groups',  path: '/groups',  end: false },
+  { icon: Tag,    label: 'Tags',    path: '/tags',    end: false },
 ];
 
 const accountNav = [
