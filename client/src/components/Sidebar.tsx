@@ -8,6 +8,7 @@ import {
   Settings,
   LogOut,
   Key,
+  Cloud,
 } from 'lucide-react';
 import { useAuthStore } from '../store/useAuthStore';
 import { useSettingsStore } from '../store/useSettingsStore';
@@ -16,6 +17,7 @@ const mainNav = [
   { icon: Server, label: 'Servers', path: '/servers', end: false },
   { icon: Layers, label: 'Groups',  path: '/groups',  end: false },
   { icon: Tag,    label: 'Tags',    path: '/tags',    end: false },
+  { icon: Cloud,  label: 'Cloud',   path: '/cloud',   end: false },
 ];
 
 const accountNav = [
