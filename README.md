@@ -8,24 +8,12 @@
 
 > **Keywords:** server inventory, asset management, infrastructure tracking, self-hosted CMDB, IT asset management, server documentation, DevOps tools, data center management
 
-## Screenshots
+## Screenshot
 
 <p align="center">
   <img src="docs/screenshots/dashboard.png" alt="ServerVault Dashboard - Server Inventory Overview" width="800"/>
   <br/>
   <em>Dashboard with server status overview and quick stats</em>
-</p>
-
-<p align="center">
-  <img src="docs/screenshots/servers.png" alt="Server List - Inventory Management" width="800"/>
-  <br/>
-  <em>Server inventory with custom columns, tags, and groups</em>
-</p>
-
-<p align="center">
-  <img src="docs/screenshots/login.png" alt="Login Page - Secure Authentication" width="400"/>
-  <br/>
-  <em>Secure login with 2FA support and remember me option</em>
 </p>
 
 ## Why ServerVault?
