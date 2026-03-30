@@ -12,6 +12,7 @@ export interface ApiToken {
   id: number;
   name: string;
   token?: string;
+  expires_at: string | null;
   created_at: string;
   last_used_at: string | null;
 }

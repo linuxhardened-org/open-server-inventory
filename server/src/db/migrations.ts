@@ -11,6 +11,14 @@ export async function runMigrations(pool: Pool): Promise<void> {
   await migrateUserRealName(pool);
   await migrateServerRegion(pool);
   await migrateCloudProviderSyncHour(pool);
+  await migrateApiTokenExpiry(pool);
+}
+
+async function migrateApiTokenExpiry(pool: Pool): Promise<void> {
+  await pool.query(`
+    ALTER TABLE api_tokens
+    ADD COLUMN IF NOT EXISTS expires_at TIMESTAMPTZ
+  `);
 }
 
 async function migrateCloudProviderSyncHour(pool: Pool): Promise<void> {

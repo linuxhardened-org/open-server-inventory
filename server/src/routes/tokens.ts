@@ -7,13 +7,29 @@ import { sessionAuth } from '../middleware/sessionAuth';
 
 const router = Router();
 
+// Expiry options: 7d, 30d, 90d, 365d, never (null)
+const expiryOptions = ['7d', '30d', '90d', '365d', 'never'] as const;
+
 const createBody = z.object({
   name: z.string().min(1, 'Name is required'),
+  expiry: z.enum(expiryOptions).optional().default('never'),
 });
+
+function calculateExpiryDate(expiry: string): Date | null {
+  if (expiry === 'never') return null;
+  const days = parseInt(expiry);
+  if (isNaN(days)) return null;
+  const date = new Date();
+  date.setDate(date.getDate() + days);
+  return date;
+}
 
 router.get('/', sessionAuth, async (req, res) => {
   try {
-    const result = await db.query('SELECT id, name, created_at, last_used_at FROM api_tokens WHERE user_id = $1', [req.session.userId]);
+    const result = await db.query(
+      'SELECT id, name, expires_at, created_at, last_used_at FROM api_tokens WHERE user_id = $1',
+      [req.session.userId]
+    );
     sendSuccess(res, result.rows);
   } catch (err: any) {
     sendError(res, err.message);
@@ -25,14 +41,16 @@ router.post('/', sessionAuth, async (req, res) => {
   if (!parsed.success) return sendError(res, 'Invalid input');
 
   try {
-    const { name } = parsed.data;
+    const { name, expiry } = parsed.data;
     const token = generateApiToken();
     const tokenHash = hashApiToken(token);
+    const expiresAt = calculateExpiryDate(expiry);
+
     await db.query(
-      'INSERT INTO api_tokens (user_id, name, token_hash) VALUES ($1, $2, $3)',
-      [req.session.userId, name, tokenHash]
+      'INSERT INTO api_tokens (user_id, name, token_hash, expires_at) VALUES ($1, $2, $3, $4)',
+      [req.session.userId, name, tokenHash, expiresAt]
     );
-    sendSuccess(res, { name, token });
+    sendSuccess(res, { name, token, expires_at: expiresAt });
   } catch (err: any) {
     sendError(res, err.message);
   }

@@ -1,14 +1,27 @@
 import { useState, useEffect } from "react";
-import { Key, Plus, Shield, Copy, Check } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import { Key, Plus, Shield, Copy, Check, X } from 'lucide-react';
+import { motion } from 'framer-motion';
 import TokenTable from '../components/TokenTable';
 import api from '../lib/api';
 import { ApiToken } from '../types';
 import toast from 'react-hot-toast';
 
+const expiryOptions = [
+  { value: '7d', label: '7 days' },
+  { value: '30d', label: '30 days' },
+  { value: '90d', label: '90 days' },
+  { value: '365d', label: '1 year' },
+  { value: 'never', label: 'No expiration' },
+];
+
 export const ApiSettings = () => {
   const [tokens, setTokens] = useState<ApiToken[]>([]);
   const [newToken, setNewToken] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [tokenName, setTokenName] = useState('');
+  const [tokenExpiry, setTokenExpiry] = useState('90d');
 
   useEffect(() => {
     fetchTokens();
@@ -23,13 +36,16 @@ export const ApiSettings = () => {
     }
   };
 
-  const handleCreateToken = async () => {
-    const name = prompt('Enter a name for the new token:');
-    if (!name) return;
+  const handleCreateToken = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!tokenName.trim()) return;
 
     try {
-      const response = await api.post('/tokens', { name });
+      const response = await api.post('/tokens', { name: tokenName.trim(), expiry: tokenExpiry });
       setNewToken(response.data.token);
+      setShowCreateModal(false);
+      setTokenName('');
+      setTokenExpiry('90d');
       fetchTokens();
       toast.success('Token created');
     } catch (err: any) {
@@ -76,10 +92,103 @@ export const ApiSettings = () => {
           <h1>API Settings</h1>
           <p>Manage API tokens for programmatic access to ServerVault.</p>
         </div>
-        <button onClick={handleCreateToken} className="sv-btn-primary">
+        <button onClick={() => setShowCreateModal(true)} className="sv-btn-primary">
           <Plus className="w-4 h-4" /> New Token
         </button>
       </header>
+
+      {/* Create Token Modal */}
+      {showCreateModal && createPortal(
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 100,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: 'hsl(var(--bg) / 0.7)',
+            backdropFilter: 'blur(4px)',
+          }}
+          onClick={() => setShowCreateModal(false)}
+        >
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: '90%',
+              maxWidth: 420,
+              background: 'hsl(var(--surface))',
+              border: '1px solid hsl(var(--border))',
+              borderRadius: 12,
+              overflow: 'hidden',
+              boxShadow: '0 16px 48px hsl(var(--bg) / 0.4)',
+            }}
+          >
+            <div style={{ padding: '14px 16px', borderBottom: '1px solid hsl(var(--border))', background: 'hsl(var(--surface-2))', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <h2 style={{ fontSize: 15, fontWeight: 600, color: 'hsl(var(--fg))', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Key style={{ width: 16, height: 16, color: 'hsl(var(--primary))' }} />
+                Create API Token
+              </h2>
+              <button
+                type="button"
+                onClick={() => setShowCreateModal(false)}
+                className="sv-btn-ghost"
+                style={{ padding: 4 }}
+              >
+                <X style={{ width: 16, height: 16 }} />
+              </button>
+            </div>
+            <form onSubmit={handleCreateToken} style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <div>
+                <label style={{ display: 'block', fontSize: 11, fontWeight: 500, color: 'hsl(var(--fg-2))', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                  Token Name <span style={{ color: 'hsl(var(--danger))' }}>*</span>
+                </label>
+                <input
+                  type="text"
+                  value={tokenName}
+                  onChange={(e) => setTokenName(e.target.value)}
+                  className="sv-input"
+                  style={{ width: '100%' }}
+                  placeholder="e.g., CI/CD Pipeline"
+                  required
+                  autoFocus
+                />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: 11, fontWeight: 500, color: 'hsl(var(--fg-2))', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                  Expiration
+                </label>
+                <select
+                  value={tokenExpiry}
+                  onChange={(e) => setTokenExpiry(e.target.value)}
+                  className="sv-input"
+                  style={{ width: '100%' }}
+                >
+                  {expiryOptions.map((opt) => (
+                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                  ))}
+                </select>
+                <p style={{ fontSize: 11, color: 'hsl(var(--fg-3))', marginTop: 6 }}>
+                  {tokenExpiry === 'never'
+                    ? 'Token will never expire (not recommended for production)'
+                    : `Token will expire ${expiryOptions.find(o => o.value === tokenExpiry)?.label.toLowerCase()} from now`}
+                </p>
+              </div>
+              <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                <button type="button" onClick={() => setShowCreateModal(false)} className="sv-btn-ghost" style={{ flex: 1, border: '1px solid hsl(var(--border-2))' }}>
+                  Cancel
+                </button>
+                <button type="submit" className="sv-btn-primary" style={{ flex: 1 }}>
+                  Create Token
+                </button>
+              </div>
+            </form>
+          </motion.div>
+        </div>,
+        document.body
+      )}
 
       {newToken && (
         <div className="sv-card border-2 border-primary/30 mb-6">
@@ -138,7 +247,7 @@ export const ApiSettings = () => {
           style={{ background: 'hsl(var(--surface-2))', color: 'hsl(var(--fg-2))' }}
         >
 {`curl -H "Authorization: Bearer sv_your_token" \\
-     http://localhost:8080/api/servers`}
+     ${window.location.origin}/api/servers`}
         </pre>
       </div>
     </div>

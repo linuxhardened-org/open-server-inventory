@@ -9,9 +9,13 @@ import {
   LogOut,
   Key,
   Cloud,
+  Palette,
+  Sun,
+  Moon,
 } from 'lucide-react';
 import { useAuthStore } from '../store/useAuthStore';
 import { useSettingsStore } from '../store/useSettingsStore';
+import { useThemeStore, accentColors } from '../store/useThemeStore';
 
 const mainNav = [
   { icon: Server, label: 'Servers', path: '/servers', end: false },
@@ -46,6 +50,7 @@ export const Sidebar = ({ isOpen }: { isOpen?: boolean; onClose?: () => void }) 
   const logout = useAuthStore((s) => s.logout);
   const navigate = useNavigate();
   const appName = useSettingsStore((s) => s.appName);
+  const { theme, accent, setAccent, toggleTheme } = useThemeStore();
 
   return (
     <nav className={`app-sidebar${isOpen ? ' sidebar-open' : ''}`}>
@@ -88,6 +93,60 @@ export const Sidebar = ({ isOpen }: { isOpen?: boolean; onClose?: () => void }) 
         <ul className="app-nav-list">
           {accountNav.map((item) => <NavItem key={item.path} {...item} />)}
         </ul>
+      </div>
+
+      {/* Theme section */}
+      <div style={{ padding: '12px 14px', borderTop: '1px solid hsl(var(--border))' }}>
+        <div className="flex items-center gap-2" style={{ marginBottom: 10 }}>
+          <Palette size={13} style={{ color: 'hsl(var(--fg-3))' }} />
+          <span style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'hsl(var(--fg-3))' }}>
+            Theme
+          </span>
+        </div>
+        {/* Dark/Light toggle */}
+        <button
+          type="button"
+          onClick={toggleTheme}
+          style={{
+            width: '100%',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            padding: '6px 10px',
+            marginBottom: 10,
+            borderRadius: 6,
+            border: '1px solid hsl(var(--border))',
+            background: 'hsl(var(--surface-2))',
+            color: 'hsl(var(--fg-2))',
+            fontSize: 12,
+            cursor: 'pointer',
+            transition: 'background 150ms',
+          }}
+        >
+          {theme === 'dark' ? <Moon size={13} /> : <Sun size={13} />}
+          {theme === 'dark' ? 'Dark Mode' : 'Light Mode'}
+        </button>
+        {/* Accent colors */}
+        <div className="flex flex-wrap gap-2">
+          {accentColors.map((c) => (
+            <button
+              key={c.id}
+              type="button"
+              onClick={() => setAccent(c.id)}
+              title={c.label}
+              style={{
+                width: 22,
+                height: 22,
+                borderRadius: 6,
+                backgroundColor: c.color,
+                border: accent === c.id ? '2px solid hsl(var(--fg))' : '2px solid transparent',
+                cursor: 'pointer',
+                transition: 'transform 100ms, border-color 100ms',
+                transform: accent === c.id ? 'scale(1.1)' : 'scale(1)',
+              }}
+            />
+          ))}
+        </div>
       </div>
 
       <div className="app-sidebar-footer">

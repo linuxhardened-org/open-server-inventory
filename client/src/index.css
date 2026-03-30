@@ -45,6 +45,25 @@
     --info:         210 90% 60%;
   }
 
+  /* Accent color themes */
+  .accent-emerald { --primary: 152 69% 45%; }
+  .accent-emerald.dark { --primary: 152 69% 50%; }
+
+  .accent-blue { --primary: 217 91% 55%; }
+  .accent-blue.dark { --primary: 217 91% 60%; }
+
+  .accent-purple { --primary: 262 83% 58%; }
+  .accent-purple.dark { --primary: 262 83% 63%; }
+
+  .accent-orange { --primary: 24 95% 53%; }
+  .accent-orange.dark { --primary: 24 95% 58%; }
+
+  .accent-pink { --primary: 330 81% 60%; }
+  .accent-pink.dark { --primary: 330 81% 65%; }
+
+  .accent-cyan { --primary: 188 94% 43%; }
+  .accent-cyan.dark { --primary: 188 94% 48%; }
+
   *, *::before, *::after { box-sizing: border-box; }
 
   html, body {
