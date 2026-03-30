@@ -96,6 +96,10 @@ function partitionPublicPrivateIpv4(ipv4: string[]): { publicIpv4: string | null
 }
 
 type LinodeNetworkExtras = {
+  /** Extra public IPv4: additional addresses in public subnet (public[1..], shared, reserved). */
+  additional_public_ipv4: string[];
+  /** Extra routed public IPv6 global ranges/addresses beyond the primary. */
+  additional_public_ipv6: string[];
   vpc_ipv4: string[];
   vpc_ipv6: string[];
   /** Linode NAT 1:1 (public side) for VPC addresses */
@@ -180,17 +184,67 @@ function uniqStrings(values: (string | null | undefined)[]): string[] {
 }
 
 function emptyExtras(): LinodeNetworkExtras {
-  return { vpc_ipv4: [], vpc_ipv6: [], nat_1_1_ipv4: [], vpc_subnet_lines: [] };
+  return {
+    additional_public_ipv4: [],
+    additional_public_ipv6: [],
+    vpc_ipv4: [],
+    vpc_ipv6: [],
+    nat_1_1_ipv4: [],
+    vpc_subnet_lines: [],
+  };
 }
 
 function serializeNetworkExtras(extras: LinodeNetworkExtras): string | null {
   const has =
+    extras.additional_public_ipv4.length > 0 ||
+    extras.additional_public_ipv6.length > 0 ||
     extras.vpc_ipv4.length > 0 ||
     extras.vpc_ipv6.length > 0 ||
     extras.nat_1_1_ipv4.length > 0 ||
     extras.vpc_subnet_lines.length > 0;
   if (!has) return null;
   return JSON.stringify(extras);
+}
+
+/** Extra public IPv4s (shared pool, reserved, 2nd+ public) — excludes primary. */
+function collectAdditionalPublicIpv4(
+  primary: string | null,
+  publicList: Array<{ address?: string }> | undefined,
+  shared: Array<{ address?: string }> | undefined,
+  reserved: Array<{ address?: string }> | undefined,
+  out: string[]
+): void {
+  const primaryKey = primary?.trim().toLowerCase() ?? '';
+  const push = (addr: string | undefined) => {
+    const t = addr?.trim();
+    if (!t || t.toLowerCase() === primaryKey) return;
+    out.push(t);
+  };
+  if (Array.isArray(publicList)) {
+    for (let i = 1; i < publicList.length; i++) {
+      push(publicList[i]?.address);
+    }
+  }
+  if (Array.isArray(shared)) {
+    for (const p of shared) push(p?.address);
+  }
+  if (Array.isArray(reserved)) {
+    for (const p of reserved) push(p?.address);
+  }
+}
+
+function collectAdditionalPublicIpv6(
+  primary: string | null,
+  globalList: Array<{ range?: string; address?: string }> | undefined,
+  out: string[]
+): void {
+  const primaryKey = primary?.trim().toLowerCase() ?? '';
+  if (!Array.isArray(globalList)) return;
+  for (const g of globalList) {
+    const a = g?.address?.trim() || g?.range?.trim();
+    if (!a || a.toLowerCase() === primaryKey) continue;
+    out.push(a);
+  }
 }
 
 /**
@@ -206,12 +260,21 @@ async function resolveLinodeIps(
   const fallback = (): LinodeResolvedIps => {
     const { publicIpv4, privateIpv4 } = partitionPublicPrivateIpv4(listIpv4);
     const v6 = listIpv6?.trim() || null;
+    const extras = emptyExtras();
+    const pubAll = listIpv4.filter((ip) => !isPrivateIPv4(ip.trim()));
+    for (let i = 1; i < pubAll.length; i++) {
+      const t = pubAll[i].trim();
+      if (t && t.toLowerCase() !== (publicIpv4 ?? '').toLowerCase()) {
+        extras.additional_public_ipv4.push(t);
+      }
+    }
+    extras.additional_public_ipv4 = uniqStrings(extras.additional_public_ipv4);
     return {
       publicIpv4,
       privateIpv4,
       publicIpv6: v6,
       privateIpv6: null,
-      extras: emptyExtras(),
+      extras,
     };
   };
 
@@ -295,6 +358,18 @@ async function resolveLinodeIps(
     }
     extras.vpc_ipv6 = uniqStrings(extras.vpc_ipv6);
     extras.vpc_subnet_lines = uniqStrings(extras.vpc_subnet_lines);
+
+    collectAdditionalPublicIpv4(
+      publicIpv4,
+      data.ipv4?.public,
+      data.ipv4?.shared,
+      data.ipv4?.reserved,
+      extras.additional_public_ipv4
+    );
+    extras.additional_public_ipv4 = uniqStrings(extras.additional_public_ipv4);
+
+    collectAdditionalPublicIpv6(publicIpv6, data.ipv6?.global, extras.additional_public_ipv6);
+    extras.additional_public_ipv6 = uniqStrings(extras.additional_public_ipv6);
 
     /** No link-local in inventory private_ipv6 */
     const privateIpv6: string | null = null;

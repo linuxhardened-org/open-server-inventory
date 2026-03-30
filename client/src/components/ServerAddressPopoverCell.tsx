@@ -29,6 +29,7 @@ export function ServerAddressPopoverCell({ server }: { server: Server }) {
   const primary =
     nonEmptyTrim(server.ip_address) ||
     nonEmptyTrim(server.ipv6_address) ||
+    extras?.additional_public_ipv4[0] ||
     extras?.vpc_ipv4[0] ||
     extras?.nat_1_1_ipv4[0] ||
     extras?.vpc_subnet_lines[0] ||
@@ -121,6 +122,8 @@ export function ServerAddressPopoverCell({ server }: { server: Server }) {
     nonEmptyTrim(server.private_ip) ||
     nonEmptyTrim(server.ipv6_address) ||
     nonEmptyTrim(server.private_ipv6) ||
+    (extras?.additional_public_ipv4?.length ?? 0) > 0 ||
+    (extras?.additional_public_ipv6?.length ?? 0) > 0 ||
     (extras?.vpc_ipv4?.length ?? 0) > 0 ||
     (extras?.vpc_ipv6?.length ?? 0) > 0 ||
     (extras?.nat_1_1_ipv4?.length ?? 0) > 0 ||
@@ -196,6 +199,20 @@ export function ServerAddressPopoverCell({ server }: { server: Server }) {
                 )}
                 {nonEmptyTrim(server.private_ipv6) && (
                   <IpRow label="Private IPv6" value={nonEmptyTrim(server.private_ipv6)!} />
+                )}
+                {(extras?.additional_public_ipv4?.length ?? 0) > 0 && (
+                  <IpRow
+                    label="Additional public IPv4"
+                    value={extras!.additional_public_ipv4.join(', ')}
+                    multiline
+                  />
+                )}
+                {(extras?.additional_public_ipv6?.length ?? 0) > 0 && (
+                  <IpRow
+                    label="Additional public IPv6"
+                    value={extras!.additional_public_ipv6.join(', ')}
+                    multiline
+                  />
                 )}
                 {(extras?.vpc_ipv4?.length ?? 0) > 0 && (
                   <IpRow label="VPC IPv4 (private)" value={extras!.vpc_ipv4.join(', ')} multiline />

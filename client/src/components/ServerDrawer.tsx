@@ -332,6 +332,8 @@ export const ServerDrawer = ({ server, isOpen, onClose, onUpdate, onRefresh }: S
                 const ex = parseLinodeNetworkExtras(server.linode_network_extras);
                 if (!ex) return null;
                 const hasBlock =
+                  ex.additional_public_ipv4.length > 0 ||
+                  ex.additional_public_ipv6.length > 0 ||
                   ex.vpc_ipv4.length > 0 ||
                   ex.vpc_ipv6.length > 0 ||
                   ex.nat_1_1_ipv4.length > 0 ||
@@ -363,11 +365,21 @@ export const ServerDrawer = ({ server, isOpen, onClose, onUpdate, onRefresh }: S
                           letterSpacing: '0.04em',
                         }}
                       >
-                        VPC / NAT 1:1
+                        Linode network
                       </span>
                     </div>
+                    {ex.additional_public_ipv4.length > 0 && (
+                      <Row label="Additional public IPv4" value={ex.additional_public_ipv4.join(', ')} mono />
+                    )}
+                    {ex.additional_public_ipv6.length > 0 && (
+                      <div style={{ marginTop: 8 }}>
+                        <Row label="Additional public IPv6" value={ex.additional_public_ipv6.join(', ')} mono />
+                      </div>
+                    )}
                     {ex.vpc_ipv4.length > 0 && (
-                      <Row label="VPC IPv4 (private)" value={ex.vpc_ipv4.join(', ')} mono />
+                      <div style={{ marginTop: 8 }}>
+                        <Row label="VPC IPv4 (private)" value={ex.vpc_ipv4.join(', ')} mono />
+                      </div>
                     )}
                     {ex.vpc_ipv6.length > 0 && (
                       <div style={{ marginTop: 8 }}>

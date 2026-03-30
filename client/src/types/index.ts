@@ -43,7 +43,7 @@ export interface Server {
   notes?: string;
   last_seen?: string;
   cloud_provider_id?: number;
-  /** JSON from Linode sync: vpc_ipv4, vpc_ipv6, nat_1_1_ipv4, vpc_subnet_lines */
+  /** JSON from Linode sync: additional public IPs, VPC, NAT, subnets */
   linode_network_extras?: string | null;
   /** Custom field values keyed by custom column id (string) */
   custom_values?: Record<string, string>;
