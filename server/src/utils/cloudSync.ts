@@ -167,6 +167,21 @@ export async function syncLinodeProvider(
 ): Promise<number> {
   const instances = await fetchLinodeInstances(apiToken);
 
+  // Resolve OS labels (may call Linode API) before opening a DB transaction
+  const rows: { instance: LinodeInstance; os: string }[] = [];
+  for (const instance of instances) {
+    let os = 'Linux';
+    if (instance.image) {
+      if (isPrivateImage(instance.image)) {
+        const imageLabel = await fetchLinodeImageLabel(apiToken, instance.image);
+        os = imageLabel || 'Custom Image';
+      } else {
+        os = formatLinodeImage(instance.image);
+      }
+    }
+    rows.push({ instance, os });
+  }
+
   const client = await db.pool.connect();
   try {
     await client.query('BEGIN');
@@ -174,23 +189,11 @@ export async function syncLinodeProvider(
     // Get or create group for this provider
     const groupId = await getOrCreateProviderGroup(client, providerName);
 
-    for (const instance of instances) {
+    for (const { instance, os } of rows) {
       const cloudInstanceId = String(instance.id);
       const name = instance.label;
       const hostname = instance.label;
       const ipAddress = instance.ipv4[0] || null;
-
-      // Parse OS from image
-      let os = 'Linux';
-      if (instance.image) {
-        if (isPrivateImage(instance.image)) {
-          // Fetch private image label from Linode API
-          const imageLabel = await fetchLinodeImageLabel(apiToken, instance.image);
-          os = imageLabel || 'Custom Image';
-        } else {
-          os = formatLinodeImage(instance.image);
-        }
-      }
 
       const cpuCores = instance.specs.vcpus;
       const ramGb = Math.round(instance.specs.memory / 1024);

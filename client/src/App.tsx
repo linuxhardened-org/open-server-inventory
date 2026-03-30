@@ -41,8 +41,9 @@ function App() {
         const completed = !!res.data?.isSetupCompleted;
         setSetupCompletedInStore(completed);
       } catch {
+        // Do not assume setup completed on network/API failure — avoids sending users to
+        // login when the server is unreachable or misconfigured.
         if (!mounted) return;
-        setSetupCompletedInStore(true);
       } finally {
         if (mounted) setSetupChecked(true);
       }

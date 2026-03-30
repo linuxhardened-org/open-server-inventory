@@ -3,6 +3,8 @@ import { z } from 'zod';
 import db from '../db';
 import { env } from '../config/env';
 import { sendSuccess, sendError } from '../utils/response';
+import { sessionAuth } from '../middleware/sessionAuth';
+import { adminAuth } from '../middleware/adminAuth';
 
 const router = Router();
 
@@ -43,8 +45,8 @@ router.get('/db-status', async (_req, res) => {
   }
 });
 
-// PUT /api/settings — any authenticated user can update
-router.put('/', async (req, res) => {
+// PUT /api/settings — admin only (session); renames app for all users
+router.put('/', sessionAuth, adminAuth, async (req, res) => {
   const schema = z.object({
     app_name: z.string().trim().min(1).max(80).optional(),
   });

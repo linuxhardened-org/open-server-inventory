@@ -110,6 +110,10 @@ export const Settings = () => {
 
   const handleSaveName = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!isAdmin) {
+      toast.error('Only administrators can change the application name');
+      return;
+    }
     const name = appNameInput.trim();
     if (!name) return;
     setSavingName(true);
@@ -205,7 +209,10 @@ export const Settings = () => {
               <Settings2 className="h-4 w-4 text-primary" />
               General
             </h2>
-            <form onSubmit={handleSaveName} className="flex flex-wrap items-end gap-3">
+            <form
+              onSubmit={handleSaveName}
+              className={`flex flex-wrap items-end gap-3 ${!isAdmin ? 'opacity-50 pointer-events-none' : ''}`}
+            >
               <div className="flex-1 min-w-[220px]">
                 <label className="block text-sm font-medium text-secondary mb-1.5">Application Name</label>
                 <input
@@ -216,12 +223,16 @@ export const Settings = () => {
                   placeholder="ServerVault"
                   maxLength={80}
                   required
+                  disabled={!isAdmin}
                 />
               </div>
-              <button type="submit" disabled={savingName} className="sv-btn-primary h-[38px]">
+              <button type="submit" disabled={savingName || !isAdmin} className="sv-btn-primary h-[38px]">
                 {savingName ? 'Saving…' : 'Save'}
               </button>
             </form>
+            {!isAdmin && (
+              <p className="mt-2 text-xs text-amber-500/90">Only administrators can change the application name.</p>
+            )}
           </section>
 
           {/* Database connection status */}
