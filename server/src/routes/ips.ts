@@ -12,31 +12,224 @@ const ipSchema = z.object({
   label: z.string().optional(),
 });
 
-// GET / - List all IPs with server info
-router.get('/', async (req, res) => {
-  try {
-    const result = await db.query(`
+type IpType = 'public' | 'private' | 'ipv6';
+
+type MergedIpRow = {
+  id: number;
+  server_id: number;
+  ip_address: string;
+  ip_type: IpType;
+  label: string | null;
+  created_at: string;
+  server_name: string;
+  server_hostname: string;
+  source: 'server' | 'catalog';
+};
+
+function slotForEmbedded(kind: 'public' | 'private' | 'ipv6'): number {
+  if (kind === 'public') return 1;
+  if (kind === 'private') return 2;
+  return 3;
+}
+
+/** Negative id encodes server + field so UI can tell embedded rows apart */
+function embeddedId(serverId: number, kind: 'public' | 'private' | 'ipv6'): number {
+  return -(serverId * 1000 + slotForEmbedded(kind));
+}
+
+function dedupeKey(serverId: number, addr: string): string {
+  return `${serverId}\0${addr.trim().toLowerCase()}`;
+}
+
+/**
+ * Build list: catalog (server_ips) + IPs stored on servers.* columns, deduped by (server_id, ip_address).
+ */
+async function listAllIpsMerged(): Promise<MergedIpRow[]> {
+  const [catalogR, serversR] = await Promise.all([
+    db.query(`
       SELECT
         ip.id, ip.ip_address, ip.ip_type, ip.label, ip.created_at,
         ip.server_id, s.name as server_name, s.hostname as server_hostname
       FROM server_ips ip
       JOIN servers s ON s.id = ip.server_id
-      ORDER BY ip.ip_address
-    `);
-    sendSuccess(res, result.rows);
+    `),
+    db.query(`
+      SELECT id, name, hostname, ip_address, private_ip, ipv6_address, created_at, updated_at
+      FROM servers
+    `),
+  ]);
+
+  const catalog = catalogR.rows as {
+    id: number;
+    ip_address: string;
+    ip_type: IpType;
+    label: string | null;
+    created_at: string;
+    server_id: number;
+    server_name: string;
+    server_hostname: string;
+  }[];
+
+  const catalogKeys = new Set(catalog.map((r) => dedupeKey(r.server_id, r.ip_address)));
+
+  const embedded: MergedIpRow[] = [];
+  const servers = serversR.rows as {
+    id: number;
+    name: string;
+    hostname: string;
+    ip_address: string | null;
+    private_ip: string | null;
+    ipv6_address: string | null;
+    created_at: string;
+    updated_at: string;
+  }[];
+
+  const pushIf = (
+    s: (typeof servers)[0],
+    addr: string | null | undefined,
+    kind: 'public' | 'private' | 'ipv6',
+    defaultLabel: string
+  ) => {
+    const a = addr?.trim();
+    if (!a) return;
+    if (catalogKeys.has(dedupeKey(s.id, a))) return;
+    embedded.push({
+      id: embeddedId(s.id, kind),
+      server_id: s.id,
+      ip_address: a,
+      ip_type: kind === 'public' ? 'public' : kind === 'private' ? 'private' : 'ipv6',
+      label: defaultLabel,
+      created_at: s.updated_at || s.created_at,
+      server_name: s.name,
+      server_hostname: s.hostname,
+      source: 'server',
+    });
+  };
+
+  for (const s of servers) {
+    pushIf(s, s.ip_address, 'public', 'Primary (server)');
+    pushIf(s, s.private_ip, 'private', 'Private (server)');
+    pushIf(s, s.ipv6_address, 'ipv6', 'IPv6 (server)');
+  }
+
+  const catalogMerged: MergedIpRow[] = catalog.map((r) => ({
+    id: r.id,
+    server_id: r.server_id,
+    ip_address: r.ip_address,
+    ip_type: r.ip_type,
+    label: r.label,
+    created_at: r.created_at,
+    server_name: r.server_name,
+    server_hostname: r.server_hostname,
+    source: 'catalog',
+  }));
+
+  const all = [...embedded, ...catalogMerged];
+  all.sort((a, b) => a.ip_address.localeCompare(b.ip_address));
+  return all;
+}
+
+async function listServerIpsMerged(serverId: number): Promise<MergedIpRow[]> {
+  const [catalogR, serverR] = await Promise.all([
+    db.query(
+      `
+      SELECT ip.id, ip.ip_address, ip.ip_type, ip.label, ip.created_at, ip.server_id,
+             s.name as server_name, s.hostname as server_hostname
+      FROM server_ips ip
+      JOIN servers s ON s.id = ip.server_id
+      WHERE ip.server_id = $1
+    `,
+      [serverId]
+    ),
+    db.query(
+      `SELECT id, name, hostname, ip_address, private_ip, ipv6_address, created_at, updated_at FROM servers WHERE id = $1`,
+      [serverId]
+    ),
+  ]);
+
+  const catalog = catalogR.rows as {
+    id: number;
+    ip_address: string;
+    ip_type: IpType;
+    label: string | null;
+    created_at: string;
+    server_id: number;
+    server_name: string;
+    server_hostname: string;
+  }[];
+
+  const catalogKeys = new Set(catalog.map((r) => dedupeKey(r.server_id, r.ip_address)));
+
+  const embedded: MergedIpRow[] = [];
+  const s = serverR.rows[0] as
+    | {
+        id: number;
+        name: string;
+        hostname: string;
+        ip_address: string | null;
+        private_ip: string | null;
+        ipv6_address: string | null;
+        created_at: string;
+        updated_at: string;
+      }
+    | undefined;
+
+  if (s) {
+    const pushIf = (addr: string | null | undefined, kind: 'public' | 'private' | 'ipv6', defaultLabel: string) => {
+      const a = addr?.trim();
+      if (!a) return;
+      if (catalogKeys.has(dedupeKey(s.id, a))) return;
+      embedded.push({
+        id: embeddedId(s.id, kind),
+        server_id: s.id,
+        ip_address: a,
+        ip_type: kind === 'public' ? 'public' : kind === 'private' ? 'private' : 'ipv6',
+        label: defaultLabel,
+        created_at: s.updated_at || s.created_at,
+        server_name: s.name,
+        server_hostname: s.hostname,
+        source: 'server',
+      });
+    };
+    pushIf(s.ip_address, 'public', 'Primary (server)');
+    pushIf(s.private_ip, 'private', 'Private (server)');
+    pushIf(s.ipv6_address, 'ipv6', 'IPv6 (server)');
+  }
+
+  const catalogMerged: MergedIpRow[] = catalog.map((r) => ({
+    id: r.id,
+    server_id: r.server_id,
+    ip_address: r.ip_address,
+    ip_type: r.ip_type,
+    label: r.label,
+    created_at: r.created_at,
+    server_name: r.server_name,
+    server_hostname: r.server_hostname,
+    source: 'catalog',
+  }));
+
+  const all = [...embedded, ...catalogMerged];
+  all.sort((a, b) => a.ip_address.localeCompare(b.ip_address));
+  return all;
+}
+
+// GET / - List all IPs (server record fields + server_ips catalog), deduped
+router.get('/', async (_req, res) => {
+  try {
+    const rows = await listAllIpsMerged();
+    sendSuccess(res, rows);
   } catch (err: any) {
     sendError(res, err.message);
   }
 });
 
-// GET /server/:serverId - Get IPs for a specific server
+// GET /server/:serverId - IPs for one server (embedded + catalog)
 router.get('/server/:serverId', async (req, res) => {
   try {
-    const result = await db.query(
-      'SELECT * FROM server_ips WHERE server_id = $1 ORDER BY ip_type, ip_address',
-      [req.params.serverId]
-    );
-    sendSuccess(res, result.rows);
+    const sid = parseInt(req.params.serverId, 10);
+    if (Number.isNaN(sid)) return sendError(res, 'Invalid server id', 400);
+    const rows = await listServerIpsMerged(sid);
+    sendSuccess(res, rows);
   } catch (err: any) {
     sendError(res, err.message);
   }
@@ -59,8 +252,12 @@ router.post('/', async (req, res) => {
   }
 });
 
-// PUT /:id - Update IP
+// PUT /:id - Update IP (catalog rows only)
 router.put('/:id', async (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  if (Number.isNaN(id) || id <= 0) {
+    return sendError(res, 'Addresses from the server record are edited on the server, not here.', 400);
+  }
   const parsed = ipSchema.partial().safeParse(req.body);
   if (!parsed.success) return sendError(res, parsed.error.issues[0].message);
 
@@ -72,7 +269,7 @@ router.put('/:id', async (req, res) => {
         ip_type = COALESCE($2, ip_type),
         label = COALESCE($3, label)
       WHERE id = $4 RETURNING *`,
-      [ip_address, ip_type, label, req.params.id]
+      [ip_address, ip_type, label, id]
     );
     if (result.rows.length === 0) {
       return sendError(res, 'IP not found', 404);
@@ -83,10 +280,17 @@ router.put('/:id', async (req, res) => {
   }
 });
 
-// DELETE /:id - Delete IP
+// DELETE /:id - Delete catalog IP only (embedded server fields are not rows in server_ips)
 router.delete('/:id', async (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  if (Number.isNaN(id) || id <= 0) {
+    return sendError(res, 'Remove or change this address by editing the server in Servers.', 400);
+  }
   try {
-    await db.query('DELETE FROM server_ips WHERE id = $1', [req.params.id]);
+    const r = await db.query('DELETE FROM server_ips WHERE id = $1', [id]);
+    if (r.rowCount === 0) {
+      return sendError(res, 'IP not found', 404);
+    }
     sendSuccess(res, { message: 'IP deleted' });
   } catch (err: any) {
     sendError(res, err.message);
