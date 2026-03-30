@@ -22,14 +22,14 @@ router.get('/', async (req, res) => {
       db.query('SELECT COUNT(*)::text AS count FROM ssh_keys'),
       db.query(
         `SELECT COALESCE(NULLIF(TRIM(status), ''), 'unknown') AS status, COUNT(*)::text AS count
-         FROM servers GROUP BY 1 ORDER BY count::int DESC`
+         FROM servers GROUP BY 1 ORDER BY COUNT(*) DESC`
       ),
       db.query(
         `SELECT COALESCE(g.name, 'Ungrouped') AS name, COUNT(*)::text AS count
          FROM servers s
          LEFT JOIN groups g ON g.id = s.group_id
          GROUP BY g.id, g.name
-         ORDER BY count::int DESC`
+         ORDER BY COUNT(*) DESC`
       ),
       db.query(
         `SELECT
