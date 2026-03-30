@@ -1,4 +1,7 @@
 services:
+  # ── Local PostgreSQL ───────────────────────────────────────────────────────
+  # Not needed when DATABASE_URL points to Supabase.
+  # To skip: comment out this service and the depends_on block in server.
   db:
     image: postgres:15-alpine
     container_name: servervault-db
@@ -22,18 +25,24 @@ services:
       context: .
       dockerfile: server/Dockerfile
     ports:
-      # Host 3001 avoids conflict when host:3000 is already used (e.g. Grafana)
       - "3001:3000"
+    env_file:
+      - path: ./server/.env
+        required: false
     environment:
       - PORT=3000
       - NODE_ENV=production
       - CLIENT_URL=http://localhost:3001
+      - SESSION_SECRET=servervault-docker-session-secret-min-32-chars
+      # ── Option A: Local PostgreSQL (default when DATABASE_URL is not set) ──
       - POSTGRES_HOST=db
       - POSTGRES_PORT=5432
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=postgres
       - POSTGRES_DATABASE=servervault
-      - SESSION_SECRET=servervault-docker-session-secret-min-32-chars
+      # ── Option B: Supabase ─────────────────────────────────────────────────
+      # Set DATABASE_URL in server/.env — it overrides POSTGRES_* above.
+      # DATABASE_URL=postgresql://postgres.[ref]:[pw]@aws-0-[region].pooler.supabase.com:5432/postgres
     depends_on:
       db:
         condition: service_healthy

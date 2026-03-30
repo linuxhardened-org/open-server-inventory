@@ -27,6 +27,12 @@ export const env = {
   sessionSecret: requireSessionSecret(),
   /** If false, session cookies work on plain HTTP (Docker/local). */
   cookieSecure,
+  /**
+   * DATABASE_URL takes priority over individual POSTGRES_* vars.
+   * Set this to your Supabase connection string (Session mode, port 5432).
+   * Example: postgresql://postgres.[ref]:[password]@aws-0-[region].pooler.supabase.com:5432/postgres
+   */
+  databaseUrl: process.env.DATABASE_URL || null,
   postgres: {
     host: process.env.POSTGRES_HOST || 'localhost',
     port: parseInt(process.env.POSTGRES_PORT || '5432', 10),
@@ -34,4 +40,4 @@ export const env = {
     password: process.env.POSTGRES_PASSWORD || 'postgres',
     database: process.env.POSTGRES_DATABASE || 'servervault',
   },
-} as const;
+};

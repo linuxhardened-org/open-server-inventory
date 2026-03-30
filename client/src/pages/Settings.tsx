@@ -1,9 +1,11 @@
-import { useState } from 'react';
-import { Download, Upload, Trash2, ShieldAlert, Settings2 } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Download, Upload, Trash2, ShieldAlert, Settings2, Database, CheckCircle2, XCircle } from 'lucide-react';
 import axios from '../lib/api';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '../store/useAuthStore';
 import { useSettingsStore } from '../store/useSettingsStore';
+
+type DbStatus = { connected: boolean; provider?: string; version?: string; error?: string } | null;
 
 export const Settings = () => {
   const currentUser = useAuthStore((s) => s.user);
@@ -11,6 +13,24 @@ export const Settings = () => {
   const { appName, setAppName } = useSettingsStore();
   const [appNameInput, setAppNameInput] = useState(appName);
   const [savingName, setSavingName] = useState(false);
+  const [dbStatus, setDbStatus] = useState<DbStatus>(null);
+  const [dbChecking, setDbChecking] = useState(false);
+
+  useEffect(() => {
+    checkDb();
+  }, []);
+
+  const checkDb = async () => {
+    setDbChecking(true);
+    try {
+      const res = (await axios.get('/settings/db-status')) as { success: boolean; data: DbStatus };
+      setDbStatus(res.data);
+    } catch {
+      setDbStatus({ connected: false, error: 'Could not reach server' });
+    } finally {
+      setDbChecking(false);
+    }
+  };
 
   const handleExport = async (format: 'json' | 'csv') => {
     try {
@@ -120,6 +140,58 @@ export const Settings = () => {
               </button>
             </form>
           </section>
+
+          {/* Database connection status */}
+          <section className="sv-card">
+            <h2 className="mb-4 flex items-center gap-2 text-base font-semibold text-foreground">
+              <Database className="h-4 w-4 text-primary" />
+              Database
+            </h2>
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                {dbChecking ? (
+                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-border border-t-primary" />
+                ) : dbStatus?.connected ? (
+                  <CheckCircle2 className="h-5 w-5 text-green-500" />
+                ) : (
+                  <XCircle className="h-5 w-5 text-red-500" />
+                )}
+                <div>
+                  <p className="text-sm font-medium text-foreground">
+                    {dbChecking ? 'Checking…' : dbStatus?.connected ? 'Connected' : 'Not connected'}
+                  </p>
+                  <p className="text-xs text-secondary">
+                    {dbStatus?.connected
+                      ? `${dbStatus.provider === 'supabase' ? 'Supabase' : dbStatus.provider === 'external' ? 'External PostgreSQL' : 'Local PostgreSQL'} · ${dbStatus.version ?? ''}`
+                      : dbStatus?.error ?? ''}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                {dbStatus?.provider === 'local' && (
+                  <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[11px] font-medium text-blue-700 dark:bg-blue-500/10 dark:text-blue-400">
+                    Local
+                  </span>
+                )}
+                {dbStatus?.provider === 'supabase' && (
+                  <span className="rounded-full bg-green-100 px-2 py-0.5 text-[11px] font-medium text-green-700 dark:bg-green-500/10 dark:text-green-400">
+                    Supabase
+                  </span>
+                )}
+                <button type="button" onClick={checkDb} disabled={dbChecking} className="sv-btn-outline text-xs h-8 px-3">
+                  Recheck
+                </button>
+              </div>
+            </div>
+            {dbStatus?.provider !== 'supabase' && (
+              <p className="mt-3 text-xs text-secondary border-t border-border pt-3">
+                To use Supabase: set <code className="rounded bg-muted px-1 py-0.5 font-mono">DATABASE_URL</code> in{' '}
+                <code className="rounded bg-muted px-1 py-0.5 font-mono">server/.env</code> and restart.
+                Get the connection string from <span className="text-foreground font-medium">Supabase Dashboard → Project Settings → Database → Session mode (port 5432)</span>.
+              </p>
+            )}
+          </section>
+
           <section className="sv-card">
             <h2 className="mb-4 flex items-center gap-2 text-xl font-semibold text-foreground">
               <Download className="h-5 w-5 text-primary" />

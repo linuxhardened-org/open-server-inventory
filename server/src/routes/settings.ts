@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import db from '../db';
+import { env } from '../config/env';
 import { sendSuccess, sendError } from '../utils/response';
 
 const router = Router();
@@ -13,9 +14,32 @@ router.get('/', async (_req, res) => {
     for (const row of result.rows as { key: string; value: string }[]) {
       settings[row.key] = row.value;
     }
+    // Expose which DB backend is active (without revealing credentials)
+    const dbUrl = env.databaseUrl;
+    settings._db_provider = dbUrl
+      ? dbUrl.includes('supabase.com') ? 'supabase' : 'external'
+      : 'local';
     sendSuccess(res, settings);
   } catch (err: any) {
     sendError(res, err.message || 'Failed to load settings');
+  }
+});
+
+// GET /api/settings/db-status — test DB connectivity
+router.get('/db-status', async (_req, res) => {
+  try {
+    const result = await db.query('SELECT version() AS version');
+    const version = (result.rows[0] as { version: string }).version;
+    const dbUrl = env.databaseUrl;
+    sendSuccess(res, {
+      connected: true,
+      provider: dbUrl
+        ? dbUrl.includes('supabase.com') ? 'supabase' : 'external'
+        : 'local',
+      version: version.split(' ').slice(0, 2).join(' '),
+    });
+  } catch (err: any) {
+    sendSuccess(res, { connected: false, error: err.message });
   }
 });
 
