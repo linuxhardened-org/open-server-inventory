@@ -1,16 +1,19 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { motion } from 'framer-motion';
-import { Folder, Plus, Trash2, Edit2, Search } from 'lucide-react';
+import { Folder, Plus, Trash2, Edit2, Search, ExternalLink } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '../lib/api';
 import { Group } from '../types';
 
 export const Groups = () => {
+  const navigate = useNavigate();
   const [groups, setGroups] = useState<Group[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [isAdding, setIsAdding] = useState(false);
-  const [newGroupName, setNewGroupName] = useState('');
-  const [newGroupDesc, setNewGroupDesc] = useState('');
+  const [editingGroup, setEditingGroup] = useState<Group | null>(null);
+  const [formName, setFormName] = useState('');
+  const [formDesc, setFormDesc] = useState('');
 
   useEffect(() => {
     fetchGroups();
@@ -28,9 +31,9 @@ export const Groups = () => {
   const handleAddGroup = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await api.post('/groups', { name: newGroupName, description: newGroupDesc });
-      setNewGroupName('');
-      setNewGroupDesc('');
+      await api.post('/groups', { name: formName, description: formDesc });
+      setFormName('');
+      setFormDesc('');
       setIsAdding(false);
       fetchGroups();
       toast.success('Group created');
@@ -39,8 +42,29 @@ export const Groups = () => {
     }
   };
 
+  const handleEditGroup = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingGroup) return;
+    try {
+      await api.put(`/groups/${editingGroup.id}`, { name: formName, description: formDesc });
+      setEditingGroup(null);
+      setFormName('');
+      setFormDesc('');
+      fetchGroups();
+      toast.success('Group updated');
+    } catch (err) {
+      toast.error('Failed to update group');
+    }
+  };
+
+  const startEdit = (group: Group) => {
+    setEditingGroup(group);
+    setFormName(group.name);
+    setFormDesc(group.description || '');
+  };
+
   const handleDeleteGroup = async (id: number) => {
-    if (!confirm('Are you sure you want to delete this group? Servers in this group will be unassigned.')) return;
+    if (!confirm('Delete this group? Servers will be unassigned.')) return;
     try {
       await api.delete(`/groups/${id}`);
       fetchGroups();
@@ -48,6 +72,10 @@ export const Groups = () => {
     } catch (err) {
       toast.error('Failed to delete group');
     }
+  };
+
+  const viewServers = (groupId: number) => {
+    navigate(`/servers?group=${groupId}`);
   };
 
   const filteredGroups = groups.filter(g =>
@@ -82,7 +110,7 @@ export const Groups = () => {
           </div>
           <p>Organize your infrastructure into logical units.</p>
         </div>
-        <button onClick={() => setIsAdding(true)} className="sv-btn-primary">
+        <button onClick={() => { setIsAdding(true); setFormName(''); setFormDesc(''); }} className="sv-btn-primary">
           <Plus style={{ width: 15, height: 15 }} /> Add Group
         </button>
       </header>
@@ -111,58 +139,41 @@ export const Groups = () => {
         />
       </div>
 
-      {/* Add form */}
-      {isAdding && (
+      {/* Add/Edit form */}
+      {(isAdding || editingGroup) && (
         <motion.div
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
           className="sv-card"
           style={{ background: 'hsl(var(--primary) / 0.04)', borderColor: 'hsl(var(--primary) / 0.2)' }}
         >
-          <form onSubmit={handleAddGroup} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <form onSubmit={editingGroup ? handleEditGroup : handleAddGroup} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <h3 style={{ fontSize: 14, fontWeight: 600, color: 'hsl(var(--fg))' }}>
+              {editingGroup ? 'Edit Group' : 'New Group'}
+            </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label
-                  style={{
-                    display: 'block',
-                    fontSize: 11,
-                    fontWeight: 500,
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.06em',
-                    color: 'hsl(var(--fg-2))',
-                    marginBottom: 6,
-                  }}
-                >
+                <label style={{ display: 'block', fontSize: 11, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'hsl(var(--fg-2))', marginBottom: 6 }}>
                   Group Name
                 </label>
                 <input
                   type="text"
                   required
                   className="sv-input"
-                  value={newGroupName}
-                  onChange={(e) => setNewGroupName(e.target.value)}
+                  value={formName}
+                  onChange={(e) => setFormName(e.target.value)}
                   placeholder="e.g. Production"
                 />
               </div>
               <div>
-                <label
-                  style={{
-                    display: 'block',
-                    fontSize: 11,
-                    fontWeight: 500,
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.06em',
-                    color: 'hsl(var(--fg-2))',
-                    marginBottom: 6,
-                  }}
-                >
+                <label style={{ display: 'block', fontSize: 11, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'hsl(var(--fg-2))', marginBottom: 6 }}>
                   Description
                 </label>
                 <input
                   type="text"
                   className="sv-input"
-                  value={newGroupDesc}
-                  onChange={(e) => setNewGroupDesc(e.target.value)}
+                  value={formDesc}
+                  onChange={(e) => setFormDesc(e.target.value)}
                   placeholder="Optional description"
                 />
               </div>
@@ -170,13 +181,13 @@ export const Groups = () => {
             <div className="flex justify-end gap-3">
               <button
                 type="button"
-                onClick={() => setIsAdding(false)}
+                onClick={() => { setIsAdding(false); setEditingGroup(null); }}
                 className="sv-btn-ghost"
               >
                 Cancel
               </button>
               <button type="submit" className="sv-btn-primary">
-                Create Group
+                {editingGroup ? 'Save Changes' : 'Create Group'}
               </button>
             </div>
           </form>
@@ -185,10 +196,7 @@ export const Groups = () => {
 
       {/* Empty state */}
       {filteredGroups.length === 0 && (
-        <div
-          className="flex flex-col items-center justify-center"
-          style={{ padding: '48px 0', color: 'hsl(var(--fg-3))' }}
-        >
+        <div className="flex flex-col items-center justify-center" style={{ padding: '48px 0', color: 'hsl(var(--fg-3))' }}>
           <Folder style={{ width: 40, height: 40, opacity: 0.3, marginBottom: 12 }} />
           <p style={{ fontSize: 13 }}>
             {searchTerm ? 'No groups match your search.' : 'No groups yet. Create one to organize your servers.'}
@@ -204,20 +212,9 @@ export const Groups = () => {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: index * 0.04 }}
-            className="sv-card group"
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              transition: 'border-color 150ms, transform 150ms',
-            }}
-            onMouseEnter={(e) => {
-              (e.currentTarget as HTMLDivElement).style.borderColor = 'hsl(var(--primary) / 0.4)';
-              (e.currentTarget as HTMLDivElement).style.transform = 'translateY(-2px)';
-            }}
-            onMouseLeave={(e) => {
-              (e.currentTarget as HTMLDivElement).style.borderColor = '';
-              (e.currentTarget as HTMLDivElement).style.transform = '';
-            }}
+            className="sv-card"
+            style={{ display: 'flex', flexDirection: 'column', cursor: 'pointer' }}
+            onClick={() => viewServers(group.id)}
           >
             <div className="flex items-start justify-between" style={{ marginBottom: 12 }}>
               <div
@@ -234,91 +231,34 @@ export const Groups = () => {
               >
                 <Folder style={{ width: 22, height: 22 }} />
               </div>
-              <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+              <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
                 <button
                   type="button"
-                  style={{
-                    width: 28,
-                    height: 28,
-                    borderRadius: 6,
-                    border: 'none',
-                    background: 'none',
-                    cursor: 'pointer',
-                    color: 'hsl(var(--fg-3))',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                  onMouseEnter={(e) => {
-                    (e.currentTarget as HTMLButtonElement).style.background = 'hsl(var(--surface-3))';
-                    (e.currentTarget as HTMLButtonElement).style.color = 'hsl(var(--fg))';
-                  }}
-                  onMouseLeave={(e) => {
-                    (e.currentTarget as HTMLButtonElement).style.background = 'none';
-                    (e.currentTarget as HTMLButtonElement).style.color = 'hsl(var(--fg-3))';
-                  }}
+                  onClick={() => startEdit(group)}
+                  className="sv-btn-ghost"
+                  style={{ padding: 6 }}
+                  title="Edit group"
                 >
                   <Edit2 style={{ width: 14, height: 14 }} />
                 </button>
                 <button
                   type="button"
                   onClick={() => handleDeleteGroup(group.id)}
-                  style={{
-                    width: 28,
-                    height: 28,
-                    borderRadius: 6,
-                    border: 'none',
-                    background: 'none',
-                    cursor: 'pointer',
-                    color: 'hsl(var(--fg-3))',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                  onMouseEnter={(e) => {
-                    (e.currentTarget as HTMLButtonElement).style.background = 'hsl(var(--danger) / 0.1)';
-                    (e.currentTarget as HTMLButtonElement).style.color = 'hsl(var(--danger))';
-                  }}
-                  onMouseLeave={(e) => {
-                    (e.currentTarget as HTMLButtonElement).style.background = 'none';
-                    (e.currentTarget as HTMLButtonElement).style.color = 'hsl(var(--fg-3))';
-                  }}
+                  className="sv-btn-ghost"
+                  style={{ padding: 6, color: 'hsl(var(--danger))' }}
+                  title="Delete group"
                 >
                   <Trash2 style={{ width: 14, height: 14 }} />
                 </button>
               </div>
             </div>
-            <h3
-              style={{
-                fontSize: 15,
-                fontWeight: 600,
-                color: 'hsl(var(--fg))',
-                marginBottom: 4,
-              }}
-            >
+            <h3 style={{ fontSize: 15, fontWeight: 600, color: 'hsl(var(--fg))', marginBottom: 4 }}>
               {group.name}
             </h3>
-            <p
-              style={{
-                fontSize: 12,
-                color: 'hsl(var(--fg-2))',
-                marginBottom: 12,
-                lineHeight: 1.5,
-                display: '-webkit-box',
-                WebkitLineClamp: 2,
-                WebkitBoxOrient: 'vertical',
-                overflow: 'hidden',
-              }}
-            >
-              {group.description || 'No description provided.'}
+            <p style={{ fontSize: 12, color: 'hsl(var(--fg-2))', marginBottom: 12, lineHeight: 1.5 }}>
+              {group.description || 'No description'}
             </p>
-            <div
-              style={{
-                marginTop: 'auto',
-                paddingTop: 12,
-                borderTop: '1px solid hsl(var(--border))',
-              }}
-            >
+            <div style={{ marginTop: 'auto', paddingTop: 12, borderTop: '1px solid hsl(var(--border))', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <span
                 style={{
                   display: 'inline-flex',
@@ -333,6 +273,7 @@ export const Groups = () => {
               >
                 {group.serverCount || 0} Servers
               </span>
+              <ExternalLink style={{ width: 14, height: 14, color: 'hsl(var(--fg-3))' }} />
             </div>
           </motion.div>
         ))}

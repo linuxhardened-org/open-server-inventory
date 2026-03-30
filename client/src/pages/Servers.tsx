@@ -1,28 +1,38 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Plus, Search, Filter, Download, Trash2, Columns } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
+import { Plus, Search, Filter, Download, Trash2, Columns, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { ServerTable } from '../components/ServerTable';
 import { ServerDrawer } from '../components/ServerDrawer';
 import { AddServerModal } from '../components/AddServerModal';
-import type { CustomColumn, Server } from '../types';
+import type { CustomColumn, Server, Group, Tag } from '../types';
 import api, { getApiErrorMessage } from '../lib/api';
 
 type ApiListResponse<T> = { success: boolean; data: T };
 
 export const Servers = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [servers, setServers] = useState<Server[]>([]);
   const [customColumns, setCustomColumns] = useState<CustomColumn[]>([]);
+  const [groups, setGroups] = useState<Group[]>([]);
+  const [tags, setTags] = useState<Tag[]>([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedServer, setSelectedServer] = useState<Server | null>(null);
   const [newColumnName, setNewColumnName] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
 
+  // Get filter params from URL
+  const filterGroupId = searchParams.get('group');
+  const filterTagId = searchParams.get('tag');
+
   const load = useCallback(async () => {
     try {
-      const [sRes, cRes] = await Promise.allSettled([
+      const [sRes, cRes, gRes, tRes] = await Promise.allSettled([
         api.get<ApiListResponse<Server[]>>('/servers'),
         api.get<ApiListResponse<CustomColumn[]>>('/custom-columns'),
+        api.get<ApiListResponse<Group[]>>('/groups'),
+        api.get<ApiListResponse<Tag[]>>('/tags'),
       ]);
 
       if (sRes.status === 'fulfilled') {
@@ -37,6 +47,16 @@ export const Servers = () => {
         setCustomColumns(Array.isArray(cols) ? cols : []);
       } else {
         toast.error(getApiErrorMessage(cRes.reason, 'Failed to load custom columns'));
+      }
+
+      if (gRes.status === 'fulfilled') {
+        const grps = gRes.value?.data;
+        setGroups(Array.isArray(grps) ? grps : []);
+      }
+
+      if (tRes.status === 'fulfilled') {
+        const tgs = tRes.value?.data;
+        setTags(Array.isArray(tgs) ? tgs : []);
       }
     } catch (e: unknown) {
       toast.error(getApiErrorMessage(e, 'Failed to load servers'));
@@ -107,11 +127,32 @@ export const Servers = () => {
     }
   };
 
-  const onlineCount = servers.filter((s) => s.status === 'online' || s.status === 'active').length;
-  const offlineCount = servers.filter(
+  // Clear filter from URL
+  const clearFilters = () => {
+    setSearchParams({});
+  };
+
+  // Get active filter info
+  const activeFilterGroup = filterGroupId ? groups.find(g => g.id === parseInt(filterGroupId)) : null;
+  const activeFilterTag = filterTagId ? tags.find(t => t.id === parseInt(filterTagId)) : null;
+
+  // Filter servers by group or tag
+  const filteredByParams = servers.filter((s) => {
+    if (filterGroupId) {
+      return s.group_id === parseInt(filterGroupId);
+    }
+    if (filterTagId) {
+      const tagIdNum = parseInt(filterTagId);
+      return s.tags?.some((t) => (typeof t === 'object' ? t.id : t) === tagIdNum);
+    }
+    return true;
+  });
+
+  const onlineCount = filteredByParams.filter((s) => s.status === 'online' || s.status === 'active').length;
+  const offlineCount = filteredByParams.filter(
     (s) => s.status !== 'online' && s.status !== 'active' && s.status !== 'maintenance'
   ).length;
-  const maintenanceCount = servers.filter((s) => s.status === 'maintenance').length;
+  const maintenanceCount = filteredByParams.filter((s) => s.status === 'maintenance').length;
 
   return (
     <div className="page animate-in" style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
@@ -148,6 +189,38 @@ export const Servers = () => {
         </button>
       </header>
 
+      {/* Active filter banner */}
+      {(activeFilterGroup || activeFilterTag) && (
+        <div
+          className="flex items-center gap-3"
+          style={{
+            padding: '10px 14px',
+            borderRadius: 8,
+            background: 'hsl(var(--primary) / 0.08)',
+            border: '1px solid hsl(var(--primary) / 0.2)',
+          }}
+        >
+          <Filter style={{ width: 14, height: 14, color: 'hsl(var(--primary))' }} />
+          <span style={{ fontSize: 13, color: 'hsl(var(--fg))' }}>
+            Showing servers in{' '}
+            {activeFilterGroup && (
+              <strong style={{ color: 'hsl(var(--primary))' }}>Group: {activeFilterGroup.name}</strong>
+            )}
+            {activeFilterTag && (
+              <strong style={{ color: activeFilterTag.color || 'hsl(var(--primary))' }}>Tag: {activeFilterTag.name}</strong>
+            )}
+          </span>
+          <button
+            type="button"
+            onClick={clearFilters}
+            className="sv-btn-ghost"
+            style={{ marginLeft: 'auto', padding: '4px 10px', fontSize: 12, gap: 4 }}
+          >
+            <X style={{ width: 12, height: 12 }} /> Clear filter
+          </button>
+        </div>
+      )}
+
       {/* Stat pills row */}
       {!loading && (
         <div className="flex items-center gap-3 flex-wrap">
@@ -164,7 +237,7 @@ export const Servers = () => {
               style={{ width: 7, height: 7, borderRadius: '50%', background: 'hsl(var(--fg-3))', flexShrink: 0 }}
             />
             <span style={{ fontSize: 13, color: 'hsl(var(--fg-2))' }}>
-              <span style={{ fontWeight: 600, color: 'hsl(var(--fg))' }}>{servers.length}</span> total
+              <span style={{ fontWeight: 600, color: 'hsl(var(--fg))' }}>{filteredByParams.length}</span> total
             </span>
           </div>
           <div
@@ -413,7 +486,7 @@ export const Servers = () => {
           </div>
         ) : (
           <ServerTable
-            servers={servers.filter((s) => {
+            servers={filteredByParams.filter((s) => {
               if (!searchTerm) return true;
               const q = searchTerm.toLowerCase();
               return (

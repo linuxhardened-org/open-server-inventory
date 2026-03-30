@@ -1,16 +1,19 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { motion } from 'framer-motion';
-import { Tag as TagIcon, Plus, Trash2, Search } from 'lucide-react';
+import { Tag as TagIcon, Plus, Trash2, Edit2, Search, ExternalLink } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '../lib/api';
 import { Tag } from '../types';
 
 export const Tags = () => {
+  const navigate = useNavigate();
   const [tags, setTags] = useState<Tag[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [isAdding, setIsAdding] = useState(false);
-  const [newTagName, setNewTagName] = useState('');
-  const [newTagColor, setNewTagColor] = useState('#3ecf8e');
+  const [editingTag, setEditingTag] = useState<Tag | null>(null);
+  const [formName, setFormName] = useState('');
+  const [formColor, setFormColor] = useState('#3ecf8e');
 
   const colors = [
     '#3ecf8e', '#3b82f6', '#ef4444', '#f59e0b', '#8b5cf6',
@@ -33,14 +36,40 @@ export const Tags = () => {
   const handleAddTag = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await api.post('/tags', { name: newTagName, color: newTagColor });
-      setNewTagName('');
+      await api.post('/tags', { name: formName, color: formColor });
+      setFormName('');
+      setFormColor('#3ecf8e');
       setIsAdding(false);
       fetchTags();
       toast.success('Tag created');
     } catch (err) {
       toast.error('Failed to add tag');
     }
+  };
+
+  const handleEditTag = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingTag) return;
+    try {
+      await api.put(`/tags/${editingTag.id}`, { name: formName, color: formColor });
+      setEditingTag(null);
+      setFormName('');
+      setFormColor('#3ecf8e');
+      fetchTags();
+      toast.success('Tag updated');
+    } catch (err) {
+      toast.error('Failed to update tag');
+    }
+  };
+
+  const startEdit = (tag: Tag) => {
+    setEditingTag(tag);
+    setFormName(tag.name);
+    setFormColor(tag.color || '#3ecf8e');
+  };
+
+  const viewServers = (tagId: number) => {
+    navigate(`/servers?tag=${tagId}`);
   };
 
   const handleDeleteTag = async (id: number) => {
@@ -85,7 +114,7 @@ export const Tags = () => {
           </div>
           <p>Categorize and filter your servers.</p>
         </div>
-        <button onClick={() => setIsAdding(true)} className="sv-btn-primary">
+        <button onClick={() => { setIsAdding(true); setFormName(''); setFormColor('#3ecf8e'); }} className="sv-btn-primary">
           <Plus style={{ width: 15, height: 15 }} /> Add Tag
         </button>
       </header>
@@ -114,15 +143,18 @@ export const Tags = () => {
         />
       </div>
 
-      {/* Add form */}
-      {isAdding && (
+      {/* Add/Edit form */}
+      {(isAdding || editingTag) && (
         <motion.div
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
           className="sv-card"
           style={{ background: 'hsl(var(--primary) / 0.04)', borderColor: 'hsl(var(--primary) / 0.2)' }}
         >
-          <form onSubmit={handleAddTag} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <form onSubmit={editingTag ? handleEditTag : handleAddTag} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <h3 style={{ fontSize: 14, fontWeight: 600, color: 'hsl(var(--fg))' }}>
+              {editingTag ? 'Edit Tag' : 'New Tag'}
+            </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label
@@ -142,8 +174,8 @@ export const Tags = () => {
                   type="text"
                   required
                   className="sv-input"
-                  value={newTagName}
-                  onChange={(e) => setNewTagName(e.target.value)}
+                  value={formName}
+                  onChange={(e) => setFormName(e.target.value)}
                   placeholder="e.g. Production"
                 />
               </div>
@@ -166,23 +198,23 @@ export const Tags = () => {
                     <button
                       key={color}
                       type="button"
-                      onClick={() => setNewTagColor(color)}
+                      onClick={() => setFormColor(color)}
                       style={{
                         width: 28,
                         height: 28,
                         borderRadius: 9999,
                         backgroundColor: color,
-                        border: newTagColor === color ? '2px solid hsl(var(--fg))' : '2px solid transparent',
+                        border: formColor === color ? '2px solid hsl(var(--fg))' : '2px solid transparent',
                         cursor: 'pointer',
                         transition: 'transform 100ms',
-                        transform: newTagColor === color ? 'scale(1.1)' : 'scale(1)',
+                        transform: formColor === color ? 'scale(1.1)' : 'scale(1)',
                       }}
                     />
                   ))}
                   <input
                     type="color"
-                    value={newTagColor}
-                    onChange={(e) => setNewTagColor(e.target.value)}
+                    value={formColor}
+                    onChange={(e) => setFormColor(e.target.value)}
                     style={{
                       width: 28,
                       height: 28,
@@ -199,13 +231,13 @@ export const Tags = () => {
             <div className="flex justify-end gap-3">
               <button
                 type="button"
-                onClick={() => setIsAdding(false)}
+                onClick={() => { setIsAdding(false); setEditingTag(null); }}
                 className="sv-btn-ghost"
               >
                 Cancel
               </button>
               <button type="submit" className="sv-btn-primary">
-                Create Tag
+                {editingTag ? 'Save Changes' : 'Create Tag'}
               </button>
             </div>
           </form>
@@ -233,7 +265,7 @@ export const Tags = () => {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: index * 0.03 }}
-            className="sv-card group"
+            className="sv-card"
             style={{
               padding: '12px 14px',
               display: 'flex',
@@ -243,7 +275,9 @@ export const Tags = () => {
               borderLeftWidth: 3,
               borderLeftColor: tag.color || '#3ecf8e',
               transition: 'border-color 150ms, background 150ms',
+              cursor: 'pointer',
             }}
+            onClick={() => viewServers(tag.id)}
             onMouseEnter={(e) => {
               (e.currentTarget as HTMLDivElement).style.background = 'hsl(var(--surface-2))';
             }}
@@ -251,7 +285,7 @@ export const Tags = () => {
               (e.currentTarget as HTMLDivElement).style.background = '';
             }}
           >
-            <div className="flex items-center gap-3" style={{ minWidth: 0 }}>
+            <div className="flex items-center gap-3" style={{ minWidth: 0, flex: 1 }}>
               <div
                 style={{
                   width: 28,
@@ -275,39 +309,33 @@ export const Tags = () => {
                   overflow: 'hidden',
                   textOverflow: 'ellipsis',
                   whiteSpace: 'nowrap',
+                  flex: 1,
                 }}
               >
                 {tag.name}
               </span>
+              <ExternalLink style={{ width: 12, height: 12, color: 'hsl(var(--fg-3))', flexShrink: 0 }} />
             </div>
-            <button
-              type="button"
-              onClick={() => handleDeleteTag(tag.id)}
-              className="opacity-0 group-hover:opacity-100 transition-opacity"
-              style={{
-                width: 26,
-                height: 26,
-                borderRadius: 5,
-                border: 'none',
-                background: 'none',
-                cursor: 'pointer',
-                color: 'hsl(var(--fg-3))',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                flexShrink: 0,
-              }}
-              onMouseEnter={(e) => {
-                (e.currentTarget as HTMLButtonElement).style.background = 'hsl(var(--danger) / 0.1)';
-                (e.currentTarget as HTMLButtonElement).style.color = 'hsl(var(--danger))';
-              }}
-              onMouseLeave={(e) => {
-                (e.currentTarget as HTMLButtonElement).style.background = 'none';
-                (e.currentTarget as HTMLButtonElement).style.color = 'hsl(var(--fg-3))';
-              }}
-            >
-              <Trash2 style={{ width: 14, height: 14 }} />
-            </button>
+            <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
+              <button
+                type="button"
+                onClick={() => startEdit(tag)}
+                className="sv-btn-ghost"
+                style={{ padding: 6 }}
+                title="Edit tag"
+              >
+                <Edit2 style={{ width: 14, height: 14 }} />
+              </button>
+              <button
+                type="button"
+                onClick={() => handleDeleteTag(tag.id)}
+                className="sv-btn-ghost"
+                style={{ padding: 6, color: 'hsl(var(--danger))' }}
+                title="Delete tag"
+              >
+                <Trash2 style={{ width: 14, height: 14 }} />
+              </button>
+            </div>
           </motion.div>
         ))}
       </div>
