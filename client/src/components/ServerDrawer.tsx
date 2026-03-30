@@ -1,7 +1,6 @@
 import { useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import type { LucideIcon } from 'lucide-react';
-import { X, Server, Activity, Shield, Key, Settings, Globe } from 'lucide-react';
+import { X, Server, Cpu, MemoryStick, HardDrive, Network } from 'lucide-react';
 import { Server as ServerType } from '../types';
 
 interface ServerDrawerProps {
@@ -9,18 +8,6 @@ interface ServerDrawerProps {
   isOpen: boolean;
   onClose: () => void;
 }
-
-const Tab = ({ icon: Icon, label, active = false }: { icon: LucideIcon; label: string; active?: boolean }) => (
-  <button
-    type="button"
-    className={`flex items-center gap-2 whitespace-nowrap border-b-2 px-3 py-2 text-sm font-medium transition-colors md:px-4 ${
-      active ? 'border-primary text-primary' : 'border-transparent text-secondary hover:text-foreground'
-    }`}
-  >
-    <Icon className="h-4 w-4 shrink-0" />
-    {label}
-  </button>
-);
 
 export const ServerDrawer = ({ server, isOpen, onClose }: ServerDrawerProps) => {
   useEffect(() => {
@@ -35,149 +22,303 @@ export const ServerDrawer = ({ server, isOpen, onClose }: ServerDrawerProps) => 
       document.body.style.overflow = prev;
       window.removeEventListener('keydown', onKey);
     };
-  }, [isOpen, server]);
+  }, [isOpen, onClose, server]);
 
   if (!server) return null;
+
+  const statusColor = server.status === 'online' || server.status === 'active'
+    ? 'hsl(var(--success))'
+    : 'hsl(var(--danger))';
 
   return (
     <AnimatePresence mode="wait">
       {isOpen && (
-        <motion.div
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="server-detail-title"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.2 }}
-          className="fixed inset-0 z-[100] flex flex-col bg-background"
-        >
-          <header className="flex shrink-0 items-center justify-between gap-4 border-b border-border px-4 py-4 md:px-8">
-            <div className="flex min-w-0 items-center gap-4">
-              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-primary/10">
-                <Server className="h-6 w-6 text-primary" />
-              </div>
-              <div className="min-w-0">
-                <h2 id="server-detail-title" className="truncate text-xl font-bold text-foreground">
-                  {server.hostname}
-                </h2>
-                <div className="mt-0.5 flex flex-wrap items-center gap-2">
-                  <span
-                    className={`h-2 w-2 shrink-0 rounded-full ${
-                      server.status === 'online' || server.status === 'active' ? 'bg-success' : 'bg-danger'
-                    }`}
-                  />
-                  <span className="font-mono text-sm text-secondary">
-                    {server.ip_address} • {server.os}
-                  </span>
-                </div>
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={onClose}
-              className="shrink-0 rounded-full p-2 text-secondary transition-colors hover:bg-foreground/[0.06] hover:text-foreground"
-              aria-label="Close server details"
+        <>
+          {/* Backdrop */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={onClose}
+            style={{
+              position: 'fixed',
+              inset: 0,
+              zIndex: 99,
+              background: 'hsl(var(--bg) / 0.8)',
+              backdropFilter: 'blur(4px)',
+            }}
+          />
+
+          {/* Drawer */}
+          <motion.div
+            role="dialog"
+            aria-modal="true"
+            initial={{ x: '100%' }}
+            animate={{ x: 0 }}
+            exit={{ x: '100%' }}
+            transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+            style={{
+              position: 'fixed',
+              top: 0,
+              right: 0,
+              bottom: 0,
+              width: '100%',
+              maxWidth: 480,
+              zIndex: 100,
+              background: 'hsl(var(--surface))',
+              borderLeft: '1px solid hsl(var(--border))',
+              display: 'flex',
+              flexDirection: 'column',
+              boxShadow: '-8px 0 32px hsl(var(--bg) / 0.3)',
+            }}
+          >
+            {/* Header */}
+            <header
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: 16,
+                padding: '20px 24px',
+                borderBottom: '1px solid hsl(var(--border))',
+              }}
             >
-              <X className="h-6 w-6" />
-            </button>
-          </header>
-
-          <div className="flex shrink-0 gap-1 overflow-x-auto border-b border-border bg-surface/50 px-2 md:px-6">
-            <Tab icon={Activity} label="Monitoring" active />
-            <Tab icon={Shield} label="Security" />
-            <Tab icon={Key} label="SSH Keys" />
-            <Tab icon={Globe} label="Networking" />
-            <Tab icon={Settings} label="Configs" />
-          </div>
-
-          <div className="min-h-0 flex-1 overflow-y-auto">
-            <div className="mx-auto max-w-6xl space-y-8 px-4 py-6 md:px-8 md:py-8">
-              <section>
-                <h3 className="mb-4 text-xs font-bold uppercase tracking-widest text-secondary">Resource usage</h3>
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-                  <div className="rounded-xl border border-border bg-surface p-4">
-                    <p className="mb-1 text-xs text-secondary">CPU cores</p>
-                    <p className="text-xl font-bold text-foreground">{server.cpu_cores || 0}</p>
-                    <div className="mt-3 h-1 w-full overflow-hidden rounded-full bg-foreground/10">
-                      <div className="h-full w-[12%] bg-primary" />
-                    </div>
-                  </div>
-                  <div className="rounded-xl border border-border bg-surface p-4">
-                    <p className="mb-1 text-xs text-secondary">Memory (RAM)</p>
-                    <p className="text-xl font-bold text-foreground">{server.ram_gb || 0} GB</p>
-                    <div className="mt-3 h-1 w-full overflow-hidden rounded-full bg-foreground/10">
-                      <div className="h-full w-[52%] bg-success" />
-                    </div>
-                  </div>
-                  <div className="rounded-xl border border-border bg-surface p-4">
-                    <p className="mb-1 text-xs text-secondary">Last seen</p>
-                    <p className="text-sm font-bold text-foreground">
-                      {server.last_seen ? new Date(server.last_seen).toLocaleString() : 'Never'}
-                    </p>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 14, minWidth: 0 }}>
+                <div
+                  style={{
+                    width: 44,
+                    height: 44,
+                    borderRadius: 10,
+                    background: 'hsl(var(--primary) / 0.1)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0,
+                  }}
+                >
+                  <Server style={{ width: 22, height: 22, color: 'hsl(var(--primary))' }} />
+                </div>
+                <div style={{ minWidth: 0 }}>
+                  <h2
+                    style={{
+                      fontSize: 18,
+                      fontWeight: 600,
+                      color: 'hsl(var(--fg))',
+                      margin: 0,
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    {server.name || server.hostname}
+                  </h2>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
+                    <span
+                      style={{
+                        width: 8,
+                        height: 8,
+                        borderRadius: '50%',
+                        background: statusColor,
+                      }}
+                    />
+                    <span style={{ fontSize: 13, color: 'hsl(var(--fg-2))', fontFamily: 'var(--font-mono)' }}>
+                      {server.ip_address || 'No IP'}
+                    </span>
                   </div>
                 </div>
-              </section>
-
-              <section>
-                <h3 className="mb-4 text-xs font-bold uppercase tracking-widest text-secondary">Sample terminal</h3>
-                <div className="space-y-2 rounded-lg border border-border bg-surface p-4 font-mono text-sm">
-                  <p className="text-success">$ uptime</p>
-                  <p className="text-secondary">up 45 days, 12:45, 2 users, load average: 0.12, 0.08, 0.05</p>
-                  <p className="text-success">$ df -h</p>
-                  <p className="text-secondary">Filesystem      Size  Used Avail Use% Mounted on</p>
-                  <p className="text-secondary">/dev/sda1        156G   88G   68G  82% /</p>
-                  <div className="flex items-center gap-1">
-                    <span className="text-success">$</span>
-                    <span className="h-4 w-2 animate-pulse bg-foreground/50" />
-                  </div>
-                </div>
-              </section>
-
-              <section>
-                <div className="mb-4 flex items-center justify-between">
-                  <h3 className="text-xs font-bold uppercase tracking-widest text-secondary">Environment</h3>
-                  <span className="rounded border border-primary/25 bg-primary/10 px-2 py-0.5 text-[10px] font-bold uppercase text-primary">
-                    {server.group_name || 'Production'}
-                  </span>
-                </div>
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between rounded-lg border border-border bg-surface p-3">
-                    <div className="flex items-center gap-3">
-                      <div className="h-2 w-2 rounded-full bg-success" />
-                      <span className="text-sm font-medium text-foreground">Secondary IP</span>
-                    </div>
-                    <span className="font-mono text-xs text-secondary">None</span>
-                  </div>
-                </div>
-              </section>
-            </div>
-          </div>
-
-          <footer className="shrink-0 space-y-3 border-t border-border bg-surface/80 px-4 py-4 backdrop-blur-md md:px-8">
-            <p className="text-xs text-secondary">
-              ServerVault is inventory-only — it does not open SSH sessions or connect to this host. Use your own
-              terminal or tooling if you need remote access.
-            </p>
-            <div className="flex flex-wrap items-center justify-between gap-3">
+              </div>
               <button
                 type="button"
-                className="rounded-lg px-4 py-2 text-danger transition-colors hover:bg-danger/10"
+                onClick={onClose}
+                style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: 8,
+                  border: 'none',
+                  background: 'none',
+                  color: 'hsl(var(--fg-2))',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = 'hsl(var(--surface-3))'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = 'none'; }}
               >
-                Delete server
+                <X style={{ width: 20, height: 20 }} />
               </button>
-              <div className="flex flex-wrap items-center justify-end gap-2">
-                <button
-                  type="button"
-                  className="rounded-lg border border-border px-4 py-2 text-sm text-secondary transition-colors hover:bg-foreground/[0.06] hover:text-foreground"
-                >
-                  Edit server
-                </button>
+            </header>
+
+            {/* Content */}
+            <div style={{ flex: 1, overflowY: 'auto', padding: 24 }}>
+              {/* Info Grid */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 24 }}>
+                <InfoCard icon={Network} label="Hostname" value={server.hostname} />
+                <InfoCard icon={HardDrive} label="OS" value={server.os || '—'} />
+                <InfoCard icon={Cpu} label="CPU Cores" value={server.cpu_cores ? `${server.cpu_cores} cores` : '—'} />
+                <InfoCard icon={MemoryStick} label="RAM" value={server.ram_gb ? `${server.ram_gb} GB` : '—'} />
               </div>
+
+              {/* Status */}
+              <Section title="Status">
+                <div
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    padding: '6px 12px',
+                    borderRadius: 6,
+                    background: server.status === 'online' || server.status === 'active'
+                      ? 'hsl(var(--success) / 0.1)'
+                      : 'hsl(var(--danger) / 0.1)',
+                    color: statusColor,
+                    fontSize: 13,
+                    fontWeight: 500,
+                    textTransform: 'capitalize',
+                  }}
+                >
+                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: statusColor }} />
+                  {server.status || 'Unknown'}
+                </div>
+              </Section>
+
+              {/* Group */}
+              {server.group_name && (
+                <Section title="Group">
+                  <span
+                    style={{
+                      padding: '4px 10px',
+                      borderRadius: 5,
+                      background: 'hsl(var(--primary) / 0.1)',
+                      color: 'hsl(var(--primary))',
+                      fontSize: 13,
+                      fontWeight: 500,
+                    }}
+                  >
+                    {server.group_name}
+                  </span>
+                </Section>
+              )}
+
+              {/* Tags */}
+              {server.tags && server.tags.length > 0 && (
+                <Section title="Tags">
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                    {server.tags.map((tag, i) => {
+                      const name = typeof tag === 'string' ? tag : tag.name;
+                      const color = typeof tag === 'string' ? null : tag.color;
+                      return (
+                        <span
+                          key={i}
+                          style={{
+                            padding: '4px 10px',
+                            borderRadius: 5,
+                            background: color ? `${color}20` : 'hsl(var(--surface-3))',
+                            color: color || 'hsl(var(--fg-2))',
+                            fontSize: 12,
+                            fontWeight: 500,
+                          }}
+                        >
+                          {name}
+                        </span>
+                      );
+                    })}
+                  </div>
+                </Section>
+              )}
+
+              {/* Notes */}
+              {server.notes && (
+                <Section title="Notes">
+                  <p style={{ fontSize: 13, color: 'hsl(var(--fg-2))', lineHeight: 1.6, margin: 0 }}>
+                    {server.notes}
+                  </p>
+                </Section>
+              )}
+
+              {/* Last Updated */}
+              {server.updated_at && (
+                <Section title="Last Updated">
+                  <span style={{ fontSize: 13, color: 'hsl(var(--fg-2))' }}>
+                    {new Date(server.updated_at).toLocaleString()}
+                  </span>
+                </Section>
+              )}
             </div>
-          </footer>
-        </motion.div>
+
+            {/* Footer */}
+            <footer
+              style={{
+                padding: '16px 24px',
+                borderTop: '1px solid hsl(var(--border))',
+                background: 'hsl(var(--surface-2))',
+              }}
+            >
+              <button
+                type="button"
+                onClick={onClose}
+                className="sv-btn-ghost"
+                style={{ width: '100%', justifyContent: 'center', border: '1px solid hsl(var(--border-2))' }}
+              >
+                Close
+              </button>
+            </footer>
+          </motion.div>
+        </>
       )}
     </AnimatePresence>
   );
 };
+
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div style={{ marginBottom: 20 }}>
+      <h3
+        style={{
+          fontSize: 11,
+          fontWeight: 500,
+          textTransform: 'uppercase',
+          letterSpacing: '0.06em',
+          color: 'hsl(var(--fg-3))',
+          marginBottom: 10,
+        }}
+      >
+        {title}
+      </h3>
+      {children}
+    </div>
+  );
+}
+
+function InfoCard({ icon: Icon, label, value }: { icon: typeof Server; label: string; value: string }) {
+  return (
+    <div
+      style={{
+        padding: 14,
+        borderRadius: 10,
+        background: 'hsl(var(--surface-2))',
+        border: '1px solid hsl(var(--border))',
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+        <Icon style={{ width: 14, height: 14, color: 'hsl(var(--fg-3))' }} />
+        <span style={{ fontSize: 11, color: 'hsl(var(--fg-3))', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+          {label}
+        </span>
+      </div>
+      <p
+        style={{
+          fontSize: 14,
+          fontWeight: 500,
+          color: 'hsl(var(--fg))',
+          margin: 0,
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap',
+        }}
+      >
+        {value}
+      </p>
+    </div>
+  );
+}
