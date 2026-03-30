@@ -302,10 +302,7 @@ export const ServerTable = ({ servers, customColumns, onRowClick }: ServerTableP
 
               {/* Actions */}
               <td className="px-4 text-right">
-                <div
-                  className="flex items-center justify-end gap-2 group-hover:opacity-100"
-                  style={{ opacity: 0, transition: 'opacity 100ms' }}
-                >
+                <div className="flex items-center justify-end gap-1">
                   <button
                     type="button"
                     className="rounded-lg p-1.5 transition-colors"
