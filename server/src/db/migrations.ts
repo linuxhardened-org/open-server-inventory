@@ -7,6 +7,14 @@ import { hashApiToken } from '../utils/token';
  */
 export async function runMigrations(pool: Pool): Promise<void> {
   await migrateLegacyApiTokens(pool);
+  await migratePasswordChangeRequired(pool);
+}
+
+async function migratePasswordChangeRequired(pool: Pool): Promise<void> {
+  await pool.query(`
+    ALTER TABLE users
+    ADD COLUMN IF NOT EXISTS password_change_required BOOLEAN DEFAULT FALSE
+  `);
 }
 
 async function migrateLegacyApiTokens(pool: Pool): Promise<void> {

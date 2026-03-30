@@ -104,19 +104,14 @@ export const AddServerModal = ({ isOpen, onClose, customColumns, onServerCreated
         aria-labelledby="add-server-title"
         aria-describedby="add-server-desc"
       >
-        <div className="flex items-center justify-between border-b border-border px-6 py-4">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/15 text-primary">
-              <Server className="h-5 w-5" />
+        <div className="flex items-center justify-between border-b border-border px-5 py-3">
+          <div className="flex items-center gap-2.5">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/15 text-primary">
+              <Server className="h-4 w-4" />
             </div>
-            <div>
-              <h2 id="add-server-title" className="text-lg font-bold text-foreground">
-                Add server
-              </h2>
-              <p id="add-server-desc" className="text-sm text-secondary">
-                Record-only — no remote connection or SSH required.
-              </p>
-            </div>
+            <h2 id="add-server-title" className="text-sm font-semibold text-foreground">
+              Add server
+            </h2>
           </div>
           <button
             type="button"
@@ -128,17 +123,10 @@ export const AddServerModal = ({ isOpen, onClose, customColumns, onServerCreated
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-5 p-6">
-          <div className="rounded-lg border border-border/80 bg-background/50 p-4 text-sm text-secondary">
-            <p>
-              Use this form to track servers in your inventory.{' '}
-              <span className="font-medium text-foreground">Connecting via SSH is not required</span> — optional fields are for your
-              documentation only.
-            </p>
-          </div>
-
-          <div className="space-y-2">
-            <label htmlFor="srv-name" className="text-sm font-medium text-secondary">
+        <form onSubmit={handleSubmit} className="p-5 space-y-3">
+          {/* Row 1: Display name (full width) */}
+          <div className="space-y-1.5">
+            <label htmlFor="srv-name" className="text-xs font-medium text-secondary">
               Display name <span className="text-danger">*</span>
             </label>
             <input
@@ -152,55 +140,59 @@ export const AddServerModal = ({ isOpen, onClose, customColumns, onServerCreated
             />
           </div>
 
-          <div className="space-y-2">
-            <label htmlFor="srv-hostname" className="text-sm font-medium text-secondary">
-              Hostname <span className="text-danger">*</span>
-            </label>
-            <input
-              id="srv-hostname"
-              required
-              value={hostname}
-              onChange={(e) => setHostname(e.target.value)}
-              className="sv-input"
-              placeholder="node01.example.com"
-              autoComplete="off"
-            />
+          {/* Row 2: Hostname + IP side by side */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <label htmlFor="srv-hostname" className="text-xs font-medium text-secondary">
+                Hostname <span className="text-danger">*</span>
+              </label>
+              <input
+                id="srv-hostname"
+                required
+                value={hostname}
+                onChange={(e) => setHostname(e.target.value)}
+                className="sv-input"
+                placeholder="node01.example.com"
+                autoComplete="off"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label htmlFor="srv-ip" className="text-xs font-medium text-secondary">
+                IP address <span className="text-xs font-normal text-secondary/70">(optional)</span>
+              </label>
+              <input
+                id="srv-ip"
+                value={ip}
+                onChange={(e) => setIp(e.target.value)}
+                className="sv-input"
+                placeholder="10.0.0.1"
+                autoComplete="off"
+              />
+            </div>
           </div>
 
-          <div className="space-y-2">
-            <label htmlFor="srv-ip" className="text-sm font-medium text-secondary">
-              IP address <span className="text-xs font-normal text-secondary/80">(optional)</span>
-            </label>
-            <input
-              id="srv-ip"
-              value={ip}
-              onChange={(e) => setIp(e.target.value)}
-              className="sv-input"
-              placeholder="10.0.0.1"
-              autoComplete="off"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <label htmlFor="srv-notes" className="text-sm font-medium text-secondary">
-              Notes <span className="text-xs font-normal text-secondary/80">(optional)</span>
+          {/* Row 3: Notes */}
+          <div className="space-y-1.5">
+            <label htmlFor="srv-notes" className="text-xs font-medium text-secondary">
+              Notes <span className="text-xs font-normal text-secondary/70">(optional)</span>
             </label>
             <textarea
               id="srv-notes"
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              className="sv-input min-h-[88px] resize-y"
+              className="sv-input min-h-[64px] resize-y"
               placeholder="Rack, owner, purpose…"
             />
           </div>
 
+          {/* Custom fields */}
           {customColumns.length > 0 && (
-            <div className="space-y-3 border-t border-border pt-5">
-              <p className="text-sm font-medium text-secondary">Custom fields</p>
-              <div className="space-y-3">
+            <div className="space-y-2 border-t border-border pt-3">
+              <p className="text-xs font-semibold text-secondary uppercase tracking-wide">Custom fields</p>
+              <div className="grid grid-cols-2 gap-3">
                 {customColumns.map((col) => (
                   <div key={col.id} className="space-y-1.5">
-                    <label htmlFor={`srv-custom-${col.id}`} className="text-sm text-secondary">
+                    <label htmlFor={`srv-custom-${col.id}`} className="text-xs font-medium text-secondary">
                       {col.name}
                     </label>
                     <input
@@ -217,15 +209,13 @@ export const AddServerModal = ({ isOpen, onClose, customColumns, onServerCreated
             </div>
           )}
 
-          <div className="space-y-2 border-t border-border pt-5">
-            <div className="mb-1 flex items-center gap-2 text-sm font-medium text-secondary">
-              <Key className="h-4 w-4 text-primary" aria-hidden />
+          {/* SSH key */}
+          <div className="space-y-1.5 border-t border-border pt-3">
+            <div className="flex items-center gap-1.5 text-xs font-medium text-secondary">
+              <Key className="h-3.5 w-3.5 text-primary" aria-hidden />
               <span>SSH key reference</span>
-              <span className="text-xs font-normal text-secondary/80">(optional)</span>
+              <span className="font-normal text-secondary/70">(optional)</span>
             </div>
-            <p className="mb-2 text-xs text-secondary">
-              If you use keys elsewhere, you can link one for reference. This app does not connect over SSH.
-            </p>
             <select
               id="srv-ssh"
               value={sshKeyId}
@@ -233,11 +223,11 @@ export const AddServerModal = ({ isOpen, onClose, customColumns, onServerCreated
               className="sv-input appearance-none bg-surface-lighter"
             >
               <option value="">None — inventory only</option>
-              {/* Populated when wired to API */}
             </select>
           </div>
 
-          <div className="flex justify-end gap-3 border-t border-border pt-4">
+          {/* Footer */}
+          <div className="flex justify-end gap-3 border-t border-border pt-3">
             <button type="button" onClick={onClose} className="sv-btn-ghost px-4" disabled={submitting}>
               Cancel
             </button>

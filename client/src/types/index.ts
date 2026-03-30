@@ -3,6 +3,7 @@ export interface User {
   username: string;
   role: 'admin' | 'operator';
   totp_enabled: boolean;
+  password_change_required?: boolean;
   created_at: string;
 }
 

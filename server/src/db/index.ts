@@ -2,6 +2,7 @@ import { Pool, PoolConfig } from 'pg';
 import { env } from '../config/env';
 import { schema } from './schema';
 import { runMigrations } from './migrations';
+import { hashPassword } from '../utils/crypto';
 
 export function buildPoolConfig(databaseUrl?: string | null): PoolConfig {
   const url = databaseUrl ?? env.databaseUrl;
@@ -31,6 +32,18 @@ export async function initPoolWithConfig(config: PoolConfig): Promise<Pool> {
 }
 
 const pool = new Pool(buildPoolConfig());
+
+export async function seedDefaultAdmin(p: Pool): Promise<void> {
+  const { rows } = await p.query('SELECT COUNT(*)::int AS count FROM users');
+  if ((rows[0] as { count: number }).count > 0) return;
+  const hash = await hashPassword('Admin@123');
+  await p.query(
+    `INSERT INTO users (username, password_hash, role, password_change_required)
+     VALUES ($1, $2, 'admin', TRUE)`,
+    ['Admin', hash]
+  );
+  console.log('Default admin seeded — username: Admin, password: Admin@123');
+}
 
 export const initDB = async () => {
   try {

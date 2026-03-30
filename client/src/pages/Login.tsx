@@ -13,6 +13,7 @@ type LoginResponse = {
     username: string;
     role: string;
     totpEnabled: boolean;
+    passwordChangeRequired?: boolean;
   };
 };
 
@@ -39,13 +40,18 @@ export const Login = () => {
           username: u.username,
           role: u.role as 'admin' | 'operator',
           totp_enabled: u.totpEnabled,
+          password_change_required: !!u.passwordChangeRequired,
           created_at: new Date().toISOString(),
         },
         'session'
       );
       setSetupCompleted(true);
-      toast.success('Signed in');
-      navigate('/dashboard');
+      if (u.passwordChangeRequired) {
+        navigate('/change-password');
+      } else {
+        toast.success('Signed in');
+        navigate('/dashboard');
+      }
     } catch (err: unknown) {
       const e = err as { error?: string };
       toast.error(e?.error || 'Invalid username or password');

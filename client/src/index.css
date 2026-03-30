@@ -103,7 +103,7 @@
   /* Card */
   .sv-card {
     @apply rounded-lg border border-border bg-surface p-5;
-    box-shadow: 0 1px 2px hsl(220 14% 46% / 0.05), 0 0 0 0 transparent;
+    box-shadow: 0 1px 3px hsl(220 14% 46% / 0.10);
     transition: box-shadow 150ms var(--sv-ease);
   }
 
@@ -278,6 +278,8 @@
   padding: 0 20px;
   gap: 12px;
   flex-shrink: 0;
+  position: sticky;
+  top: 0;
   z-index: 30;
 }
 
@@ -294,10 +296,11 @@
   display: flex;
   flex-direction: column;
   height: 100vh;
-  overflow: hidden;
+  overflow-y: auto;
   background: hsl(var(--background));
   min-width: 0;
 }
+
 
 .app-content {
   flex: 1;

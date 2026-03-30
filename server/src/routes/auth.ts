@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import db from '../db';
+import db, { seedDefaultAdmin } from '../db';
 import { verifyPassword, hashPassword } from '../utils/crypto';
 import { generateTotpSecret, generateTotpUri, verifyTotp } from '../utils/totp';
 import { sendSuccess, sendError } from '../utils/response';
@@ -16,8 +16,6 @@ const loginSchema = z.object({
 });
 
 const setupSchema = z.object({
-  username: z.string().trim().min(3),
-  password: z.string().min(8),
   app_name: z.string().trim().min(1).max(80).optional(),
   database_url: z.string().url().optional(),
 });
@@ -58,7 +56,7 @@ router.post('/setup', async (req, res) => {
       return sendError(res, 'Setup already completed', 409);
     }
 
-    const { username, password, app_name, database_url } = parsed.data;
+    const { app_name, database_url } = parsed.data;
 
     // If a custom DATABASE_URL was provided, init schema on that DB and save config.
     // The server will restart (Docker restart: always) to use the new connection.
@@ -77,6 +75,8 @@ router.post('/setup', async (req, res) => {
         const { runMigrations } = await import('../db/migrations');
         await pool.query(schema);
         await runMigrations(pool);
+        // Seed admin on the external DB before restart
+        await seedDefaultAdmin(pool);
         targetDb = {
           query: (text: string, params?: any[]) => pool.query(text, params),
           pool,
@@ -89,8 +89,6 @@ router.post('/setup', async (req, res) => {
       }
     }
 
-    const passwordHash = await hashPassword(password);
-
     if (app_name) {
       await targetDb.query(
         'INSERT INTO app_settings (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value',
@@ -98,49 +96,19 @@ router.post('/setup', async (req, res) => {
       );
     }
 
-    const created = await targetDb.query(
-      'INSERT INTO users (username, password_hash, role) VALUES ($1, $2, $3) RETURNING id, username, role, totp_enabled',
-      [username, passwordHash, 'admin']
-    );
-    const user = created.rows[0] as {
-      id: number;
-      username: string;
-      role: string;
-      totp_enabled: boolean;
-    };
+    if (!database_url) {
+      // Local DB: seed default admin now
+      await seedDefaultAdmin(targetDb.pool);
+    }
 
     if (requiresRestart) {
       // Config saved — restart server so the new DATABASE_URL pool is used from the start
-      sendSuccess(res, {
-        id: user.id,
-        username: user.username,
-        role: user.role,
-        totpEnabled: !!user.totp_enabled,
-        requiresRestart: true,
-      }, 201);
+      sendSuccess(res, { requiresRestart: true }, 201);
       setTimeout(() => process.exit(0), 400);
       return;
     }
 
-    req.session.regenerate((regErr) => {
-      if (regErr) {
-        console.error('session regenerate:', regErr);
-        return sendError(res, 'Could not create session', 500);
-      }
-      req.session.userId = user.id;
-      req.session.username = user.username;
-      req.session.role = user.role;
-      sendSuccess(
-        res,
-        {
-          id: user.id,
-          username: user.username,
-          role: user.role,
-          totpEnabled: !!user.totp_enabled,
-        },
-        201
-      );
-    });
+    sendSuccess(res, { requiresRestart: false }, 201);
   } catch (err: any) {
     if (err?.code === '23505') return sendError(res, 'Username already exists', 409);
     sendError(res, err.message || 'Setup failed');
@@ -171,6 +139,7 @@ router.post('/login', async (req, res) => {
       password_hash: string;
       totp_enabled: boolean;
       totp_secret: string | null;
+      password_change_required: boolean;
     } | undefined;
 
     if (!user || !(await verifyPassword(password, user.password_hash))) {
@@ -196,10 +165,46 @@ router.post('/login', async (req, res) => {
         username: user.username,
         role: user.role,
         totpEnabled: !!user.totp_enabled,
+        passwordChangeRequired: !!user.password_change_required,
       });
     });
   } catch (err: any) {
     sendError(res, err.message);
+  }
+});
+
+// PUT /api/auth/change-password — force-change flow + voluntary change
+router.put('/change-password', sessionAuth, async (req, res) => {
+  const schema = z.object({
+    current_password: z.string().min(1),
+    new_password: z.string().min(8),
+  });
+  const parsed = schema.safeParse(req.body);
+  if (!parsed.success) return sendError(res, 'new_password must be at least 8 characters', 400);
+
+  const { current_password, new_password } = parsed.data;
+
+  try {
+    const result = await db.query('SELECT password_hash FROM users WHERE id = $1', [req.session.userId]);
+    const user = result.rows[0] as { password_hash: string } | undefined;
+    if (!user) return sendError(res, 'User not found', 404);
+
+    if (!(await verifyPassword(current_password, user.password_hash))) {
+      return sendError(res, 'Current password is incorrect', 401);
+    }
+
+    if (await verifyPassword(new_password, user.password_hash)) {
+      return sendError(res, 'New password must be different from the current password', 400);
+    }
+
+    const newHash = await hashPassword(new_password);
+    await db.query(
+      'UPDATE users SET password_hash = $1, password_change_required = FALSE WHERE id = $2',
+      [newHash, req.session.userId]
+    );
+    sendSuccess(res, { message: 'Password updated' });
+  } catch (err: any) {
+    sendError(res, err.message || 'Failed to change password');
   }
 });
 

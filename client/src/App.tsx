@@ -11,6 +11,7 @@ import { Profile } from './pages/Profile';
 import { Users } from './pages/Users';
 import { Settings } from './pages/Settings';
 import { Setup } from './pages/Setup';
+import { ChangePassword } from './pages/ChangePassword';
 import { Layout } from './components/Layout';
 import { Toaster } from 'react-hot-toast';
 import api from './lib/api';
@@ -76,6 +77,7 @@ function App() {
       <Routes>
         <Route path="/login" element={isSetupCompleted ? <Login /> : <Navigate to="/setup" replace />} />
         <Route path="/setup" element={isSetupCompleted ? <Navigate to="/login" replace /> : <Setup />} />
+        <Route path="/change-password" element={<ChangePassword />} />
 
         <Route path="/" element={<Layout />}>
           <Route index element={<Navigate to="/dashboard" replace />} />

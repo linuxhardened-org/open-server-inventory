@@ -8,6 +8,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 export const Layout = () => {
   const location = useLocation();
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const user = useAuthStore((state) => state.user);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // Close sidebar on route change (mobile nav)
@@ -17,6 +18,10 @@ export const Layout = () => {
 
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
+  }
+
+  if (user?.password_change_required) {
+    return <Navigate to="/change-password" replace />;
   }
 
   return (

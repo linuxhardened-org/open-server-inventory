@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { ShieldCheck, Mail, Lock, User, ArrowRight, Building2, Database, Server, CheckCircle2, XCircle, Loader2 } from 'lucide-react';
+import { ShieldCheck, ArrowRight, Building2, Database, Server, CheckCircle2, XCircle, Loader2 } from 'lucide-react';
 import { useAuthStore } from '../store/useAuthStore';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useState, useEffect } from 'react';
@@ -9,10 +9,6 @@ import api from '../lib/api';
 type SetupResponse = {
   success: boolean;
   data: {
-    id: number;
-    username: string;
-    role: string;
-    totpEnabled: boolean;
     requiresRestart?: boolean;
   };
 };
@@ -23,7 +19,6 @@ type DbProvider = 'local' | 'supabase' | 'custom';
 
 export const Setup = () => {
   const setSetupCompleted = useAuthStore((state) => state.setSetupCompleted);
-  const setAuth = useAuthStore((state) => state.setAuth);
   const navigate = useNavigate();
 
   // Step 1: DB selection
@@ -33,12 +28,8 @@ export const Setup = () => {
   const [dbTest, setDbTest] = useState<DbTestResult>(null);
   const [testing, setTesting] = useState(false);
 
-  // Step 2: Account
+  // Step 2: Org name
   const [appName, setAppName] = useState('');
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [restarting, setRestarting] = useState(false);
 
@@ -66,15 +57,7 @@ export const Setup = () => {
     e.preventDefault();
     setSubmitting(true);
     try {
-      const derivedUsername =
-        username.trim() ||
-        email.split('@')[0]?.trim() ||
-        name.trim().toLowerCase().replace(/\s+/g, '.') ||
-        'admin';
-
       const payload: Record<string, string | undefined> = {
-        username: derivedUsername,
-        password,
         app_name: appName.trim() || undefined,
       };
 
@@ -93,7 +76,7 @@ export const Setup = () => {
             const statusRes = (await api.get('/auth/setup-status')) as { success: boolean; data: { isSetupCompleted: boolean } };
             if (statusRes.data?.isSetupCompleted) {
               setSetupCompleted(true);
-              toast.success('Setup complete! Please log in.');
+              toast.success('Setup complete! Log in with Admin / Admin@123');
               navigate('/login');
               return;
             }
@@ -104,13 +87,9 @@ export const Setup = () => {
         return;
       }
 
-      setAuth(
-        { id: u.id, username: u.username, role: u.role as 'admin' | 'operator', totp_enabled: u.totpEnabled, created_at: new Date().toISOString() },
-        'session'
-      );
       setSetupCompleted(true);
-      toast.success('Setup completed');
-      navigate('/dashboard');
+      toast.success('Setup complete! Log in with Admin / Admin@123 and change your password.');
+      navigate('/login');
     } catch (err: unknown) {
       const e = err as { error?: string };
       toast.error(e?.error || 'Setup failed');
@@ -146,10 +125,10 @@ export const Setup = () => {
             <ShieldCheck className="h-10 w-10 text-primary-foreground" />
           </div>
           <h1 className="mb-2 text-3xl font-semibold tracking-tight text-foreground">
-            {step === 'db' ? 'Choose database' : 'Create admin account'}
+            {step === 'db' ? 'Choose database' : 'Almost done'}
           </h1>
           <p className="text-[15px] text-secondary">
-            {step === 'db' ? 'Step 1 of 2 — where should data be stored?' : 'Step 2 of 2 — set up your administrator'}
+            {step === 'db' ? 'Step 1 of 2 — where should data be stored?' : 'Step 2 of 2 — name your organization'}
           </p>
 
           {/* Step indicator */}
@@ -299,7 +278,7 @@ export const Setup = () => {
             >
               <form onSubmit={handleComplete} className="sv-card space-y-5 border-t-4 border-t-primary pt-8">
                 <div>
-                  <label className="block text-sm font-medium text-secondary mb-2">Organization / App Name</label>
+                  <label className="block text-sm font-medium text-secondary mb-2">Organization / App Name <span className="text-xs font-normal text-secondary/70">(optional)</span></label>
                   <div className="relative">
                     <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-secondary" />
                     <input
@@ -313,70 +292,11 @@ export const Setup = () => {
                   </div>
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-secondary mb-2">Administrator Name</label>
-                  <div className="relative">
-                    <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-secondary" />
-                    <input
-                      type="text"
-                      required
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      className="sv-input pl-10"
-                      placeholder="John Doe"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-secondary mb-2">Email Address</label>
-                  <div className="relative">
-                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-secondary" />
-                    <input
-                      type="email"
-                      required
-                      value={email}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        setEmail(val);
-                        if (!username.trim()) setUsername(val.split('@')[0] || '');
-                      }}
-                      className="sv-input pl-10"
-                      placeholder="admin@example.com"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-secondary mb-2">Username</label>
-                  <div className="relative">
-                    <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-secondary" />
-                    <input
-                      type="text"
-                      required
-                      minLength={3}
-                      value={username}
-                      onChange={(e) => setUsername(e.target.value)}
-                      className="sv-input pl-10"
-                      placeholder="admin"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-secondary mb-2">Master Password</label>
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-secondary" />
-                    <input
-                      type="password"
-                      required
-                      minLength={8}
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      className="sv-input pl-10"
-                      placeholder="••••••••••••"
-                    />
-                  </div>
+                <div className="rounded-lg bg-muted/60 px-4 py-3 text-sm text-secondary space-y-1">
+                  <p className="font-medium text-foreground">Default admin credentials</p>
+                  <p>Username: <span className="font-mono font-semibold text-foreground">Admin</span></p>
+                  <p>Password: <span className="font-mono font-semibold text-foreground">Admin@123</span></p>
+                  <p className="text-xs mt-1">You will be required to change your password on first login.</p>
                 </div>
 
                 <div className="flex gap-3 pt-2">

@@ -7,6 +7,7 @@ CREATE TABLE IF NOT EXISTS users (
   totp_secret TEXT,
   totp_enabling_secret TEXT, -- Temp storage for 2FA setup
   totp_enabled BOOLEAN DEFAULT FALSE,
+  password_change_required BOOLEAN DEFAULT FALSE,
   created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
