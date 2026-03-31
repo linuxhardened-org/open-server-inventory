@@ -563,7 +563,7 @@ export const IpInventory = () => {
                     <td style={{ padding: '12px 16px' }}>
                       <button
                         type="button"
-                        onClick={() => navigate(`/servers?server=${ip.server_id}`)}
+                        onClick={() => navigate(`/servers/${ip.server_id}`)}
                         className="flex items-center gap-2"
                         style={{
                           background: 'none',
