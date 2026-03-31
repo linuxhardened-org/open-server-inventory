@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { Cloud, RefreshCw, Plus, Trash2, ChevronDown, Check } from 'lucide-react';
+import { Cloud, RefreshCw, Plus, Trash2 } from 'lucide-react';
+import { SvSelect } from '../components/SvSelect';
 import { motion } from 'framer-motion';
 import axios, { getApiErrorMessage } from '../lib/api';
 import toast from 'react-hot-toast';
@@ -27,8 +28,6 @@ export const CloudIntegrations = () => {
   const [bulkDeleting, setBulkDeleting] = useState(false);
   const [selectedProviderIds, setSelectedProviderIds] = useState<number[]>([]);
   const [newProvider, setNewProvider] = useState({ name: '', provider: 'linode', api_token: '', auto_sync: true, sync_interval_minutes: 60 });
-  const [providerDropdownOpen, setProviderDropdownOpen] = useState(false);
-
   const fetchProviders = useCallback(async () => {
     try {
       const res = (await axios.get('/cloud-providers')) as { success: boolean; data: CloudProvider[] };
@@ -316,17 +315,12 @@ export const CloudIntegrations = () => {
                     Auto-sync
                   </label>
                   {provider.auto_sync && (
-                    <select
-                      value={provider.sync_interval_minutes ?? 60}
-                      onChange={(e) => handleUpdateSyncInterval(provider.id, parseInt(e.target.value, 10))}
-                      className="sv-input"
-                      style={{ padding: '4px 8px', fontSize: 11, width: 'auto', minWidth: 110 }}
-                      title="Sync interval"
-                    >
-                      {INTERVAL_OPTIONS.map((o) => (
-                        <option key={o.value} value={o.value}>{o.label}</option>
-                      ))}
-                    </select>
+                    <SvSelect
+                      value={String(provider.sync_interval_minutes ?? 60)}
+                      onChange={(v) => handleUpdateSyncInterval(provider.id, parseInt(v, 10))}
+                      options={INTERVAL_OPTIONS.map((o) => ({ value: String(o.value), label: o.label }))}
+                      compact
+                    />
                   )}
                   <button
                     type="button"
@@ -408,105 +402,17 @@ export const CloudIntegrations = () => {
                 <label style={{ display: 'block', fontSize: 11, fontWeight: 500, color: 'hsl(var(--fg-2))', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                   Provider <span style={{ color: 'hsl(var(--danger))' }}>*</span>
                 </label>
-                {/* Custom provider picker */}
-                <div style={{ position: 'relative' }}>
-                  {providerDropdownOpen && (
-                    <div style={{ position: 'fixed', inset: 0, zIndex: 98 }} onClick={() => setProviderDropdownOpen(false)} />
-                  )}
-                  {/* Trigger */}
-                  <button
-                    type="button"
-                    onClick={() => setProviderDropdownOpen((o) => !o)}
-                    style={{
-                      width: '100%',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 10,
-                      padding: '8px 12px',
-                      background: 'hsl(var(--surface-2))',
-                      border: `1px solid ${providerDropdownOpen ? 'hsl(var(--primary))' : 'hsl(var(--border))'}`,
-                      borderRadius: 7,
-                      cursor: 'pointer',
-                      transition: 'border-color 150ms',
-                    }}
-                  >
-                    {(() => {
-                      const sel = SUPPORTED_PROVIDERS.find((p) => p.value === newProvider.provider);
-                      return sel ? (
-                        <>
-                          <img src={sel.logo} alt="" style={{ width: 20, height: 20, objectFit: 'contain', flexShrink: 0 }} />
-                          <span style={{ fontSize: 13, color: 'hsl(var(--fg))', flex: 1, textAlign: 'left' }}>{sel.label}</span>
-                        </>
-                      ) : (
-                        <Cloud style={{ width: 16, height: 16, color: 'hsl(var(--fg-3))' }} />
-                      );
-                    })()}
-                    <ChevronDown style={{ width: 14, height: 14, color: 'hsl(var(--fg-3))', flexShrink: 0, transform: providerDropdownOpen ? 'rotate(180deg)' : 'none', transition: 'transform 200ms' }} />
-                  </button>
-                  {/* Dropdown */}
-                  {providerDropdownOpen && (
-                    <motion.div
-                      initial={{ opacity: 0, y: -4 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.12 }}
-                      style={{
-                        position: 'absolute',
-                        top: 'calc(100% + 4px)',
-                        left: 0,
-                        right: 0,
-                        zIndex: 99,
-                        background: 'hsl(var(--surface))',
-                        border: '1px solid hsl(var(--border))',
-                        borderRadius: 9,
-                        boxShadow: '0 8px 24px hsl(var(--bg) / 0.5)',
-                        overflow: 'hidden',
-                        padding: 4,
-                      }}
-                    >
-                      {SUPPORTED_PROVIDERS.map((p) => {
-                        const isSelected = newProvider.provider === p.value;
-                        return (
-                          <button
-                            key={p.value}
-                            type="button"
-                            disabled={!p.available}
-                            onClick={() => {
-                              if (!p.available) return;
-                              setNewProvider({ ...newProvider, provider: p.value });
-                              setProviderDropdownOpen(false);
-                            }}
-                            style={{
-                              width: '100%',
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: 10,
-                              padding: '8px 10px',
-                              borderRadius: 6,
-                              border: 'none',
-                              cursor: p.available ? 'pointer' : 'default',
-                              background: isSelected ? 'hsl(var(--primary) / 0.1)' : 'transparent',
-                              opacity: p.available ? 1 : 0.4,
-                              transition: 'background 100ms',
-                            }}
-                            onMouseEnter={(e) => { if (p.available && !isSelected) (e.currentTarget as HTMLButtonElement).style.background = 'hsl(var(--surface-3))'; }}
-                            onMouseLeave={(e) => { if (!isSelected) (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
-                          >
-                            <img src={p.logo} alt="" style={{ width: 22, height: 22, objectFit: 'contain', flexShrink: 0 }} />
-                            <span style={{ flex: 1, textAlign: 'left', fontSize: 13, color: isSelected ? 'hsl(var(--primary))' : 'hsl(var(--fg))', fontWeight: isSelected ? 600 : 400 }}>
-                              {p.label}
-                            </span>
-                            {!p.available && (
-                              <span style={{ fontSize: 10, padding: '2px 6px', borderRadius: 4, background: 'hsl(var(--surface-3))', color: 'hsl(var(--fg-3))', border: '1px solid hsl(var(--border))' }}>
-                                soon
-                              </span>
-                            )}
-                            {isSelected && <Check style={{ width: 13, height: 13, color: 'hsl(var(--primary))', flexShrink: 0 }} />}
-                          </button>
-                        );
-                      })}
-                    </motion.div>
-                  )}
-                </div>
+                <SvSelect
+                  value={newProvider.provider}
+                  onChange={(v) => setNewProvider({ ...newProvider, provider: v })}
+                  options={SUPPORTED_PROVIDERS.map((p) => ({
+                    value: p.value,
+                    label: p.label,
+                    icon: p.logo,
+                    disabled: !p.available,
+                    badge: !p.available ? 'soon' : undefined,
+                  }))}
+                />
               </div>
               <div>
                 <label style={{ display: 'block', fontSize: 11, fontWeight: 500, color: 'hsl(var(--fg-2))', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
@@ -542,16 +448,11 @@ export const CloudIntegrations = () => {
                   <label style={{ display: 'block', fontSize: 11, fontWeight: 500, color: 'hsl(var(--fg-2))', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                     Sync Interval
                   </label>
-                  <select
-                    value={newProvider.sync_interval_minutes}
-                    onChange={(e) => setNewProvider({ ...newProvider, sync_interval_minutes: parseInt(e.target.value, 10) })}
-                    className="sv-input"
-                    style={{ width: '100%' }}
-                  >
-                    {INTERVAL_OPTIONS.map((o) => (
-                      <option key={o.value} value={o.value}>{o.label}</option>
-                    ))}
-                  </select>
+                  <SvSelect
+                    value={String(newProvider.sync_interval_minutes)}
+                    onChange={(v) => setNewProvider({ ...newProvider, sync_interval_minutes: parseInt(v, 10) })}
+                    options={INTERVAL_OPTIONS.map((o) => ({ value: String(o.value), label: o.label }))}
+                  />
                   <p style={{ fontSize: 11, color: 'hsl(var(--fg-3))', marginTop: 6 }}>
                     Sync only runs when data has actually changed (delta detection).
                   </p>

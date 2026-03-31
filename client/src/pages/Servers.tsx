@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Plus, Search, Filter, Download, Trash2, Columns, X } from 'lucide-react';
+import { SvSelect } from '../components/SvSelect';
 import toast from 'react-hot-toast';
 import { ServerTable } from '../components/ServerTable';
 import { AddServerModal } from '../components/AddServerModal';
@@ -668,16 +669,12 @@ export const Servers = () => {
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10, paddingTop: 8, borderTop: '1px solid hsl(var(--border))' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <span style={{ fontSize: 12, color: 'hsl(var(--fg-2))' }}>Rows per page:</span>
-              <select
-                value={pageSize}
-                onChange={(e) => { setPageSize(Number(e.target.value)); setCurrentPage(1); }}
-                className="sv-input"
-                style={{ padding: '3px 6px', fontSize: 12, width: 'auto' }}
-              >
-                {[20, 50, 100, 200].map((n) => (
-                  <option key={n} value={n}>{n}</option>
-                ))}
-              </select>
+              <SvSelect
+                compact
+                value={String(pageSize)}
+                onChange={(v) => { setPageSize(Number(v)); setCurrentPage(1); }}
+                options={[20, 50, 100, 200].map((n) => ({ value: String(n), label: String(n) }))}
+              />
               <span style={{ fontSize: 12, color: 'hsl(var(--fg-3))' }}>
                 {(currentPage - 1) * pageSize + 1}–{Math.min(currentPage * pageSize, visibleServers.length)} of {visibleServers.length}
               </span>

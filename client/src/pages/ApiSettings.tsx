@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { createPortal } from 'react-dom';
 import { Key, Plus, Shield, Copy, Check, X } from 'lucide-react';
+import { SvSelect } from '../components/SvSelect';
 import { motion } from 'framer-motion';
 import TokenTable from '../components/TokenTable';
 import api from '../lib/api';
@@ -162,16 +163,11 @@ export const ApiSettings = () => {
                 <label style={{ display: 'block', fontSize: 11, fontWeight: 500, color: 'hsl(var(--fg-2))', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                   Expiration
                 </label>
-                <select
+                <SvSelect
                   value={tokenExpiry}
-                  onChange={(e) => setTokenExpiry(e.target.value)}
-                  className="sv-input"
-                  style={{ width: '100%' }}
-                >
-                  {expiryOptions.map((opt) => (
-                    <option key={opt.value} value={opt.value}>{opt.label}</option>
-                  ))}
-                </select>
+                  onChange={setTokenExpiry}
+                  options={expiryOptions.map((o) => ({ value: o.value, label: o.label }))}
+                />
                 <p style={{ fontSize: 11, color: 'hsl(var(--fg-3))', marginTop: 6 }}>
                   {tokenExpiry === 'never'
                     ? 'Token will never expire (not recommended for production)'

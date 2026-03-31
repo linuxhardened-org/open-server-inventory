@@ -3,6 +3,12 @@ import { createPortal } from 'react-dom';
 import { useAuthStore } from '../store/useAuthStore';
 import { motion } from 'framer-motion';
 import { UserPlus, Shield, User, Trash2 } from 'lucide-react';
+import { SvSelect } from '../components/SvSelect';
+
+const ROLE_OPTS = [
+  { value: 'operator', label: 'Operator' },
+  { value: 'admin', label: 'Admin' },
+];
 import api from '../lib/api';
 import toast from 'react-hot-toast';
 import { useRealtimeResource } from '../hooks/useRealtimeResource';
@@ -282,15 +288,11 @@ export const Users = () => {
               <Field label="Password" value={newUser.password} onChange={(v) => setNewUser({ ...newUser, password: v })} type="password" required />
               <div>
                 <label style={{ display: 'block', fontSize: 11, fontWeight: 500, color: 'hsl(var(--fg-2))', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Role</label>
-                <select
+                <SvSelect
                   value={newUser.role}
-                  onChange={(e) => setNewUser({ ...newUser, role: e.target.value as 'admin' | 'operator' })}
-                  className="sv-input"
-                  style={{ width: '100%' }}
-                >
-                  <option value="operator">Operator</option>
-                  <option value="admin">Admin</option>
-                </select>
+                  onChange={(v) => setNewUser({ ...newUser, role: v as 'admin' | 'operator' })}
+                  options={ROLE_OPTS}
+                />
               </div>
               <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
                 <button type="button" onClick={() => setIsAdding(false)} className="sv-btn-ghost" style={{ flex: 1, border: '1px solid hsl(var(--border-2))' }}>

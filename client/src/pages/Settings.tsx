@@ -1,6 +1,7 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { Download, Upload, Trash2, ShieldAlert, Settings2, Database, CheckCircle2, XCircle, Cloud, RefreshCw, Plus, X } from 'lucide-react';
+import { SvFileButton } from '../components/SvFileButton';
 import { motion } from 'framer-motion';
 import axios, { getApiErrorMessage } from '../lib/api';
 import toast from 'react-hot-toast';
@@ -33,7 +34,7 @@ export const Settings = () => {
   const [appLogoInput, setAppLogoInput] = useState(appLogoUrl);
   const [savingName, setSavingName] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
-  const logoFileRef = useRef<HTMLInputElement>(null);
+
   const [dbStatus, setDbStatus] = useState<DbStatus>(null);
   const [dbChecking, setDbChecking] = useState(false);
 
@@ -158,19 +159,9 @@ export const Settings = () => {
     }
   };
 
-  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (!file.type.startsWith('image/')) {
-      toast.error('Please upload an image file');
-      e.target.value = '';
-      return;
-    }
-    if (file.size > 1024 * 1024) {
-      toast.error('Logo image must be under 1MB');
-      e.target.value = '';
-      return;
-    }
+  const handleLogoUpload = async (file: File) => {
+    if (!file.type.startsWith('image/')) { toast.error('Please upload an image file'); return; }
+    if (file.size > 1024 * 1024) { toast.error('Logo image must be under 1MB'); return; }
     setUploadingLogo(true);
     try {
       const dataUrl = await new Promise<string>((resolve, reject) => {
@@ -185,7 +176,6 @@ export const Settings = () => {
       toast.error('Failed to process logo image');
     } finally {
       setUploadingLogo(false);
-      e.target.value = '';
     }
   };
 
@@ -336,25 +326,13 @@ export const Settings = () => {
 
               <div>
                 <label className="block text-sm font-medium text-secondary mb-1.5">Brand Logo (Upload Image)</label>
-                <input
-                  ref={logoFileRef}
-                  type="file"
-                  accept="image/*"
-                  onChange={handleLogoUpload}
-                  style={{ display: 'none' }}
-                  disabled={!isAdmin || uploadingLogo}
-                />
                 <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => logoFileRef.current?.click()}
-                    disabled={!isAdmin || uploadingLogo}
-                    className="sv-btn-ghost"
-                    style={{ border: '1px solid hsl(var(--border-2))', padding: '6px 14px', fontSize: 13, gap: 6 }}
-                  >
-                    <Upload style={{ width: 13, height: 13 }} />
-                    {uploadingLogo ? 'Processing…' : 'Choose File'}
-                  </button>
+                  <SvFileButton
+                    onFile={handleLogoUpload}
+                    label="Choose File"
+                    loading={uploadingLogo}
+                    disabled={!isAdmin}
+                  />
                   {appLogoInput.trim() && (
                     <button
                       type="button"
