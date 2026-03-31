@@ -113,12 +113,13 @@ export const Servers = () => {
     } else {
       const keys = ['id', 'name', 'hostname', 'ip_address', 'private_ip', 'ipv6_address', 'os', 'cpu_cores', 'ram_gb', 'status', 'region', 'group_name', 'notes'];
       const header = keys.join(',');
-      const rows = selected.map((s) =>
-        keys.map((k) => {
-          const v = (s as Record<string, unknown>)[k];
+      const rows = selected.map((s) => {
+        const rec = s as unknown as Record<string, unknown>;
+        return keys.map((k) => {
+          const v = rec[k];
           return v == null ? '' : `"${String(v).replace(/"/g, '""')}"`;
-        }).join(',')
-      );
+        }).join(',');
+      });
       content = [header, ...rows].join('\n');
       mime = 'text/csv';
     }
