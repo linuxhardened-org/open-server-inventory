@@ -99,7 +99,7 @@ export const Sidebar = ({ isOpen }: { isOpen?: boolean; onClose?: () => void }) 
           </span>
         </div>
         {/* Light / Dark / System selector */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6, marginBottom: 10 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 12 }}>
           <button
             type="button"
             onClick={() => setTheme('light')}
@@ -108,12 +108,13 @@ export const Sidebar = ({ isOpen }: { isOpen?: boolean; onClose?: () => void }) 
               alignItems: 'center',
               justifyContent: 'center',
               gap: 6,
-              padding: '6px 8px',
-              borderRadius: 6,
+              padding: '7px 8px',
+              borderRadius: 8,
               border: '1px solid hsl(var(--border))',
               background: theme === 'light' ? 'hsl(var(--primary) / 0.14)' : 'hsl(var(--surface-2))',
               color: theme === 'light' ? 'hsl(var(--fg))' : 'hsl(var(--fg-2))',
               fontSize: 11,
+              fontWeight: 500,
               cursor: 'pointer',
             }}
             title="Light theme"
@@ -129,12 +130,13 @@ export const Sidebar = ({ isOpen }: { isOpen?: boolean; onClose?: () => void }) 
               alignItems: 'center',
               justifyContent: 'center',
               gap: 6,
-              padding: '6px 8px',
-              borderRadius: 6,
+              padding: '7px 8px',
+              borderRadius: 8,
               border: '1px solid hsl(var(--border))',
               background: theme === 'dark' ? 'hsl(var(--primary) / 0.14)' : 'hsl(var(--surface-2))',
               color: theme === 'dark' ? 'hsl(var(--fg))' : 'hsl(var(--fg-2))',
               fontSize: 11,
+              fontWeight: 500,
               cursor: 'pointer',
             }}
             title="Dark theme"
@@ -150,12 +152,13 @@ export const Sidebar = ({ isOpen }: { isOpen?: boolean; onClose?: () => void }) 
               alignItems: 'center',
               justifyContent: 'center',
               gap: 6,
-              padding: '6px 8px',
-              borderRadius: 6,
+              padding: '7px 8px',
+              borderRadius: 8,
               border: '1px solid hsl(var(--border))',
               background: theme === 'system' ? 'hsl(var(--primary) / 0.14)' : 'hsl(var(--surface-2))',
               color: theme === 'system' ? 'hsl(var(--fg))' : 'hsl(var(--fg-2))',
               fontSize: 11,
+              fontWeight: 500,
               cursor: 'pointer',
             }}
             title="Use system preference"
@@ -165,7 +168,7 @@ export const Sidebar = ({ isOpen }: { isOpen?: boolean; onClose?: () => void }) 
           </button>
         </div>
         {/* Accent colors */}
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2.5">
           {accentColors.map((c) => (
             <button
               key={c.id}
@@ -175,7 +178,7 @@ export const Sidebar = ({ isOpen }: { isOpen?: boolean; onClose?: () => void }) 
               style={{
                 width: 22,
                 height: 22,
-                borderRadius: 6,
+                borderRadius: 8,
                 backgroundColor: c.color,
                 border: accent === c.id ? '2px solid hsl(var(--fg))' : '2px solid transparent',
                 cursor: 'pointer',

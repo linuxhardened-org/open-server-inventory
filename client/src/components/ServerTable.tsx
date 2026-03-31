@@ -12,9 +12,21 @@ interface ServerTableProps {
   servers: Server[];
   customColumns: CustomColumn[];
   onRowClick: (server: Server) => void;
+  selectedIds?: number[];
+  onToggleSelect?: (id: number) => void;
+  allSelected?: boolean;
+  onToggleSelectAll?: () => void;
 }
 
-export const ServerTable = ({ servers, customColumns, onRowClick }: ServerTableProps) => {
+export const ServerTable = ({
+  servers,
+  customColumns,
+  onRowClick,
+  selectedIds = [],
+  onToggleSelect,
+  allSelected = false,
+  onToggleSelectAll,
+}: ServerTableProps) => {
   return (
     <div
       className="overflow-x-auto rounded-xl"
@@ -37,6 +49,18 @@ export const ServerTable = ({ servers, customColumns, onRowClick }: ServerTableP
               zIndex: 2,
             }}
           >
+            <th
+              className="px-3"
+              style={{ width: 36, fontSize: 11, color: 'hsl(var(--fg-3))', fontWeight: 500 }}
+            >
+              <input
+                type="checkbox"
+                checked={allSelected && servers.length > 0}
+                onChange={() => onToggleSelectAll?.()}
+                style={{ width: 14, height: 14, accentColor: 'hsl(var(--primary))' }}
+                aria-label="Select all servers"
+              />
+            </th>
             <th
               className="px-4"
               style={{
@@ -155,7 +179,7 @@ export const ServerTable = ({ servers, customColumns, onRowClick }: ServerTableP
           {servers.length === 0 && (
             <tr>
               <td
-                colSpan={7 + customColumns.length + 1}
+                colSpan={8 + customColumns.length + 1}
                 style={{ padding: '64px 0', textAlign: 'center' }}
               >
                 <div className="flex flex-col items-center gap-3" style={{ color: 'hsl(var(--fg-3))' }}>
@@ -187,6 +211,16 @@ export const ServerTable = ({ servers, customColumns, onRowClick }: ServerTableP
                 (e.currentTarget as HTMLTableRowElement).style.transform = '';
               }}
             >
+              <td className="px-3" onClick={(e) => e.stopPropagation()}>
+                <input
+                  type="checkbox"
+                  checked={selectedIds.includes(server.id)}
+                  onChange={() => onToggleSelect?.(server.id)}
+                  style={{ width: 14, height: 14, accentColor: 'hsl(var(--primary))' }}
+                  aria-label={`Select ${server.hostname}`}
+                />
+              </td>
+
               {/* Status */}
               <td className="px-4">
                 {(() => {

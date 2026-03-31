@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Plus, Search, Filter, Download, Trash2, Columns, X } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -22,6 +22,8 @@ export const Servers = () => {
   const [selectedServer, setSelectedServer] = useState<Server | null>(null);
   const [newColumnName, setNewColumnName] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedServerIds, setSelectedServerIds] = useState<number[]>([]);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
 
   // Get filter params from URL
   const filterGroupId = searchParams.get('group');
@@ -40,6 +42,7 @@ export const Servers = () => {
       if (sRes.status === 'fulfilled') {
         const rows = sRes.value?.data;
         setServers(Array.isArray(rows) ? rows : []);
+        setSelectedServerIds((prev) => prev.filter((id) => (Array.isArray(rows) ? rows : []).some((s) => s.id === id)));
       } else {
         toast.error(getApiErrorMessage(sRes.reason, 'Failed to load servers'));
       }
@@ -171,6 +174,52 @@ export const Servers = () => {
     (s) => s.status !== 'online' && s.status !== 'active' && s.status !== 'maintenance'
   ).length;
   const maintenanceCount = filteredByParams.filter((s) => s.status === 'maintenance').length;
+  const visibleServers = useMemo(
+    () =>
+      filteredByParams.filter((s) => {
+        if (!searchTerm) return true;
+        const q = searchTerm.toLowerCase();
+        return (
+          s.hostname?.toLowerCase().includes(q) ||
+          s.ip_address?.toLowerCase().includes(q) ||
+          s.name?.toLowerCase().includes(q) ||
+          s.os?.toLowerCase().includes(q) ||
+          s.tags?.some((t) => (typeof t === 'string' ? t : t.name).toLowerCase().includes(q))
+        );
+      }),
+    [filteredByParams, searchTerm]
+  );
+  const allVisibleSelected = visibleServers.length > 0 && visibleServers.every((s) => selectedServerIds.includes(s.id));
+
+  const toggleServerSelected = (id: number) => {
+    setSelectedServerIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  };
+
+  const toggleSelectAllVisible = () => {
+    setSelectedServerIds((prev) => {
+      if (allVisibleSelected) return prev.filter((id) => !visibleServers.some((s) => s.id === id));
+      const merged = new Set(prev);
+      for (const s of visibleServers) merged.add(s.id);
+      return [...merged];
+    });
+  };
+
+  const handleBulkDeleteServers = async () => {
+    if (selectedServerIds.length === 0) return;
+    if (!window.confirm(`Delete ${selectedServerIds.length} selected server(s)?`)) return;
+    setBulkDeleting(true);
+    try {
+      const settled = await Promise.allSettled(selectedServerIds.map((id) => api.delete(`/servers/${id}`)));
+      const ok = settled.filter((r) => r.status === 'fulfilled').length;
+      const fail = settled.length - ok;
+      if (ok > 0) toast.success(`Deleted ${ok} server${ok !== 1 ? 's' : ''}`);
+      if (fail > 0) toast.error(`${fail} server delete operation${fail !== 1 ? 's' : ''} failed`);
+      setSelectedServerIds([]);
+      await load();
+    } finally {
+      setBulkDeleting(false);
+    }
+  };
 
   return (
     <div className="page animate-in" style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
@@ -493,6 +542,18 @@ export const Servers = () => {
               </>
             )}
           </div>
+          <span style={{ fontSize: 12, color: 'hsl(var(--fg-2))' }}>
+            {selectedServerIds.length} selected
+          </span>
+          <button
+            type="button"
+            className="sv-btn-ghost"
+            style={{ border: '1px solid hsl(var(--border-2))', color: 'hsl(var(--danger))' }}
+            disabled={selectedServerIds.length === 0 || bulkDeleting}
+            onClick={handleBulkDeleteServers}
+          >
+            {bulkDeleting ? 'Deleting...' : 'Delete selected'}
+          </button>
         </div>
 
         {/* Table */}
@@ -504,19 +565,13 @@ export const Servers = () => {
           </div>
         ) : (
           <ServerTable
-            servers={filteredByParams.filter((s) => {
-              if (!searchTerm) return true;
-              const q = searchTerm.toLowerCase();
-              return (
-                s.hostname?.toLowerCase().includes(q) ||
-                s.ip_address?.toLowerCase().includes(q) ||
-                s.name?.toLowerCase().includes(q) ||
-                s.os?.toLowerCase().includes(q) ||
-                s.tags?.some((t) => (typeof t === 'string' ? t : t.name).toLowerCase().includes(q))
-              );
-            })}
+            servers={visibleServers}
             customColumns={customColumns}
             onRowClick={(server) => setSelectedServer(server)}
+            selectedIds={selectedServerIds}
+            onToggleSelect={toggleServerSelected}
+            allSelected={allVisibleSelected}
+            onToggleSelectAll={toggleSelectAllVisible}
           />
         )}
       </div>

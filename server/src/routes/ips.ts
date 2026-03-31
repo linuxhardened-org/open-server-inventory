@@ -56,7 +56,7 @@ async function listAllIpsMerged(): Promise<MergedIpRow[]> {
       JOIN servers s ON s.id = ip.server_id
     `),
     db.query(`
-      SELECT id, name, hostname, ip_address, private_ip, ipv6_address, private_ipv6, created_at, updated_at
+      SELECT id, name, hostname, ip_address, private_ip, ipv6_address, private_ipv6, cloud_provider_id, created_at, updated_at
       FROM servers
     `),
   ]);
@@ -83,6 +83,7 @@ async function listAllIpsMerged(): Promise<MergedIpRow[]> {
     private_ip: string | null;
     ipv6_address: string | null;
     private_ipv6: string | null;
+    cloud_provider_id: number | null;
     created_at: string;
     updated_at: string;
   }[];
@@ -119,9 +120,14 @@ async function listAllIpsMerged(): Promise<MergedIpRow[]> {
 
   for (const s of servers) {
     pushIf(s, s.ip_address, 'public', 'Public IPv4 (server)');
-    pushIf(s, s.private_ip, 'private', 'Private IPv4 (server)');
+    // For cloud-synced servers, keep private addresses out of /ips inventory.
+    if (!s.cloud_provider_id) {
+      pushIf(s, s.private_ip, 'private', 'Private IPv4 (server)');
+    }
     pushIf(s, s.ipv6_address, 'ipv6', 'Public IPv6 (server)');
-    pushIf(s, s.private_ipv6, 'private_ipv6', 'Private IPv6 (server)');
+    if (!s.cloud_provider_id) {
+      pushIf(s, s.private_ipv6, 'private_ipv6', 'Private IPv6 (server)');
+    }
   }
 
   const catalogMerged: MergedIpRow[] = catalog.map((r) => ({
@@ -154,7 +160,7 @@ async function listServerIpsMerged(serverId: number): Promise<MergedIpRow[]> {
       [serverId]
     ),
     db.query(
-      `SELECT id, name, hostname, ip_address, private_ip, ipv6_address, private_ipv6, created_at, updated_at FROM servers WHERE id = $1`,
+      `SELECT id, name, hostname, ip_address, private_ip, ipv6_address, private_ipv6, cloud_provider_id, created_at, updated_at FROM servers WHERE id = $1`,
       [serverId]
     ),
   ]);
@@ -182,6 +188,7 @@ async function listServerIpsMerged(serverId: number): Promise<MergedIpRow[]> {
         private_ip: string | null;
         ipv6_address: string | null;
         private_ipv6: string | null;
+        cloud_provider_id: number | null;
         created_at: string;
         updated_at: string;
       }
@@ -213,9 +220,13 @@ async function listServerIpsMerged(serverId: number): Promise<MergedIpRow[]> {
       });
     };
     pushIf(s.ip_address, 'public', 'Public IPv4 (server)');
-    pushIf(s.private_ip, 'private', 'Private IPv4 (server)');
+    if (!s.cloud_provider_id) {
+      pushIf(s.private_ip, 'private', 'Private IPv4 (server)');
+    }
     pushIf(s.ipv6_address, 'ipv6', 'Public IPv6 (server)');
-    pushIf(s.private_ipv6, 'private_ipv6', 'Private IPv6 (server)');
+    if (!s.cloud_provider_id) {
+      pushIf(s.private_ipv6, 'private_ipv6', 'Private IPv6 (server)');
+    }
   }
 
   const catalogMerged: MergedIpRow[] = catalog.map((r) => ({
