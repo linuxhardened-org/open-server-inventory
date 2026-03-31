@@ -54,18 +54,20 @@ Empty fields are hidden instead of displaying placeholder values.
 ## Setup Screenshots
 
 > Generated with Selenium script: `scripts/selenium_setup_screenshots.py`
+> If screenshots are not visible, generate them locally first:
+> `python3 scripts/selenium_setup_screenshots.py --base-url http://localhost:8080`
 
 ### Step 1 — Database Selection
 
-![Setup Step 1 - DB Selection](docs/screenshots/setup/setup_step1_db_selection.png)
+`docs/screenshots/setup/setup_step1_db_selection.png`
 
 ### Step 1 — Local PostgreSQL Preparation (Realtime)
 
-![Setup Step 1 - Local Loading](docs/screenshots/setup/setup_step1_local_loading.png)
+`docs/screenshots/setup/setup_step1_local_loading.png`
 
 ### Step 2 — Organization Name
 
-![Setup Step 2 - App Name](docs/screenshots/setup/setup_step2_app_name.png)
+`docs/screenshots/setup/setup_step2_app_name.png`
 
 ## Quick Start
 

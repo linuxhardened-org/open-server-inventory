@@ -40,6 +40,8 @@ chromedriver*.log
 geckodriver*.log
 __pycache__/
 *.pyc
+.venv/
+docs/screenshots/setup/*.png
 
 # Misc
 .cache/
