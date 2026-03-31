@@ -128,9 +128,9 @@ initDB().then(() => {
     console.log(`ServerVault Backend running on http://localhost:${PORT}`);
   });
 
-  // Schedule cloud provider auto-sync - runs every hour, syncs providers scheduled for that hour
-  cron.schedule('0 * * * *', runAutoSync);
-  console.log('Cloud auto-sync scheduler running (checks every hour)');
+  // Schedule cloud provider auto-sync - checks every 5 min, syncs per provider interval
+  cron.schedule('*/5 * * * *', runAutoSync);
+  console.log('Cloud auto-sync scheduler running (checks every 5 min, syncs per provider interval)');
 }).catch(err => {
   console.error('Failed to start server due to database initialization error:', err);
   process.exit(1);

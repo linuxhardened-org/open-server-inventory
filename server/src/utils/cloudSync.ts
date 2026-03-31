@@ -1,5 +1,7 @@
+import { createHash } from 'crypto';
 import db from '../db';
 import { emitRealtime } from '../realtime';
+import { registerProvider, getSyncFn, type SyncResult } from './providers/registry';
 
 /**
  * Format Linode image string to human-readable OS name
@@ -471,16 +473,39 @@ async function getOrCreateProviderGroup(
 }
 
 /**
- * Sync servers from a Linode cloud provider
- * Upserts servers by cloud_instance_id, updates provider stats
- * Returns count of synced servers
+ * Compute a stable hash for a list of Linode instances (id + status only).
+ * Used for delta detection — if hash is unchanged, skip DB writes.
+ */
+function hashLinodeInstances(instances: LinodeInstance[]): string {
+  const sorted = [...instances].sort((a, b) => a.id - b.id);
+  const key = sorted.map((i) => `${i.id}:${i.status}`).join('|');
+  return createHash('sha256').update(key).digest('hex').slice(0, 16);
+}
+
+/**
+ * Sync servers from a Linode cloud provider.
+ * Upserts servers by cloud_instance_id, updates provider stats.
+ * If storedHash matches current instance hash, skips DB writes.
+ * Returns { count, hash, skipped }.
  */
 export async function syncLinodeProvider(
   providerId: number,
   apiToken: string,
-  providerName: string
-): Promise<number> {
+  providerName: string,
+  storedHash: string | null = null
+): Promise<SyncResult> {
   const instances = await fetchLinodeInstances(apiToken);
+  const hash = hashLinodeInstances(instances);
+
+  if (storedHash && hash === storedHash) {
+    // Nothing changed — update last_sync_at only
+    await db.query(
+      'UPDATE cloud_providers SET last_sync_at = CURRENT_TIMESTAMP WHERE id = $1',
+      [providerId]
+    );
+    emitRealtime({ resource: 'cloud-providers', action: 'updated', at: new Date().toISOString(), id: providerId, meta: { providerName, skipped: true } });
+    return { count: instances.length, hash, skipped: true };
+  }
 
   // Resolve OS + networking (Linode /ips per instance) before DB transaction
   const rows: { instance: LinodeInstance; os: string; ips: LinodeResolvedIps }[] = [];
@@ -581,13 +606,14 @@ export async function syncLinodeProvider(
       }
     }
 
-    // Update provider stats
+    // Update provider stats + hash
     await client.query(
       `UPDATE cloud_providers SET
         last_sync_at = CURRENT_TIMESTAMP,
-        server_count = $1
-      WHERE id = $2`,
-      [instances.length, providerId]
+        server_count = $1,
+        instance_hash = $2
+      WHERE id = $3`,
+      [instances.length, hash, providerId]
     );
 
     await client.query('COMMIT');
@@ -604,7 +630,7 @@ export async function syncLinodeProvider(
       id: providerId,
       meta: { providerName, syncedCount: instances.length },
     });
-    return instances.length;
+    return { count: instances.length, hash, skipped: false };
   } catch (err) {
     await client.query('ROLLBACK');
     throw err;
@@ -614,53 +640,67 @@ export async function syncLinodeProvider(
 }
 
 /**
- * Run auto-sync for providers scheduled at the current hour
- * Called by cron job every hour
+ * Run auto-sync for all providers whose interval has elapsed.
+ * Cron calls this every 5 minutes; actual syncs happen per provider's sync_interval_minutes.
+ * Uses instance hash delta to skip DB writes when nothing changed.
  */
 export async function runAutoSync(): Promise<void> {
-  const currentHour = new Date().getHours();
-  console.log(`[CloudSync] Checking for providers scheduled at hour ${currentHour}...`);
+  console.log('[CloudSync] Checking providers due for sync...');
 
   try {
-    const result = await db.query(
-      'SELECT id, name, provider, api_token FROM cloud_providers WHERE auto_sync = TRUE AND sync_hour = $1',
-      [currentHour]
-    );
+    // Fetch providers where auto_sync is on AND (never synced OR interval elapsed)
+    const result = await db.query(`
+      SELECT id, name, provider, api_token, instance_hash,
+             COALESCE(sync_interval_minutes, 60) AS sync_interval_minutes
+      FROM cloud_providers
+      WHERE auto_sync = TRUE
+        AND (
+          last_sync_at IS NULL
+          OR last_sync_at < NOW() - (COALESCE(sync_interval_minutes, 60) || ' minutes')::INTERVAL
+        )
+    `);
 
     const providers = result.rows as {
       id: number;
       name: string;
       provider: string;
       api_token: string;
+      instance_hash: string | null;
+      sync_interval_minutes: number;
     }[];
 
     if (providers.length === 0) {
-      console.log(`[CloudSync] No providers scheduled for hour ${currentHour}`);
       return;
     }
 
-    console.log(`[CloudSync] Found ${providers.length} provider(s) to sync`);
+    console.log(`[CloudSync] ${providers.length} provider(s) due for sync`);
 
     for (const provider of providers) {
       try {
-        console.log(`[CloudSync] Syncing provider: ${provider.name} (${provider.provider})`);
-
-        let syncedCount = 0;
-        if (provider.provider === 'linode') {
-          syncedCount = await syncLinodeProvider(provider.id, provider.api_token, provider.name);
-        } else {
-          console.log(`[CloudSync] Unsupported provider type: ${provider.provider}`);
+        const syncFn = getSyncFn(provider.provider);
+        if (!syncFn) {
+          console.log(`[CloudSync] Unsupported provider: ${provider.provider}`);
           continue;
         }
 
-        console.log(`[CloudSync] Synced ${syncedCount} servers from ${provider.name}`);
+        const result = await syncFn(provider.id, provider.api_token, provider.name, provider.instance_hash);
+        if (result.skipped) {
+          console.log(`[CloudSync] ${provider.name}: no changes detected (hash match), skipped DB write`);
+        } else {
+          console.log(`[CloudSync] ${provider.name}: synced ${result.count} servers`);
+        }
       } catch (err: any) {
-        console.error(`[CloudSync] Failed to sync provider ${provider.name}:`, err.message);
+        console.error(`[CloudSync] Failed to sync ${provider.name}:`, err.message);
       }
     }
 
-    console.log('[CloudSync] Auto-sync completed');
+    console.log('[CloudSync] Done');
   } catch (err: any) {
     console.error('[CloudSync] Auto-sync failed:', err.message);
   }
 }
+
+// Register providers
+registerProvider('linode', syncLinodeProvider);
+
+export { getSyncFn };

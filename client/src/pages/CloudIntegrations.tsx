@@ -4,37 +4,19 @@ import { Cloud, RefreshCw, Plus, Trash2 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import axios, { getApiErrorMessage } from '../lib/api';
 import toast from 'react-hot-toast';
-import { LINODE_LOGO_URL } from '../lib/cloudAssets';
+import { getProviderLogo, SUPPORTED_PROVIDERS } from '../lib/cloudAssets';
 import { useRealtimeResource } from '../hooks/useRealtimeResource';
+import type { CloudProvider } from '../types';
 
-interface CloudProvider {
-  id: number;
-  name: string;
-  /** API column */
-  provider?: string;
-  provider_type?: string;
-  auto_sync: boolean;
-  sync_hour: number;
-  last_synced_at: string | null;
-  server_count?: number;
-}
-
-const COMING_SOON_PROVIDERS = [
-  { name: 'AWS', logo: '/images/aws-logo.svg' },
-  { name: 'GCP', logo: '/images/gcp-logo.svg' },
-  { name: 'DigitalOcean', logo: '/images/digitalocean-logo.svg' },
-  { name: 'Vultr', logo: '/images/vultr-logo.svg' },
-] as const;
-
-function formatHour(hour: number): string {
-  const h = hour % 12 || 12;
-  const ampm = hour < 12 ? 'AM' : 'PM';
-  return `${h}:00 ${ampm}`;
-}
-
-function providerKind(p: CloudProvider): string {
-  return p.provider ?? p.provider_type ?? '';
-}
+const INTERVAL_OPTIONS = [
+  { value: 15, label: 'Every 15 min' },
+  { value: 30, label: 'Every 30 min' },
+  { value: 60, label: 'Every hour' },
+  { value: 120, label: 'Every 2 hours' },
+  { value: 360, label: 'Every 6 hours' },
+  { value: 720, label: 'Every 12 hours' },
+  { value: 1440, label: 'Daily' },
+];
 
 export const CloudIntegrations = () => {
   const [providers, setProviders] = useState<CloudProvider[]>([]);
@@ -44,7 +26,7 @@ export const CloudIntegrations = () => {
   const [bulkSyncing, setBulkSyncing] = useState(false);
   const [bulkDeleting, setBulkDeleting] = useState(false);
   const [selectedProviderIds, setSelectedProviderIds] = useState<number[]>([]);
-  const [newProvider, setNewProvider] = useState({ name: '', api_token: '', auto_sync: true, sync_hour: 0 });
+  const [newProvider, setNewProvider] = useState({ name: '', provider: 'linode', api_token: '', auto_sync: true, sync_interval_minutes: 60 });
 
   const fetchProviders = useCallback(async () => {
     try {
@@ -71,14 +53,14 @@ export const CloudIntegrations = () => {
     try {
       await axios.post('/cloud-providers', {
         name: newProvider.name.trim(),
-        provider: 'linode',
+        provider: newProvider.provider,
         api_token: newProvider.api_token.trim(),
         auto_sync: newProvider.auto_sync,
-        sync_hour: newProvider.sync_hour,
+        sync_interval_minutes: newProvider.sync_interval_minutes,
       });
       toast.success('Cloud provider added');
       setAddingProvider(false);
-      setNewProvider({ name: '', api_token: '', auto_sync: true, sync_hour: 0 });
+      setNewProvider({ name: '', provider: 'linode', api_token: '', auto_sync: true, sync_interval_minutes: 60 });
       await fetchProviders();
     } catch (err: unknown) {
       toast.error((err as { error?: string })?.error || 'Failed to add provider');
@@ -108,11 +90,12 @@ export const CloudIntegrations = () => {
     }
   };
 
-  const handleUpdateSyncHour = async (id: number, syncHour: number) => {
+  const handleUpdateSyncInterval = async (id: number, minutes: number) => {
     try {
-      await axios.patch(`/cloud-providers/${id}`, { sync_hour: syncHour });
+      await axios.patch(`/cloud-providers/${id}`, { sync_interval_minutes: minutes });
       await fetchProviders();
-      toast.success(`Sync time updated to ${formatHour(syncHour)}`);
+      const label = INTERVAL_OPTIONS.find((o) => o.value === minutes)?.label ?? `${minutes} min`;
+      toast.success(`Sync interval updated: ${label}`);
     } catch (err: unknown) {
       toast.error((err as { error?: string })?.error || 'Failed to update');
     }
@@ -182,9 +165,9 @@ export const CloudIntegrations = () => {
           <h1>Cloud Integrations</h1>
           <p>Connect cloud providers to auto-import and sync servers.</p>
           <div style={{ marginTop: 8, display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-            {COMING_SOON_PROVIDERS.map((provider) => (
+            {SUPPORTED_PROVIDERS.filter((p) => p.value !== 'linode').map((provider) => (
               <span
-                key={provider.name}
+                key={provider.value}
                 style={{
                   fontSize: 11,
                   padding: '3px 8px 3px 6px',
@@ -199,10 +182,10 @@ export const CloudIntegrations = () => {
               >
                 <img
                   src={provider.logo}
-                  alt={`${provider.name} logo`}
+                  alt={`${provider.label} logo`}
                   style={{ width: 14, height: 14, objectFit: 'contain' }}
                 />
-                {provider.name} (coming soon)
+                {provider.label} (coming soon)
               </span>
             ))}
           </div>
@@ -291,9 +274,9 @@ export const CloudIntegrations = () => {
                       padding: 6,
                     }}
                   >
-                    {providerKind(provider) === 'linode' ? (
+                    {getProviderLogo(provider.provider) ? (
                       <img
-                        src={LINODE_LOGO_URL}
+                        src={getProviderLogo(provider.provider)!}
                         alt=""
                         style={{ width: '100%', height: '100%', objectFit: 'contain' }}
                         referrerPolicy="no-referrer"
@@ -306,7 +289,7 @@ export const CloudIntegrations = () => {
                     <div style={{ fontSize: 15, fontWeight: 600, color: 'hsl(var(--fg))' }}>{provider.name}</div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 4 }}>
                       <span style={{ fontSize: 11, padding: '3px 8px', borderRadius: 5, background: 'hsl(var(--surface-3))', color: 'hsl(var(--fg-2))', textTransform: 'uppercase', fontWeight: 600, letterSpacing: '0.03em' }}>
-                        {providerKind(provider)}
+                        {provider.provider}
                       </span>
                       {provider.server_count !== undefined && (
                         <span style={{ fontSize: 12, color: 'hsl(var(--fg-2))' }}>
@@ -314,9 +297,9 @@ export const CloudIntegrations = () => {
                         </span>
                       )}
                     </div>
-                    {provider.last_synced_at && (
+                    {provider.last_sync_at && (
                       <div style={{ fontSize: 11, color: 'hsl(var(--fg-3))', marginTop: 4 }}>
-                        Last synced: {new Date(provider.last_synced_at).toLocaleString()}
+                        Last synced: {new Date(provider.last_sync_at).toLocaleString()}
                       </div>
                     )}
                   </div>
@@ -333,14 +316,14 @@ export const CloudIntegrations = () => {
                   </label>
                   {provider.auto_sync && (
                     <select
-                      value={provider.sync_hour}
-                      onChange={(e) => handleUpdateSyncHour(provider.id, parseInt(e.target.value, 10))}
+                      value={provider.sync_interval_minutes ?? 60}
+                      onChange={(e) => handleUpdateSyncInterval(provider.id, parseInt(e.target.value, 10))}
                       className="sv-input"
-                      style={{ padding: '4px 8px', fontSize: 11, width: 'auto', minWidth: 90 }}
-                      title="Daily sync time"
+                      style={{ padding: '4px 8px', fontSize: 11, width: 'auto', minWidth: 110 }}
+                      title="Sync interval"
                     >
-                      {Array.from({ length: 24 }, (_, i) => (
-                        <option key={i} value={i}>{formatHour(i)}</option>
+                      {INTERVAL_OPTIONS.map((o) => (
+                        <option key={o.value} value={o.value}>{o.label}</option>
                       ))}
                     </select>
                   )}
@@ -422,11 +405,20 @@ export const CloudIntegrations = () => {
               </div>
               <div>
                 <label style={{ display: 'block', fontSize: 11, fontWeight: 500, color: 'hsl(var(--fg-2))', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                  Provider
+                  Provider <span style={{ color: 'hsl(var(--danger))' }}>*</span>
                 </label>
-                <div style={{ padding: '10px 12px', background: 'hsl(var(--surface-2))', border: '1px solid hsl(var(--border))', borderRadius: 6, fontSize: 13, color: 'hsl(var(--fg-2))' }}>
-                  Linode (more providers coming soon)
-                </div>
+                <select
+                  value={newProvider.provider}
+                  onChange={(e) => setNewProvider({ ...newProvider, provider: e.target.value })}
+                  className="sv-input"
+                  style={{ width: '100%' }}
+                >
+                  {SUPPORTED_PROVIDERS.map((p) => (
+                    <option key={p.value} value={p.value} disabled={p.value !== 'linode'}>
+                      {p.label}{p.value !== 'linode' ? ' (coming soon)' : ''}
+                    </option>
+                  ))}
+                </select>
               </div>
               <div>
                 <label style={{ display: 'block', fontSize: 11, fontWeight: 500, color: 'hsl(var(--fg-2))', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
@@ -454,24 +446,27 @@ export const CloudIntegrations = () => {
                   style={{ width: 16, height: 16, accentColor: 'hsl(var(--primary))' }}
                 />
                 <label htmlFor="auto-sync-checkbox" style={{ fontSize: 13, color: 'hsl(var(--fg))' }}>
-                  Enable automatic daily sync
+                  Enable automatic sync
                 </label>
               </div>
               {newProvider.auto_sync && (
                 <div>
                   <label style={{ display: 'block', fontSize: 11, fontWeight: 500, color: 'hsl(var(--fg-2))', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                    Sync Time
+                    Sync Interval
                   </label>
                   <select
-                    value={newProvider.sync_hour}
-                    onChange={(e) => setNewProvider({ ...newProvider, sync_hour: parseInt(e.target.value, 10) })}
+                    value={newProvider.sync_interval_minutes}
+                    onChange={(e) => setNewProvider({ ...newProvider, sync_interval_minutes: parseInt(e.target.value, 10) })}
                     className="sv-input"
                     style={{ width: '100%' }}
                   >
-                    {Array.from({ length: 24 }, (_, i) => (
-                      <option key={i} value={i}>{formatHour(i)}</option>
+                    {INTERVAL_OPTIONS.map((o) => (
+                      <option key={o.value} value={o.value}>{o.label}</option>
                     ))}
                   </select>
+                  <p style={{ fontSize: 11, color: 'hsl(var(--fg-3))', marginTop: 6 }}>
+                    Sync only runs when data has actually changed (delta detection).
+                  </p>
                 </div>
               )}
               <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>

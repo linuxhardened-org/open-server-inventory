@@ -3,29 +3,32 @@ import { z } from 'zod';
 import db from '../db';
 import { sendSuccess, sendError } from '../utils/response';
 import { adminAuth } from '../middleware/adminAuth';
-import { syncLinodeProvider } from '../utils/cloudSync';
+import { getSyncFn } from '../utils/cloudSync';
+import { getSupportedProviders } from '../utils/providers/registry';
 
 const router = Router();
 
 const createProviderSchema = z.object({
   name: z.string().min(1, 'Name is required'),
-  provider: z.enum(['linode']).default('linode'),
+  provider: z.string().min(1, 'Provider type is required'),
   api_token: z.string().min(1, 'API token is required'),
   auto_sync: z.boolean().default(true),
   sync_hour: z.number().int().min(0).max(23).default(0),
+  sync_interval_minutes: z.number().int().min(5).max(1440).default(60),
 });
 
 const updateProviderSchema = z.object({
   name: z.string().min(1).optional(),
   auto_sync: z.boolean().optional(),
   sync_hour: z.number().int().min(0).max(23).optional(),
+  sync_interval_minutes: z.number().int().min(5).max(1440).optional(),
 });
 
 // GET / - List all cloud providers (without api_token)
 router.get('/', adminAuth, async (req, res) => {
   try {
     const result = await db.query(`
-      SELECT id, name, provider, auto_sync, sync_hour, last_sync_at, server_count, created_at
+      SELECT id, name, provider, auto_sync, sync_hour, sync_interval_minutes, last_sync_at, server_count, created_at
       FROM cloud_providers
       ORDER BY created_at DESC
     `);
@@ -43,13 +46,19 @@ router.post('/', adminAuth, async (req, res) => {
       return sendError(res, parsed.error.issues[0].message);
     }
 
-    const { name, provider, api_token, auto_sync, sync_hour } = parsed.data;
+    const { name, provider, api_token, auto_sync, sync_hour, sync_interval_minutes } = parsed.data;
+
+    // Validate provider type against registry
+    const supported = getSupportedProviders();
+    if (supported.length > 0 && !supported.includes(provider)) {
+      return sendError(res, `Unsupported provider type: ${provider}. Supported: ${supported.join(', ')}`);
+    }
 
     const result = await db.query(
-      `INSERT INTO cloud_providers (name, provider, api_token, auto_sync, sync_hour)
-       VALUES ($1, $2, $3, $4, $5)
-       RETURNING id, name, provider, auto_sync, sync_hour, last_sync_at, server_count, created_at`,
-      [name, provider, api_token, auto_sync, sync_hour]
+      `INSERT INTO cloud_providers (name, provider, api_token, auto_sync, sync_hour, sync_interval_minutes)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       RETURNING id, name, provider, auto_sync, sync_hour, sync_interval_minutes, last_sync_at, server_count, created_at`,
+      [name, provider, api_token, auto_sync, sync_hour, sync_interval_minutes]
     );
 
     sendSuccess(res, result.rows[0], 201);
@@ -136,6 +145,10 @@ router.patch('/:id', adminAuth, async (req, res) => {
       setClauses.push(`sync_hour = $${paramIndex++}`);
       values.push(updates.sync_hour);
     }
+    if (updates.sync_interval_minutes !== undefined) {
+      setClauses.push(`sync_interval_minutes = $${paramIndex++}`);
+      values.push(updates.sync_interval_minutes);
+    }
 
     values.push(providerId);
 
@@ -143,7 +156,7 @@ router.patch('/:id', adminAuth, async (req, res) => {
       `UPDATE cloud_providers
        SET ${setClauses.join(', ')}
        WHERE id = $${paramIndex}
-       RETURNING id, name, provider, auto_sync, sync_hour, last_sync_at, server_count, created_at`,
+       RETURNING id, name, provider, auto_sync, sync_hour, sync_interval_minutes, last_sync_at, server_count, created_at`,
       values
     );
 
@@ -182,15 +195,16 @@ router.post('/:id/sync', adminAuth, async (req, res) => {
       api_token: string;
     };
 
-    if (provider.provider !== 'linode') {
+    const syncFn = getSyncFn(provider.provider);
+    if (!syncFn) {
       return sendError(res, `Unsupported provider type: ${provider.provider}`);
     }
 
-    // Use shared sync function (pass provider name for group creation)
-    const syncedCount = await syncLinodeProvider(provider.id, provider.api_token, provider.name);
+    // Manual sync: always pass null hash to force a full sync regardless of delta
+    const syncResult = await syncFn(provider.id, provider.api_token, provider.name, null);
 
     sendSuccess(res, {
-      synced: syncedCount,
+      synced: syncResult.count,
       provider_name: provider.name,
     });
   } catch (err: any) {

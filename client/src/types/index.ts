@@ -58,6 +58,18 @@ export interface CustomColumn {
   created_at: string;
 }
 
+export interface CloudProvider {
+  id: number;
+  name: string;
+  provider: string;
+  auto_sync: boolean;
+  sync_hour: number;
+  sync_interval_minutes: number;
+  last_sync_at: string | null;
+  server_count: number;
+  created_at: string;
+}
+
 export interface Group {
   id: number;
   name: string;
