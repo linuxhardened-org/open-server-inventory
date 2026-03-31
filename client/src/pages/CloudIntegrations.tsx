@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { Cloud, RefreshCw, Plus, Trash2 } from 'lucide-react';
+import { Cloud, RefreshCw, Plus, Trash2, ChevronDown, Check } from 'lucide-react';
 import { motion } from 'framer-motion';
 import axios, { getApiErrorMessage } from '../lib/api';
 import toast from 'react-hot-toast';
@@ -27,6 +27,7 @@ export const CloudIntegrations = () => {
   const [bulkDeleting, setBulkDeleting] = useState(false);
   const [selectedProviderIds, setSelectedProviderIds] = useState<number[]>([]);
   const [newProvider, setNewProvider] = useState({ name: '', provider: 'linode', api_token: '', auto_sync: true, sync_interval_minutes: 60 });
+  const [providerDropdownOpen, setProviderDropdownOpen] = useState(false);
 
   const fetchProviders = useCallback(async () => {
     try {
@@ -407,18 +408,105 @@ export const CloudIntegrations = () => {
                 <label style={{ display: 'block', fontSize: 11, fontWeight: 500, color: 'hsl(var(--fg-2))', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                   Provider <span style={{ color: 'hsl(var(--danger))' }}>*</span>
                 </label>
-                <select
-                  value={newProvider.provider}
-                  onChange={(e) => setNewProvider({ ...newProvider, provider: e.target.value })}
-                  className="sv-input"
-                  style={{ width: '100%' }}
-                >
-                  {SUPPORTED_PROVIDERS.map((p) => (
-                    <option key={p.value} value={p.value} disabled={!p.available}>
-                      {p.label}{!p.available ? ' (coming soon)' : ''}
-                    </option>
-                  ))}
-                </select>
+                {/* Custom provider picker */}
+                <div style={{ position: 'relative' }}>
+                  {providerDropdownOpen && (
+                    <div style={{ position: 'fixed', inset: 0, zIndex: 98 }} onClick={() => setProviderDropdownOpen(false)} />
+                  )}
+                  {/* Trigger */}
+                  <button
+                    type="button"
+                    onClick={() => setProviderDropdownOpen((o) => !o)}
+                    style={{
+                      width: '100%',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 10,
+                      padding: '8px 12px',
+                      background: 'hsl(var(--surface-2))',
+                      border: `1px solid ${providerDropdownOpen ? 'hsl(var(--primary))' : 'hsl(var(--border))'}`,
+                      borderRadius: 7,
+                      cursor: 'pointer',
+                      transition: 'border-color 150ms',
+                    }}
+                  >
+                    {(() => {
+                      const sel = SUPPORTED_PROVIDERS.find((p) => p.value === newProvider.provider);
+                      return sel ? (
+                        <>
+                          <img src={sel.logo} alt="" style={{ width: 20, height: 20, objectFit: 'contain', flexShrink: 0 }} />
+                          <span style={{ fontSize: 13, color: 'hsl(var(--fg))', flex: 1, textAlign: 'left' }}>{sel.label}</span>
+                        </>
+                      ) : (
+                        <Cloud style={{ width: 16, height: 16, color: 'hsl(var(--fg-3))' }} />
+                      );
+                    })()}
+                    <ChevronDown style={{ width: 14, height: 14, color: 'hsl(var(--fg-3))', flexShrink: 0, transform: providerDropdownOpen ? 'rotate(180deg)' : 'none', transition: 'transform 200ms' }} />
+                  </button>
+                  {/* Dropdown */}
+                  {providerDropdownOpen && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -4 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.12 }}
+                      style={{
+                        position: 'absolute',
+                        top: 'calc(100% + 4px)',
+                        left: 0,
+                        right: 0,
+                        zIndex: 99,
+                        background: 'hsl(var(--surface))',
+                        border: '1px solid hsl(var(--border))',
+                        borderRadius: 9,
+                        boxShadow: '0 8px 24px hsl(var(--bg) / 0.5)',
+                        overflow: 'hidden',
+                        padding: 4,
+                      }}
+                    >
+                      {SUPPORTED_PROVIDERS.map((p) => {
+                        const isSelected = newProvider.provider === p.value;
+                        return (
+                          <button
+                            key={p.value}
+                            type="button"
+                            disabled={!p.available}
+                            onClick={() => {
+                              if (!p.available) return;
+                              setNewProvider({ ...newProvider, provider: p.value });
+                              setProviderDropdownOpen(false);
+                            }}
+                            style={{
+                              width: '100%',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 10,
+                              padding: '8px 10px',
+                              borderRadius: 6,
+                              border: 'none',
+                              cursor: p.available ? 'pointer' : 'default',
+                              background: isSelected ? 'hsl(var(--primary) / 0.1)' : 'transparent',
+                              opacity: p.available ? 1 : 0.4,
+                              transition: 'background 100ms',
+                            }}
+                            onMouseEnter={(e) => { if (p.available && !isSelected) (e.currentTarget as HTMLButtonElement).style.background = 'hsl(var(--surface-3))'; }}
+                            onMouseLeave={(e) => { if (!isSelected) (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
+                          >
+                            <img src={p.logo} alt="" style={{ width: 22, height: 22, objectFit: 'contain', flexShrink: 0 }} />
+                            <span style={{ flex: 1, textAlign: 'left', fontSize: 13, color: isSelected ? 'hsl(var(--primary))' : 'hsl(var(--fg))', fontWeight: isSelected ? 600 : 400 }}>
+                              {p.label}
+                            </span>
+                            {!p.available && (
+                              <span style={{ fontSize: 10, padding: '2px 6px', borderRadius: 4, background: 'hsl(var(--surface-3))', color: 'hsl(var(--fg-3))', border: '1px solid hsl(var(--border))' }}>
+                                soon
+                              </span>
+                            )}
+                            {isSelected && <Check style={{ width: 13, height: 13, color: 'hsl(var(--primary))', flexShrink: 0 }} />}
+                          </button>
+                        );
+                      })}
+                    </motion.div>
+                  )}
+                </div>
               </div>
               <div>
                 <label style={{ display: 'block', fontSize: 11, fontWeight: 500, color: 'hsl(var(--fg-2))', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
