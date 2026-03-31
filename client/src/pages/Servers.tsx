@@ -1,9 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Plus, Search, Filter, Download, Trash2, Columns, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { ServerTable } from '../components/ServerTable';
-import { ServerDrawer } from '../components/ServerDrawer';
 import { AddServerModal } from '../components/AddServerModal';
 import type { CustomColumn, Server, Group, Tag } from '../types';
 import api, { getApiErrorMessage } from '../lib/api';
@@ -13,13 +12,13 @@ type ApiListResponse<T> = { success: boolean; data: T };
 
 export const Servers = () => {
   const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
   const [servers, setServers] = useState<Server[]>([]);
   const [customColumns, setCustomColumns] = useState<CustomColumn[]>([]);
   const [groups, setGroups] = useState<Group[]>([]);
   const [tags, setTags] = useState<Tag[]>([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [selectedServer, setSelectedServer] = useState<Server | null>(null);
   const [newColumnName, setNewColumnName] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedServerIds, setSelectedServerIds] = useState<number[]>([]);
@@ -28,7 +27,6 @@ export const Servers = () => {
   // Get filter params from URL
   const filterGroupId = searchParams.get('group');
   const filterTagId = searchParams.get('tag');
-  const serverIdFromUrl = searchParams.get('server');
 
   const load = useCallback(async () => {
     try {
@@ -78,25 +76,7 @@ export const Servers = () => {
   useRealtimeResource('tags', () => void load());
   useRealtimeResource('custom-columns', () => void load());
 
-  // Open server drawer when linked from IP inventory (?server=id)
-  useEffect(() => {
-    if (!serverIdFromUrl || loading) return;
-    const id = parseInt(serverIdFromUrl, 10);
-    if (Number.isNaN(id)) return;
-    const match = servers.find((s) => s.id === id);
-    if (match) setSelectedServer(match);
-  }, [serverIdFromUrl, servers, loading]);
-
   const [showExportMenu, setShowExportMenu] = useState(false);
-
-  const closeDrawer = () => {
-    setSelectedServer(null);
-    if (searchParams.get('server')) {
-      const next = new URLSearchParams(searchParams);
-      next.delete('server');
-      setSearchParams(next, { replace: true });
-    }
-  };
 
   const handleExport = async (format: 'json' | 'csv') => {
     setShowExportMenu(false);
@@ -576,7 +556,7 @@ export const Servers = () => {
           <ServerTable
             servers={visibleServers}
             customColumns={customColumns}
-            onRowClick={(server) => setSelectedServer(server)}
+            onRowClick={(server) => navigate(`/servers/${server.id}`)}
             selectedIds={selectedServerIds}
             onToggleSelect={toggleServerSelected}
             allSelected={allVisibleSelected}
@@ -584,24 +564,6 @@ export const Servers = () => {
           />
         )}
       </div>
-
-      {selectedServer && (
-        <ServerDrawer
-          server={selectedServer}
-          isOpen={!!selectedServer}
-          onClose={closeDrawer}
-          onUpdate={() => {
-            load();
-            setSelectedServer(null);
-            if (searchParams.get('server')) {
-              const next = new URLSearchParams(searchParams);
-              next.delete('server');
-              setSearchParams(next, { replace: true });
-            }
-          }}
-          onRefresh={load}
-        />
-      )}
 
       <AddServerModal
         isOpen={isModalOpen}

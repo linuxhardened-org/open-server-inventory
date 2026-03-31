@@ -11,6 +11,7 @@ import { Settings } from './pages/Settings';
 import { ApiSettings } from './pages/ApiSettings';
 import { CloudIntegrations } from './pages/CloudIntegrations';
 import { IpInventory } from './pages/IpInventory';
+import { ServerDetail } from './pages/ServerDetail';
 import { Setup } from './pages/Setup';
 import { ChangePassword } from './pages/ChangePassword';
 import { Layout } from './components/Layout';
@@ -132,6 +133,7 @@ function App() {
         <Route path="/" element={<Layout />}>
           <Route index element={<Navigate to="/servers" replace />} />
           <Route path="servers" element={<Servers />} />
+          <Route path="servers/:id" element={<ServerDetail />} />
           <Route path="groups" element={<Groups />} />
           <Route path="tags" element={<Tags />} />
           <Route path="cloud" element={<CloudIntegrations />} />
