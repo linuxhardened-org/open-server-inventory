@@ -77,17 +77,15 @@ export const Servers = () => {
   useRealtimeResource('custom-columns', () => void load());
 
   const [showExportMenu, setShowExportMenu] = useState(false);
+  const [showFilterPanel, setShowFilterPanel] = useState(false);
+  const [filterStatus, setFilterStatus] = useState<string>('all');
 
   const handleExport = async (format: 'json' | 'csv') => {
     setShowExportMenu(false);
     try {
       const endpoint = format === 'csv' ? '/api/export-import/export/csv' : '/api/export-import/export';
-      const response = await fetch(endpoint, {
-        credentials: 'include',
-      });
-      if (!response.ok) {
-        throw new Error('Export failed');
-      }
+      const response = await fetch(endpoint, { credentials: 'include' });
+      if (!response.ok) throw new Error('Export failed');
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -98,9 +96,42 @@ export const Servers = () => {
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
       toast.success(`${format.toUpperCase()} export downloaded`);
-    } catch (err) {
+    } catch {
       toast.error('Failed to export data');
     }
+  };
+
+  const handleExportSelected = (format: 'json' | 'csv') => {
+    setShowExportMenu(false);
+    const selected = visibleServers.filter((s) => selectedServerIds.includes(s.id));
+    if (selected.length === 0) { toast.error('No servers selected'); return; }
+    let content: string;
+    let mime: string;
+    if (format === 'json') {
+      content = JSON.stringify(selected, null, 2);
+      mime = 'application/json';
+    } else {
+      const keys = ['id', 'name', 'hostname', 'ip_address', 'private_ip', 'ipv6_address', 'os', 'cpu_cores', 'ram_gb', 'status', 'region', 'group_name', 'notes'];
+      const header = keys.join(',');
+      const rows = selected.map((s) =>
+        keys.map((k) => {
+          const v = (s as Record<string, unknown>)[k];
+          return v == null ? '' : `"${String(v).replace(/"/g, '""')}"`;
+        }).join(',')
+      );
+      content = [header, ...rows].join('\n');
+      mime = 'text/csv';
+    }
+    const blob = new Blob([content], { type: mime });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `servervault-selected.${format}`;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    document.body.removeChild(a);
+    toast.success(`${format.toUpperCase()} export downloaded (${selected.length} servers)`);
   };
 
   const handleAddColumn = async (e: React.FormEvent) => {
@@ -131,23 +162,25 @@ export const Servers = () => {
   // Clear filter from URL
   const clearFilters = () => {
     setSearchParams({});
+    setFilterStatus('all');
   };
 
   // Get active filter info
   const activeFilterGroup = filterGroupId ? groups.find(g => g.id === parseInt(filterGroupId)) : null;
   const activeFilterTag = filterTagId ? tags.find(t => t.id === parseInt(filterTagId)) : null;
 
-  // Filter servers by group or tag
+  // Filter servers by group, tag, and status
   const filteredByParams = servers.filter((s) => {
-    if (filterGroupId) {
-      return s.group_id === parseInt(filterGroupId);
-    }
+    if (filterGroupId && s.group_id !== parseInt(filterGroupId)) return false;
     if (filterTagId) {
       const tagIdNum = parseInt(filterTagId);
-      return s.tags?.some((t) => (typeof t === 'object' ? t.id : t) === tagIdNum);
+      if (!s.tags?.some((t) => (typeof t === 'object' ? t.id : t) === tagIdNum)) return false;
     }
+    if (filterStatus !== 'all' && s.status !== filterStatus) return false;
     return true;
   });
+
+  const activeFilterCount = [filterGroupId, filterTagId, filterStatus !== 'all' ? filterStatus : null].filter(Boolean).length;
 
   const onlineCount = filteredByParams.filter((s) => s.status === 'online' || s.status === 'active').length;
   const offlineCount = filteredByParams.filter(
@@ -237,7 +270,7 @@ export const Servers = () => {
       </header>
 
       {/* Active filter banner */}
-      {(activeFilterGroup || activeFilterTag) && (
+      {(activeFilterGroup || activeFilterTag || filterStatus !== 'all') && (
         <div
           className="flex items-center gap-3"
           style={{
@@ -248,8 +281,11 @@ export const Servers = () => {
           }}
         >
           <Filter style={{ width: 14, height: 14, color: 'hsl(var(--primary))' }} />
-          <span style={{ fontSize: 13, color: 'hsl(var(--fg))' }}>
-            Showing servers in{' '}
+          <span style={{ fontSize: 13, color: 'hsl(var(--fg))', display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
+            Filtered by:
+            {filterStatus !== 'all' && (
+              <strong style={{ color: 'hsl(var(--primary))' }}>Status: {filterStatus}</strong>
+            )}
             {activeFilterGroup && (
               <strong style={{ color: 'hsl(var(--primary))' }}>Group: {activeFilterGroup.name}</strong>
             )}
@@ -452,13 +488,88 @@ export const Servers = () => {
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
-          <button
-            type="button"
-            className="sv-btn-ghost"
-            style={{ border: '1px solid hsl(var(--border-2))', gap: 6 }}
-          >
-            <Filter style={{ width: 14, height: 14 }} aria-hidden /> Filters
-          </button>
+          {/* Filter button + panel */}
+          <div style={{ position: 'relative' }}>
+            <button
+              type="button"
+              onClick={() => setShowFilterPanel(!showFilterPanel)}
+              className="sv-btn-ghost"
+              style={{
+                border: activeFilterCount > 0 ? '1px solid hsl(var(--primary) / 0.5)' : '1px solid hsl(var(--border-2))',
+                gap: 6,
+                color: activeFilterCount > 0 ? 'hsl(var(--primary))' : undefined,
+              }}
+            >
+              <Filter style={{ width: 14, height: 14 }} aria-hidden />
+              Filters
+              {activeFilterCount > 0 && (
+                <span style={{ background: 'hsl(var(--primary))', color: '#fff', borderRadius: 9999, fontSize: 10, fontWeight: 700, padding: '1px 6px', marginLeft: 2 }}>
+                  {activeFilterCount}
+                </span>
+              )}
+            </button>
+            {showFilterPanel && (
+              <>
+                <div style={{ position: 'fixed', inset: 0, zIndex: 40 }} onClick={() => setShowFilterPanel(false)} />
+                <div style={{ position: 'absolute', top: '100%', left: 0, marginTop: 4, background: 'hsl(var(--surface))', border: '1px solid hsl(var(--border))', borderRadius: 10, zIndex: 50, minWidth: 220, boxShadow: '0 8px 24px rgba(0,0,0,0.2)', padding: 14, display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  <div>
+                    <label style={{ fontSize: 11, fontWeight: 600, color: 'hsl(var(--fg-2))', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: 6 }}>Status</label>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                      {['all', 'active', 'online', 'offline', 'maintenance'].map((s) => (
+                        <button key={s} type="button" onClick={() => { setFilterStatus(s); setShowFilterPanel(false); }}
+                          style={{ textAlign: 'left', padding: '6px 10px', borderRadius: 6, fontSize: 13, border: 'none', cursor: 'pointer', background: filterStatus === s ? 'hsl(var(--primary) / 0.1)' : 'none', color: filterStatus === s ? 'hsl(var(--primary))' : 'hsl(var(--fg-2))', fontWeight: filterStatus === s ? 600 : 400 }}>
+                          {s === 'all' ? 'All statuses' : s.charAt(0).toUpperCase() + s.slice(1)}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  {groups.length > 0 && (
+                    <div>
+                      <label style={{ fontSize: 11, fontWeight: 600, color: 'hsl(var(--fg-2))', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: 6 }}>Group</label>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                        <button type="button" onClick={() => { const next = new URLSearchParams(searchParams); next.delete('group'); setSearchParams(next); setShowFilterPanel(false); }}
+                          style={{ textAlign: 'left', padding: '6px 10px', borderRadius: 6, fontSize: 13, border: 'none', cursor: 'pointer', background: !filterGroupId ? 'hsl(var(--primary) / 0.1)' : 'none', color: !filterGroupId ? 'hsl(var(--primary))' : 'hsl(var(--fg-2))', fontWeight: !filterGroupId ? 600 : 400 }}>
+                          All groups
+                        </button>
+                        {groups.map((g) => (
+                          <button key={g.id} type="button" onClick={() => { const next = new URLSearchParams(searchParams); next.set('group', String(g.id)); setSearchParams(next); setShowFilterPanel(false); }}
+                            style={{ textAlign: 'left', padding: '6px 10px', borderRadius: 6, fontSize: 13, border: 'none', cursor: 'pointer', background: filterGroupId === String(g.id) ? 'hsl(var(--primary) / 0.1)' : 'none', color: filterGroupId === String(g.id) ? 'hsl(var(--primary))' : 'hsl(var(--fg-2))', fontWeight: filterGroupId === String(g.id) ? 600 : 400 }}>
+                            {g.name}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {tags.length > 0 && (
+                    <div>
+                      <label style={{ fontSize: 11, fontWeight: 600, color: 'hsl(var(--fg-2))', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: 6 }}>Tag</label>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                        <button type="button" onClick={() => { const next = new URLSearchParams(searchParams); next.delete('tag'); setSearchParams(next); setShowFilterPanel(false); }}
+                          style={{ textAlign: 'left', padding: '6px 10px', borderRadius: 6, fontSize: 13, border: 'none', cursor: 'pointer', background: !filterTagId ? 'hsl(var(--primary) / 0.1)' : 'none', color: !filterTagId ? 'hsl(var(--primary))' : 'hsl(var(--fg-2))', fontWeight: !filterTagId ? 600 : 400 }}>
+                          All tags
+                        </button>
+                        {tags.map((t) => (
+                          <button key={t.id} type="button" onClick={() => { const next = new URLSearchParams(searchParams); next.set('tag', String(t.id)); setSearchParams(next); setShowFilterPanel(false); }}
+                            style={{ textAlign: 'left', padding: '6px 10px', borderRadius: 6, fontSize: 13, border: 'none', cursor: 'pointer', background: filterTagId === String(t.id) ? 'hsl(var(--primary) / 0.1)' : 'none', color: filterTagId === String(t.id) ? (t.color || 'hsl(var(--primary))') : 'hsl(var(--fg-2))', fontWeight: filterTagId === String(t.id) ? 600 : 400 }}>
+                            {t.color && <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: t.color, marginRight: 6 }} />}
+                            {t.name}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {activeFilterCount > 0 && (
+                    <button type="button" onClick={() => { clearFilters(); setShowFilterPanel(false); }}
+                      style={{ fontSize: 12, color: 'hsl(var(--danger))', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left', padding: '4px 10px' }}>
+                      Clear all filters
+                    </button>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* Export dropdown */}
           <div style={{ position: 'relative' }}>
             <button
               type="button"
@@ -470,54 +581,28 @@ export const Servers = () => {
             </button>
             {showExportMenu && (
               <>
-                <div
-                  style={{ position: 'fixed', inset: 0, zIndex: 40 }}
-                  onClick={() => setShowExportMenu(false)}
-                />
-                <div
-                  style={{
-                    position: 'absolute',
-                    top: '100%',
-                    right: 0,
-                    marginTop: 4,
-                    background: 'hsl(var(--surface))',
-                    border: '1px solid hsl(var(--border))',
-                    borderRadius: 8,
-                    overflow: 'hidden',
-                    zIndex: 50,
-                    minWidth: 140,
-                    boxShadow: '0 4px 12px hsl(var(--bg) / 0.5)',
-                  }}
-                >
-                  <button
-                    type="button"
-                    onClick={() => handleExport('json')}
-                    className="sv-btn-ghost"
-                    style={{
-                      width: '100%',
-                      justifyContent: 'flex-start',
-                      borderRadius: 0,
-                      padding: '10px 14px',
-                      fontSize: 13,
-                    }}
-                  >
-                    Export as JSON
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleExport('csv')}
-                    className="sv-btn-ghost"
-                    style={{
-                      width: '100%',
-                      justifyContent: 'flex-start',
-                      borderRadius: 0,
-                      padding: '10px 14px',
-                      fontSize: 13,
-                      borderTop: '1px solid hsl(var(--border-2))',
-                    }}
-                  >
-                    Export as CSV
-                  </button>
+                <div style={{ position: 'fixed', inset: 0, zIndex: 40 }} onClick={() => setShowExportMenu(false)} />
+                <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: 4, background: 'hsl(var(--surface))', border: '1px solid hsl(var(--border))', borderRadius: 8, overflow: 'hidden', zIndex: 50, minWidth: 200, boxShadow: '0 4px 12px hsl(var(--bg) / 0.5)' }}>
+                  <div style={{ padding: '8px 14px 6px', fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'hsl(var(--fg-3))' }}>All servers</div>
+                  {(['json', 'csv'] as const).map((fmt) => (
+                    <button key={fmt} type="button" onClick={() => handleExport(fmt)} className="sv-btn-ghost"
+                      style={{ width: '100%', justifyContent: 'flex-start', borderRadius: 0, padding: '8px 14px', fontSize: 13 }}>
+                      Export as {fmt.toUpperCase()}
+                    </button>
+                  ))}
+                  {selectedServerIds.length > 0 && (
+                    <>
+                      <div style={{ padding: '8px 14px 6px', fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'hsl(var(--fg-3))', borderTop: '1px solid hsl(var(--border-2))', marginTop: 4 }}>
+                        Selected ({selectedServerIds.length})
+                      </div>
+                      {(['json', 'csv'] as const).map((fmt) => (
+                        <button key={fmt} type="button" onClick={() => handleExportSelected(fmt)} className="sv-btn-ghost"
+                          style={{ width: '100%', justifyContent: 'flex-start', borderRadius: 0, padding: '8px 14px', fontSize: 13 }}>
+                          Export selected as {fmt.toUpperCase()}
+                        </button>
+                      ))}
+                    </>
+                  )}
                 </div>
               </>
             )}
