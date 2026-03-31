@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { Download, Upload, Trash2, ShieldAlert, Settings2, Database, CheckCircle2, XCircle, Cloud, RefreshCw, Plus } from 'lucide-react';
+import { Download, Upload, Trash2, ShieldAlert, Settings2, Database, CheckCircle2, XCircle, Cloud, RefreshCw, Plus, X } from 'lucide-react';
 import { motion } from 'framer-motion';
 import axios, { getApiErrorMessage } from '../lib/api';
 import toast from 'react-hot-toast';
@@ -33,6 +33,7 @@ export const Settings = () => {
   const [appLogoInput, setAppLogoInput] = useState(appLogoUrl);
   const [savingName, setSavingName] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
+  const logoFileRef = useRef<HTMLInputElement>(null);
   const [dbStatus, setDbStatus] = useState<DbStatus>(null);
   const [dbChecking, setDbChecking] = useState(false);
 
@@ -317,81 +318,95 @@ export const Settings = () => {
             </h2>
             <form
               onSubmit={handleSaveName}
-              className={`grid gap-4 ${!isAdmin ? 'opacity-50 pointer-events-none' : ''}`}
+              className={`flex flex-col gap-4 max-w-md ${!isAdmin ? 'opacity-50 pointer-events-none' : ''}`}
             >
-              <div className="grid grid-cols-1 lg:grid-cols-[1fr_1fr_auto] gap-4 items-start">
-                <div className="min-w-[220px]">
-                  <label className="block text-sm font-medium text-secondary mb-1.5">Application Name</label>
-                  <input
-                    type="text"
-                    value={appNameInput}
-                    onChange={(e) => setAppNameInput(e.target.value)}
-                    className="sv-input"
-                    placeholder="ServerVault"
-                    maxLength={80}
-                    required
-                    disabled={!isAdmin}
-                  />
-                </div>
-                <div className="min-w-[260px]">
-                  <label className="block text-sm font-medium text-secondary mb-1.5">Brand Logo (Upload Image)</label>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleLogoUpload}
-                    className="sv-input"
-                    style={{ padding: '6px 8px', height: 38 }}
-                    disabled={!isAdmin || uploadingLogo}
-                  />
-                  <p className="mt-1 text-xs text-secondary">Recommended PNG/SVG, max 1MB.</p>
-                </div>
-                <div className="min-w-[92px]">
-                  <label className="block text-sm font-medium text-secondary mb-1.5">Preview</label>
-                  {appLogoInput.trim() ? (
-                    <img
-                      src={appLogoInput.trim()}
-                      alt="Logo preview"
-                      style={{
-                        width: 38,
-                        height: 38,
-                        objectFit: 'contain',
-                        borderRadius: 8,
-                        border: '1px solid hsl(var(--border))',
-                        padding: 4,
-                        background: 'hsl(var(--surface-2))',
-                      }}
-                    />
-                  ) : (
-                    <div
-                      style={{
-                        width: 38,
-                        height: 38,
-                        borderRadius: 8,
-                        border: '1px dashed hsl(var(--border-2))',
-                        background: 'hsl(var(--surface-2))',
-                      }}
-                    />
-                  )}
-                </div>
+              <div>
+                <label className="block text-sm font-medium text-secondary mb-1.5">Application Name</label>
+                <input
+                  type="text"
+                  value={appNameInput}
+                  onChange={(e) => setAppNameInput(e.target.value)}
+                  className="sv-input w-full"
+                  placeholder="ServerVault"
+                  maxLength={80}
+                  required
+                  disabled={!isAdmin}
+                />
               </div>
 
-              <div className="grid grid-cols-1 lg:grid-cols-[1fr_auto] gap-3 items-end">
-                <div className="min-w-[280px]">
-                  <label className="block text-sm font-medium text-secondary mb-1.5">Logo URL (Optional fallback)</label>
-                  <input
-                    type="url"
-                    value={appLogoInput}
-                    onChange={(e) => setAppLogoInput(e.target.value)}
-                    className="sv-input"
-                    placeholder="https://example.com/logo.png or /images/logo.png"
-                    maxLength={2048}
-                    disabled={!isAdmin}
-                  />
-                  <p className="mt-1 text-xs text-secondary">
-                    Use this only when upload is not available. Accepts http(s), app path, or uploaded image data URL.
-                  </p>
+              <div>
+                <label className="block text-sm font-medium text-secondary mb-1.5">Brand Logo (Upload Image)</label>
+                <input
+                  ref={logoFileRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleLogoUpload}
+                  style={{ display: 'none' }}
+                  disabled={!isAdmin || uploadingLogo}
+                />
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => logoFileRef.current?.click()}
+                    disabled={!isAdmin || uploadingLogo}
+                    className="sv-btn-ghost"
+                    style={{ border: '1px solid hsl(var(--border-2))', padding: '6px 14px', fontSize: 13, gap: 6 }}
+                  >
+                    <Upload style={{ width: 13, height: 13 }} />
+                    {uploadingLogo ? 'Processing…' : 'Choose File'}
+                  </button>
+                  {appLogoInput.trim() && (
+                    <button
+                      type="button"
+                      onClick={() => setAppLogoInput('')}
+                      className="sv-btn-ghost"
+                      style={{ padding: '6px 8px', color: 'hsl(var(--danger))' }}
+                      title="Clear logo"
+                    >
+                      <X style={{ width: 13, height: 13 }} />
+                    </button>
+                  )}
                 </div>
-                <button type="submit" disabled={savingName || !isAdmin} className="sv-btn-primary h-[38px]">
+                <p className="mt-1 text-xs text-secondary">Recommended PNG/SVG, max 1MB.</p>
+              </div>
+
+              {appLogoInput.trim() && (
+                <div>
+                  <label className="block text-sm font-medium text-secondary mb-1.5">Preview</label>
+                  <img
+                    src={appLogoInput.trim()}
+                    alt="Logo preview"
+                    style={{
+                      width: 48,
+                      height: 48,
+                      objectFit: 'contain',
+                      borderRadius: 8,
+                      border: '1px solid hsl(var(--border))',
+                      padding: 6,
+                      background: 'hsl(var(--surface-2))',
+                    }}
+                  />
+                </div>
+              )}
+
+              <div>
+                <label className="block text-sm font-medium text-secondary mb-1.5">Logo URL (Optional fallback)</label>
+                <input
+                  type="url"
+                  value={appLogoInput}
+                  onChange={(e) => setAppLogoInput(e.target.value)}
+                  className="sv-input w-full"
+                  placeholder="https://example.com/logo.png or /images/logo.png"
+                  maxLength={2048}
+                  disabled={!isAdmin}
+                />
+                <p className="mt-1 text-xs text-secondary">
+                  Use this only when upload is not available. Accepts http(s), app path, or uploaded image data URL.
+                </p>
+              </div>
+
+              <div>
+                <button type="submit" disabled={savingName || !isAdmin} className="sv-btn-primary">
                   {savingName ? 'Saving…' : 'Save'}
                 </button>
               </div>

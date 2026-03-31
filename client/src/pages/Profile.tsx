@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { motion } from 'framer-motion';
-import { User, Shield, LogOut, AlertCircle, Edit2, Check, X } from 'lucide-react';
+import { User, Shield, LogOut, AlertCircle, Edit2, Check, X, Upload } from 'lucide-react';
 import QrSetup from '../components/QrSetup';
 import api, { getApiErrorMessage } from '../lib/api';
 import { useAuthStore } from '../store/useAuthStore';
@@ -15,6 +15,7 @@ export const Profile = () => {
   const [editingName, setEditingName] = useState(false);
   const [realName, setRealName] = useState(user?.real_name || '');
   const [profilePictureUrl, setProfilePictureUrl] = useState(user?.profile_picture_url || '');
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     setRealName(user?.real_name || '');
@@ -45,6 +46,17 @@ export const Profile = () => {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) { toast.error('Please select an image file'); e.target.value = ''; return; }
+    if (file.size > 2 * 1024 * 1024) { toast.error('Image must be under 2MB'); e.target.value = ''; return; }
+    const reader = new FileReader();
+    reader.onload = () => setProfilePictureUrl(String(reader.result || ''));
+    reader.readAsDataURL(file);
+    e.target.value = '';
   };
 
   const handleSaveProfile = async () => {
@@ -159,7 +171,36 @@ export const Profile = () => {
           )}
           <p className="text-secondary text-xs capitalize mt-1">{user?.role}</p>
           <div className="mt-4 text-left">
-            <label className="block text-xs font-medium text-secondary mb-1.5">Profile Picture URL</label>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handleFileUpload}
+              style={{ display: 'none' }}
+            />
+            <div className="flex gap-2 mb-3">
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="sv-btn-ghost flex-1"
+                style={{ border: '1px solid hsl(var(--border-2))', padding: '6px 12px', fontSize: 12, gap: 6 }}
+              >
+                <Upload style={{ width: 13, height: 13 }} />
+                Upload Image
+              </button>
+              {profilePictureUrl && (
+                <button
+                  type="button"
+                  onClick={() => setProfilePictureUrl('')}
+                  className="sv-btn-ghost"
+                  style={{ padding: '6px 10px', fontSize: 12, color: 'hsl(var(--danger))' }}
+                  title="Remove picture"
+                >
+                  <X style={{ width: 13, height: 13 }} />
+                </button>
+              )}
+            </div>
+            <label className="block text-xs font-medium text-secondary mb-1.5">Or enter image URL</label>
             <input
               type="url"
               value={profilePictureUrl}

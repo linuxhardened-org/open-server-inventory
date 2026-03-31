@@ -2,6 +2,7 @@ import { createHash } from 'crypto';
 import db from '../db';
 import { emitRealtime } from '../realtime';
 import { registerProvider, getSyncFn, type SyncResult } from './providers/registry';
+import { syncDigitalOceanProvider } from './providers/digitalocean';
 
 /**
  * Format Linode image string to human-readable OS name
@@ -702,5 +703,6 @@ export async function runAutoSync(): Promise<void> {
 
 // Register providers
 registerProvider('linode', syncLinodeProvider);
+registerProvider('digitalocean', syncDigitalOceanProvider);
 
 export { getSyncFn };

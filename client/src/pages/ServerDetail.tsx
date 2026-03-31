@@ -198,26 +198,27 @@ export const ServerDetail = () => {
 
   return (
     <div className="page animate-in">
+      {/* Back navigation */}
+      <div style={{ marginBottom: 8 }}>
+        <button
+          type="button"
+          onClick={() => navigate('/servers')}
+          className="sv-btn-ghost"
+          style={{ padding: '4px 10px', gap: 6, fontSize: 13 }}
+        >
+          <ArrowLeft style={{ width: 13, height: 13 }} />
+          Back to Servers
+        </button>
+      </div>
       {/* Header */}
       <header className="page-header">
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <button
-            type="button"
-            onClick={() => navigate('/servers')}
-            className="sv-btn-ghost"
-            style={{ padding: '6px 10px', gap: 6 }}
-          >
-            <ArrowLeft style={{ width: 14, height: 14 }} />
-            Back
-          </button>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <Server style={{ width: 18, height: 18, color: 'hsl(var(--primary))' }} />
-            <div>
-              <h1 style={{ margin: 0 }}>{editing ? 'Edit Server' : (server.name || server.hostname)}</h1>
-              {server.name && !editing && (
-                <p style={{ margin: 0, fontSize: 12, color: 'hsl(var(--fg-3))' }}>{server.hostname}</p>
-              )}
-            </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <Server style={{ width: 18, height: 18, color: 'hsl(var(--primary))', flexShrink: 0 }} />
+          <div>
+            <h1 style={{ margin: 0 }}>{editing ? 'Edit Server' : (server.name || server.hostname)}</h1>
+            {server.name && !editing && (
+              <p style={{ margin: 0, fontSize: 12, color: 'hsl(var(--fg-3))' }}>{server.hostname}</p>
+            )}
           </div>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
@@ -308,7 +309,13 @@ export const ServerDetail = () => {
                 <span style={{ fontSize: 11, color: 'hsl(var(--fg-3))', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Status</span>
                 <div style={{ marginTop: 4 }}>
                   <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '3px 8px', borderRadius: 4, background: server.status === 'online' || server.status === 'active' ? 'hsl(var(--success) / 0.1)' : 'hsl(var(--danger) / 0.1)', color: statusColor, fontSize: 11, fontWeight: 500, textTransform: 'capitalize' }}>
-                    <span style={{ width: 5, height: 5, borderRadius: '50%', background: statusColor }} />
+                    <span style={{
+                      width: 6, height: 6, borderRadius: '50%', background: statusColor, flexShrink: 0,
+                      ...(server.status === 'active' || server.status === 'online' ? {
+                        boxShadow: '0 0 0 3px hsl(var(--success) / 0.25)',
+                        animation: 'sv-pulse 2s ease-in-out infinite',
+                      } : {}),
+                    }} />
                     {server.status || 'Unknown'}
                   </span>
                 </div>

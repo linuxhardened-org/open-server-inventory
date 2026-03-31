@@ -165,7 +165,7 @@ export const CloudIntegrations = () => {
           <h1>Cloud Integrations</h1>
           <p>Connect cloud providers to auto-import and sync servers.</p>
           <div style={{ marginTop: 8, display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-            {SUPPORTED_PROVIDERS.filter((p) => p.value !== 'linode').map((provider) => (
+            {SUPPORTED_PROVIDERS.filter((p) => !p.available).map((provider) => (
               <span
                 key={provider.value}
                 style={{
@@ -414,8 +414,8 @@ export const CloudIntegrations = () => {
                   style={{ width: '100%' }}
                 >
                   {SUPPORTED_PROVIDERS.map((p) => (
-                    <option key={p.value} value={p.value} disabled={p.value !== 'linode'}>
-                      {p.label}{p.value !== 'linode' ? ' (coming soon)' : ''}
+                    <option key={p.value} value={p.value} disabled={!p.available}>
+                      {p.label}{!p.available ? ' (coming soon)' : ''}
                     </option>
                   ))}
                 </select>

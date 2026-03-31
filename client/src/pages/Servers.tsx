@@ -203,7 +203,18 @@ export const Servers = () => {
       }),
     [filteredByParams, searchTerm]
   );
-  const allVisibleSelected = visibleServers.length > 0 && visibleServers.every((s) => selectedServerIds.includes(s.id));
+  const [pageSize, setPageSize] = useState(50);
+  const [currentPage, setCurrentPage] = useState(1);
+
+  // Reset page when filters/search change
+  useEffect(() => { setCurrentPage(1); }, [searchTerm, filterGroupId, filterTagId, filterStatus]);
+
+  const totalPages = Math.max(1, Math.ceil(visibleServers.length / pageSize));
+  const paginatedServers = useMemo(
+    () => visibleServers.slice((currentPage - 1) * pageSize, currentPage * pageSize),
+    [visibleServers, currentPage, pageSize]
+  );
+  const allVisibleSelected = paginatedServers.length > 0 && paginatedServers.every((s) => selectedServerIds.includes(s.id));
 
   const toggleServerSelected = (id: number) => {
     setSelectedServerIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
@@ -211,9 +222,9 @@ export const Servers = () => {
 
   const toggleSelectAllVisible = () => {
     setSelectedServerIds((prev) => {
-      if (allVisibleSelected) return prev.filter((id) => !visibleServers.some((s) => s.id === id));
+      if (allVisibleSelected) return prev.filter((id) => !paginatedServers.some((s) => s.id === id));
       const merged = new Set(prev);
-      for (const s of visibleServers) merged.add(s.id);
+      for (const s of paginatedServers) merged.add(s.id);
       return [...merged];
     });
   };
@@ -639,15 +650,52 @@ export const Servers = () => {
             ))}
           </div>
         ) : (
-          <ServerTable
-            servers={visibleServers}
-            customColumns={customColumns}
-            onRowClick={(server) => navigate(`/servers/${server.id}`)}
-            selectedIds={selectedServerIds}
-            onToggleSelect={toggleServerSelected}
-            allSelected={allVisibleSelected}
-            onToggleSelectAll={toggleSelectAllVisible}
-          />
+          <div style={{ overflowX: 'auto', overflowY: 'auto', maxHeight: 520 }}>
+            <ServerTable
+              servers={paginatedServers}
+              customColumns={customColumns}
+              onRowClick={(server) => navigate(`/servers/${server.id}`)}
+              selectedIds={selectedServerIds}
+              onToggleSelect={toggleServerSelected}
+              allSelected={allVisibleSelected}
+              onToggleSelectAll={toggleSelectAllVisible}
+            />
+          </div>
+        )}
+
+        {/* Pagination controls */}
+        {!loading && visibleServers.length > 0 && (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10, paddingTop: 8, borderTop: '1px solid hsl(var(--border))' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: 12, color: 'hsl(var(--fg-2))' }}>Rows per page:</span>
+              <select
+                value={pageSize}
+                onChange={(e) => { setPageSize(Number(e.target.value)); setCurrentPage(1); }}
+                className="sv-input"
+                style={{ padding: '3px 6px', fontSize: 12, width: 'auto' }}
+              >
+                {[20, 50, 100, 200].map((n) => (
+                  <option key={n} value={n}>{n}</option>
+                ))}
+              </select>
+              <span style={{ fontSize: 12, color: 'hsl(var(--fg-3))' }}>
+                {(currentPage - 1) * pageSize + 1}–{Math.min(currentPage * pageSize, visibleServers.length)} of {visibleServers.length}
+              </span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+              <button type="button" className="sv-btn-ghost" style={{ padding: '4px 10px', fontSize: 12 }}
+                disabled={currentPage === 1} onClick={() => setCurrentPage(1)}>«</button>
+              <button type="button" className="sv-btn-ghost" style={{ padding: '4px 10px', fontSize: 12 }}
+                disabled={currentPage === 1} onClick={() => setCurrentPage((p) => p - 1)}>‹ Prev</button>
+              <span style={{ fontSize: 12, color: 'hsl(var(--fg-2))', padding: '0 8px' }}>
+                Page {currentPage} of {totalPages}
+              </span>
+              <button type="button" className="sv-btn-ghost" style={{ padding: '4px 10px', fontSize: 12 }}
+                disabled={currentPage === totalPages} onClick={() => setCurrentPage((p) => p + 1)}>Next ›</button>
+              <button type="button" className="sv-btn-ghost" style={{ padding: '4px 10px', fontSize: 12 }}
+                disabled={currentPage === totalPages} onClick={() => setCurrentPage(totalPages)}>»</button>
+            </div>
+          </div>
         )}
       </div>
 
