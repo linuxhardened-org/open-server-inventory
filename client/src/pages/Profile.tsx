@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { motion } from 'framer-motion';
 import { User, Shield, LogOut, AlertCircle, Edit2, Check, X } from 'lucide-react';
 import QrSetup from '../components/QrSetup';
@@ -14,6 +14,12 @@ export const Profile = () => {
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
   const [editingName, setEditingName] = useState(false);
   const [realName, setRealName] = useState(user?.real_name || '');
+  const [profilePictureUrl, setProfilePictureUrl] = useState(user?.profile_picture_url || '');
+
+  useEffect(() => {
+    setRealName(user?.real_name || '');
+    setProfilePictureUrl(user?.profile_picture_url || '');
+  }, [user?.real_name, user?.profile_picture_url]);
 
   const setup2FA = async () => {
     setIsLoading(true);
@@ -41,21 +47,28 @@ export const Profile = () => {
     }
   };
 
-  const handleSaveRealName = async () => {
+  const handleSaveProfile = async () => {
     try {
-      const res = await api.patch('/auth/profile', { real_name: realName.trim() || null }) as { data: { real_name?: string } };
+      const res = await api.patch('/auth/profile', {
+        real_name: realName.trim() || null,
+        profile_picture_url: profilePictureUrl.trim() || null,
+      }) as { data: { real_name?: string; profile_picture_url?: string | null } };
       if (user) {
-        setAuth({ ...user, real_name: res.data.real_name }, 'session');
+        setAuth({
+          ...user,
+          real_name: res.data.real_name,
+          profile_picture_url: res.data.profile_picture_url || null,
+        }, 'session');
       }
-      toast.success('Display name updated');
+      toast.success('Profile updated');
       setEditingName(false);
     } catch (err: any) {
-      toast.error(err?.error || 'Failed to update display name');
+      toast.error(err?.error || 'Failed to update profile');
     }
   };
 
   return (
-    <div className="page">
+    <div className="page animate-in">
       <header className="page-header">
         <div className="page-header-text">
           <h1>Profile</h1>
@@ -80,8 +93,21 @@ export const Profile = () => {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         <div className="sv-card text-center p-8">
-          <div className="w-24 h-24 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4 border-2 border-primary/20">
-            <User className="w-12 h-12 text-primary" />
+          <div className="w-24 h-24 mx-auto mb-4">
+            {profilePictureUrl.trim() ? (
+              <img
+                src={profilePictureUrl.trim()}
+                alt="Profile"
+                className="w-24 h-24 rounded-full object-cover border-2 border-primary/20"
+                onError={(e) => {
+                  (e.currentTarget as HTMLImageElement).style.display = 'none';
+                }}
+              />
+            ) : (
+              <div className="w-24 h-24 bg-primary/10 rounded-full flex items-center justify-center border-2 border-primary/20">
+                <User className="w-12 h-12 text-primary" />
+              </div>
+            )}
           </div>
           {editingName ? (
             <div className="flex items-center justify-center gap-2 mb-1">
@@ -95,14 +121,18 @@ export const Profile = () => {
                 autoFocus
               />
               <button
-                onClick={handleSaveRealName}
+                onClick={handleSaveProfile}
                 className="p-1.5 rounded-md bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
                 title="Save"
               >
                 <Check className="w-4 h-4" />
               </button>
               <button
-                onClick={() => { setEditingName(false); setRealName(user?.real_name || ''); }}
+                onClick={() => {
+                  setEditingName(false);
+                  setRealName(user?.real_name || '');
+                  setProfilePictureUrl(user?.profile_picture_url || '');
+                }}
                 className="p-1.5 rounded-md bg-foreground/5 text-secondary hover:bg-foreground/10 transition-colors"
                 title="Cancel"
               >
@@ -128,6 +158,25 @@ export const Profile = () => {
             <p className="text-secondary text-sm">@{user?.username}</p>
           )}
           <p className="text-secondary text-xs capitalize mt-1">{user?.role}</p>
+          <div className="mt-4 text-left">
+            <label className="block text-xs font-medium text-secondary mb-1.5">Profile Picture URL</label>
+            <input
+              type="url"
+              value={profilePictureUrl}
+              onChange={(e) => setProfilePictureUrl(e.target.value)}
+              className="sv-input w-full text-sm"
+              placeholder="https://example.com/avatar.png"
+            />
+            <div className="mt-2 flex justify-end">
+              <button
+                type="button"
+                onClick={handleSaveProfile}
+                className="sv-btn-primary py-1.5 px-3 text-xs"
+              >
+                Save profile
+              </button>
+            </div>
+          </div>
           <div className="mt-6 pt-6 border-t border-border">
             <p className="text-xs text-secondary uppercase font-bold tracking-wider mb-2">Member Since</p>
             <p className="text-sm text-foreground">

@@ -164,9 +164,11 @@ export function ServerAddressPopoverCell({ server }: { server: Server }) {
               overflowY: 'auto',
               padding: 12,
               borderRadius: 10,
-              background: 'hsl(var(--surface))',
+              background: 'hsl(var(--surface) / 0.88)',
               border: '1px solid hsl(var(--border))',
-              boxShadow: '0 12px 40px hsl(0 0% 0% / 0.35)',
+              boxShadow: '0 18px 56px hsl(0 0% 0% / 0.45), 0 0 0 1px hsl(var(--primary) / 0.16)',
+              backdropFilter: 'blur(12px) saturate(140%)',
+              WebkitBackdropFilter: 'blur(12px) saturate(140%)',
             }}
             onMouseEnter={clearHide}
             onMouseLeave={scheduleHide}

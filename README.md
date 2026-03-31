@@ -31,6 +31,7 @@
 | **Audit History** | Track all changes with server history log |
 | **Dark Mode** | Eye-friendly dark theme that persists across sessions |
 | **Cloud Networking (Linode)** | Sync primary + additional public IPs, VPC IPs, NAT 1:1 mappings, and VPC subnet details |
+| **Realtime Sync** | WebSocket-driven updates (Socket.IO) with scoped subscriptions, reconnect, and cross-client consistency |
 
 ## Cloud Sync Networking (Linode)
 
@@ -49,6 +50,22 @@ Empty fields are hidden instead of displaying placeholder values.
 - GCP (official logo shown in Cloud Integrations panel)
 - DigitalOcean (official logo shown in Cloud Integrations panel)
 - Vultr (official logo shown in Cloud Integrations panel)
+
+## Setup Screenshots
+
+> Generated with Selenium script: `scripts/selenium_setup_screenshots.py`
+
+### Step 1 — Database Selection
+
+![Setup Step 1 - DB Selection](docs/screenshots/setup/setup_step1_db_selection.png)
+
+### Step 1 — Local PostgreSQL Preparation (Realtime)
+
+![Setup Step 1 - Local Loading](docs/screenshots/setup/setup_step1_local_loading.png)
+
+### Step 2 — Organization Name
+
+![Setup Step 2 - App Name](docs/screenshots/setup/setup_step2_app_name.png)
 
 ## Quick Start
 
@@ -115,7 +132,10 @@ SESSION_SECRET=your-32-character-minimum-random-secret
 # Optional
 CLIENT_URL=http://localhost:8080
 NODE_ENV=production
+REDIS_URL=redis://localhost:6379
 ```
+
+`REDIS_URL` is optional, but recommended for multi-instance/horizontal deployments to fan out socket events across all app nodes.
 
 ## API Usage
 

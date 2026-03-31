@@ -5,6 +5,7 @@ import { Tag as TagIcon, Plus, Trash2, Edit2, Search, ExternalLink } from 'lucid
 import toast from 'react-hot-toast';
 import api from '../lib/api';
 import { Tag } from '../types';
+import { useRealtimeResource } from '../hooks/useRealtimeResource';
 
 export const Tags = () => {
   const navigate = useNavigate();
@@ -23,6 +24,7 @@ export const Tags = () => {
   useEffect(() => {
     fetchTags();
   }, []);
+  useRealtimeResource('tags', () => void fetchTags());
 
   const fetchTags = async () => {
     try {

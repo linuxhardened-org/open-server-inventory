@@ -6,6 +6,7 @@ import TokenTable from '../components/TokenTable';
 import api from '../lib/api';
 import { ApiToken } from '../types';
 import toast from 'react-hot-toast';
+import { useRealtimeResource } from '../hooks/useRealtimeResource';
 
 const expiryOptions = [
   { value: '7d', label: '7 days' },
@@ -26,6 +27,7 @@ export const ApiSettings = () => {
   useEffect(() => {
     fetchTokens();
   }, []);
+  useRealtimeResource('tokens', () => void fetchTokens());
 
   const fetchTokens = async () => {
     try {
@@ -86,7 +88,7 @@ export const ApiSettings = () => {
   };
 
   return (
-    <div className="page">
+    <div className="page animate-in">
       <header className="page-header">
         <div className="page-header-text">
           <h1>API Settings</h1>

@@ -7,6 +7,7 @@ import { ServerDrawer } from '../components/ServerDrawer';
 import { AddServerModal } from '../components/AddServerModal';
 import type { CustomColumn, Server, Group, Tag } from '../types';
 import api, { getApiErrorMessage } from '../lib/api';
+import { useRealtimeResource } from '../hooks/useRealtimeResource';
 
 type ApiListResponse<T> = { success: boolean; data: T };
 
@@ -69,6 +70,10 @@ export const Servers = () => {
   useEffect(() => {
     load();
   }, [load]);
+  useRealtimeResource('servers', () => void load());
+  useRealtimeResource('groups', () => void load());
+  useRealtimeResource('tags', () => void load());
+  useRealtimeResource('custom-columns', () => void load());
 
   // Open server drawer when linked from IP inventory (?server=id)
   useEffect(() => {

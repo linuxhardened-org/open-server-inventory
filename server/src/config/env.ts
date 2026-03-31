@@ -34,6 +34,7 @@ export const env = {
   sessionSecret: requireSessionSecret(),
   /** If false, session cookies work on plain HTTP (Docker/local). */
   cookieSecure,
+  redisUrl: process.env.REDIS_URL || null,
   /**
    * DATABASE_URL takes priority over individual POSTGRES_* vars.
    * Set this to your Supabase connection string (Session mode, port 5432).

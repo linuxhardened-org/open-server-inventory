@@ -7,6 +7,7 @@ import toast from 'react-hot-toast';
 import { useAuthStore } from '../store/useAuthStore';
 import { useSettingsStore } from '../store/useSettingsStore';
 import { LINODE_LOGO_URL } from '../lib/cloudAssets';
+import { useRealtimeResource } from '../hooks/useRealtimeResource';
 
 interface CloudProvider {
   id: number;
@@ -27,9 +28,11 @@ function providerKind(p: CloudProvider): string {
 export const Settings = () => {
   const currentUser = useAuthStore((s) => s.user);
   const isAdmin = currentUser?.role === 'admin';
-  const { appName, setAppName } = useSettingsStore();
+  const { appName, appLogoUrl, setAppName, setAppLogoUrl } = useSettingsStore();
   const [appNameInput, setAppNameInput] = useState(appName);
+  const [appLogoInput, setAppLogoInput] = useState(appLogoUrl);
   const [savingName, setSavingName] = useState(false);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
   const [dbStatus, setDbStatus] = useState<DbStatus>(null);
   const [dbChecking, setDbChecking] = useState(false);
 
@@ -38,13 +41,18 @@ export const Settings = () => {
   const [providersLoading, setProvidersLoading] = useState(false);
   const [addingProvider, setAddingProvider] = useState(false);
   const [syncingId, setSyncingId] = useState<number | null>(null);
+  const [bulkSyncing, setBulkSyncing] = useState(false);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
+  const [selectedProviderIds, setSelectedProviderIds] = useState<number[]>([]);
   const [newProvider, setNewProvider] = useState({ name: '', api_token: '', auto_sync: true });
 
   const fetchProviders = useCallback(async () => {
     setProvidersLoading(true);
     try {
       const res = (await axios.get('/cloud-providers')) as { success: boolean; data: CloudProvider[] };
-      setProviders(Array.isArray(res?.data) ? res.data : []);
+      const rows = Array.isArray(res?.data) ? res.data : [];
+      setProviders(rows);
+      setSelectedProviderIds((prev) => prev.filter((id) => rows.some((p) => p.id === id)));
     } catch (err: unknown) {
       toast.error(getApiErrorMessage(err, 'Could not load cloud providers'));
     } finally {
@@ -56,6 +64,19 @@ export const Settings = () => {
     checkDb();
     fetchProviders();
   }, [fetchProviders]);
+  useRealtimeResource('cloud-providers', () => void fetchProviders());
+  useRealtimeResource('settings', () => {
+    void checkDb();
+    void useSettingsStore.getState().fetchSettings();
+  });
+
+  useEffect(() => {
+    setAppNameInput(appName);
+  }, [appName]);
+
+  useEffect(() => {
+    setAppLogoInput(appLogoUrl);
+  }, [appLogoUrl]);
 
   const checkDb = async () => {
     setDbChecking(true);
@@ -121,16 +142,49 @@ export const Settings = () => {
       return;
     }
     const name = appNameInput.trim();
+    const logo = appLogoInput.trim();
     if (!name) return;
     setSavingName(true);
     try {
-      await axios.put('/settings', { app_name: name });
+      await axios.put('/settings', { app_name: name, app_logo_url: logo });
       setAppName(name);
-      toast.success('App name updated');
-    } catch {
-      toast.error('Failed to save');
+      setAppLogoUrl(logo);
+      toast.success('Branding updated');
+    } catch (err: unknown) {
+      toast.error(getApiErrorMessage(err, 'Failed to save'));
     } finally {
       setSavingName(false);
+    }
+  };
+
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please upload an image file');
+      e.target.value = '';
+      return;
+    }
+    if (file.size > 1024 * 1024) {
+      toast.error('Logo image must be under 1MB');
+      e.target.value = '';
+      return;
+    }
+    setUploadingLogo(true);
+    try {
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result || ''));
+        reader.onerror = () => reject(new Error('Failed to read image file'));
+        reader.readAsDataURL(file);
+      });
+      setAppLogoInput(dataUrl);
+      toast.success('Logo uploaded. Click Save to apply.');
+    } catch {
+      toast.error('Failed to process logo image');
+    } finally {
+      setUploadingLogo(false);
+      e.target.value = '';
     }
   };
 
@@ -186,6 +240,52 @@ export const Settings = () => {
     }
   };
 
+  const allSelected = providers.length > 0 && selectedProviderIds.length === providers.length;
+  const hasSelection = selectedProviderIds.length > 0;
+
+  const toggleSelected = (id: number) => {
+    setSelectedProviderIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  };
+
+  const toggleSelectAll = () => {
+    setSelectedProviderIds((prev) => (prev.length === providers.length ? [] : providers.map((p) => p.id)));
+  };
+
+  const handleBulkSync = async () => {
+    if (!hasSelection) return;
+    setBulkSyncing(true);
+    try {
+      const settled = await Promise.allSettled(
+        selectedProviderIds.map((id) => axios.post(`/cloud-providers/${id}/sync`))
+      );
+      const ok = settled.filter((r) => r.status === 'fulfilled').length;
+      const fail = settled.length - ok;
+      if (ok > 0) toast.success(`Synced ${ok} provider${ok !== 1 ? 's' : ''}`);
+      if (fail > 0) toast.error(`${fail} sync operation${fail !== 1 ? 's' : ''} failed`);
+      await fetchProviders();
+    } finally {
+      setBulkSyncing(false);
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (!hasSelection) return;
+    if (!confirm(`Delete ${selectedProviderIds.length} selected provider(s)? Imported servers will remain.`)) return;
+    setBulkDeleting(true);
+    try {
+      const settled = await Promise.allSettled(
+        selectedProviderIds.map((id) => axios.delete(`/cloud-providers/${id}`))
+      );
+      const ok = settled.filter((r) => r.status === 'fulfilled').length;
+      const fail = settled.length - ok;
+      if (ok > 0) toast.success(`Deleted ${ok} provider${ok !== 1 ? 's' : ''}`);
+      if (fail > 0) toast.error(`${fail} delete operation${fail !== 1 ? 's' : ''} failed`);
+      await fetchProviders();
+    } finally {
+      setBulkDeleting(false);
+    }
+  };
+
   const handleReset = async () => {
     if (!confirm('CRITICAL: This will delete ALL inventory data (servers, groups, tags, keys). This cannot be undone. Proceed?')) return;
     const password = prompt('Please enter your administrator password to confirm:');
@@ -217,24 +317,84 @@ export const Settings = () => {
             </h2>
             <form
               onSubmit={handleSaveName}
-              className={`flex flex-wrap items-end gap-3 ${!isAdmin ? 'opacity-50 pointer-events-none' : ''}`}
+              className={`grid gap-4 ${!isAdmin ? 'opacity-50 pointer-events-none' : ''}`}
             >
-              <div className="flex-1 min-w-[220px]">
-                <label className="block text-sm font-medium text-secondary mb-1.5">Application Name</label>
-                <input
-                  type="text"
-                  value={appNameInput}
-                  onChange={(e) => setAppNameInput(e.target.value)}
-                  className="sv-input"
-                  placeholder="ServerVault"
-                  maxLength={80}
-                  required
-                  disabled={!isAdmin}
-                />
+              <div className="grid grid-cols-1 lg:grid-cols-[1fr_1fr_auto] gap-4 items-start">
+                <div className="min-w-[220px]">
+                  <label className="block text-sm font-medium text-secondary mb-1.5">Application Name</label>
+                  <input
+                    type="text"
+                    value={appNameInput}
+                    onChange={(e) => setAppNameInput(e.target.value)}
+                    className="sv-input"
+                    placeholder="ServerVault"
+                    maxLength={80}
+                    required
+                    disabled={!isAdmin}
+                  />
+                </div>
+                <div className="min-w-[260px]">
+                  <label className="block text-sm font-medium text-secondary mb-1.5">Brand Logo (Upload Image)</label>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleLogoUpload}
+                    className="sv-input"
+                    style={{ padding: '6px 8px', height: 38 }}
+                    disabled={!isAdmin || uploadingLogo}
+                  />
+                  <p className="mt-1 text-xs text-secondary">Recommended PNG/SVG, max 1MB.</p>
+                </div>
+                <div className="min-w-[92px]">
+                  <label className="block text-sm font-medium text-secondary mb-1.5">Preview</label>
+                  {appLogoInput.trim() ? (
+                    <img
+                      src={appLogoInput.trim()}
+                      alt="Logo preview"
+                      style={{
+                        width: 38,
+                        height: 38,
+                        objectFit: 'contain',
+                        borderRadius: 8,
+                        border: '1px solid hsl(var(--border))',
+                        padding: 4,
+                        background: 'hsl(var(--surface-2))',
+                      }}
+                    />
+                  ) : (
+                    <div
+                      style={{
+                        width: 38,
+                        height: 38,
+                        borderRadius: 8,
+                        border: '1px dashed hsl(var(--border-2))',
+                        background: 'hsl(var(--surface-2))',
+                      }}
+                    />
+                  )}
+                </div>
               </div>
-              <button type="submit" disabled={savingName || !isAdmin} className="sv-btn-primary h-[38px]">
-                {savingName ? 'Saving…' : 'Save'}
-              </button>
+
+              <div className="grid grid-cols-1 lg:grid-cols-[1fr_auto] gap-3 items-end">
+                <div className="min-w-[280px]">
+                  <label className="block text-sm font-medium text-secondary mb-1.5">Logo URL (Optional fallback)</label>
+                  <input
+                    type="url"
+                    value={appLogoInput}
+                    onChange={(e) => setAppLogoInput(e.target.value)}
+                    className="sv-input"
+                    placeholder="https://example.com/logo.png or /images/logo.png"
+                    maxLength={2048}
+                    disabled={!isAdmin}
+                  />
+                  <p className="mt-1 text-xs text-secondary">
+                    Use this only when upload is not available. Accepts http(s), app path, or uploaded image data URL.
+                  </p>
+                </div>
+                <button type="submit" disabled={savingName || !isAdmin} className="sv-btn-primary h-[38px]">
+                  {savingName ? 'Saving…' : 'Save'}
+                </button>
+              </div>
             </form>
             {!isAdmin && (
               <p className="mt-2 text-xs text-amber-500/90">Only administrators can change the application name.</p>
@@ -371,6 +531,39 @@ export const Settings = () => {
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '6px 4px 2px' }}>
+                  <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 12, color: 'hsl(var(--fg-2))' }}>
+                    <input
+                      type="checkbox"
+                      checked={allSelected}
+                      onChange={toggleSelectAll}
+                      style={{ width: 15, height: 15, accentColor: 'hsl(var(--primary))' }}
+                    />
+                    Select all
+                  </label>
+                  <span style={{ fontSize: 12, color: 'hsl(var(--fg-3))' }}>
+                    {selectedProviderIds.length} selected
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleBulkSync}
+                    disabled={!hasSelection || bulkSyncing || bulkDeleting}
+                    className="sv-btn-primary"
+                    style={{ marginLeft: 'auto', padding: '6px 12px', fontSize: 12, gap: 5 }}
+                  >
+                    <RefreshCw style={{ width: 13, height: 13, animation: bulkSyncing ? 'spin 1s linear infinite' : 'none' }} />
+                    {bulkSyncing ? 'Syncing selected...' : 'Sync selected'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleBulkDelete}
+                    disabled={!hasSelection || bulkSyncing || bulkDeleting}
+                    className="sv-btn-ghost"
+                    style={{ padding: '6px 10px', color: 'hsl(var(--danger))', border: '1px solid hsl(var(--border-2))' }}
+                  >
+                    {bulkDeleting ? 'Deleting...' : 'Delete selected'}
+                  </button>
+                </div>
                 {providers.map((provider) => (
                   <div
                     key={provider.id}
@@ -385,6 +578,13 @@ export const Settings = () => {
                     }}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                      <input
+                        type="checkbox"
+                        checked={selectedProviderIds.includes(provider.id)}
+                        onChange={() => toggleSelected(provider.id)}
+                        style={{ width: 15, height: 15, accentColor: 'hsl(var(--primary))' }}
+                        aria-label={`Select ${provider.name}`}
+                      />
                       <div
                         style={{
                           width: 36,

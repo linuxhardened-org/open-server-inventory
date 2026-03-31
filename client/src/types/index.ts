@@ -2,6 +2,7 @@ export interface User {
   id: number;
   username: string;
   real_name?: string;
+  profile_picture_url?: string | null;
   role: 'admin' | 'operator';
   totp_enabled: boolean;
   password_change_required?: boolean;

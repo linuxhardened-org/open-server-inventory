@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
 import api, { getApiErrorMessage } from '../lib/api';
 import type { Server as ServerModel } from '../types';
+import { useRealtimeResource } from '../hooks/useRealtimeResource';
 
 interface ServerIp {
   id: number;
@@ -67,6 +68,8 @@ export const IpInventory = () => {
     void fetchIps();
     void fetchServers();
   }, [fetchIps, fetchServers]);
+  useRealtimeResource('ips', () => void fetchIps());
+  useRealtimeResource('servers', () => void fetchServers());
 
   // Keep search in sync with ?q= (shareable lookup links)
   useEffect(() => {

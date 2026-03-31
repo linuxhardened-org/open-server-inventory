@@ -1,4 +1,5 @@
 import db from '../db';
+import { emitRealtime } from '../realtime';
 
 /**
  * Format Linode image string to human-readable OS name
@@ -590,6 +591,19 @@ export async function syncLinodeProvider(
     );
 
     await client.query('COMMIT');
+    emitRealtime({
+      resource: 'servers',
+      action: 'sync',
+      at: new Date().toISOString(),
+      meta: { providerId, providerName, syncedCount: instances.length },
+    });
+    emitRealtime({
+      resource: 'cloud-providers',
+      action: 'updated',
+      at: new Date().toISOString(),
+      id: providerId,
+      meta: { providerName, syncedCount: instances.length },
+    });
     return instances.length;
   } catch (err) {
     await client.query('ROLLBACK');

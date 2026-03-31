@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 import { UserPlus, Shield, User, Trash2 } from 'lucide-react';
 import api from '../lib/api';
 import toast from 'react-hot-toast';
+import { useRealtimeResource } from '../hooks/useRealtimeResource';
 
 interface UserData {
   id: number;
@@ -46,6 +47,9 @@ export const Users = () => {
   useEffect(() => {
     if (currentUser?.role === 'admin') void fetchUsers();
   }, [currentUser?.role, fetchUsers]);
+  useRealtimeResource('users', () => {
+    if (currentUser?.role === 'admin') void fetchUsers();
+  });
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();

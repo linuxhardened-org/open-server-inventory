@@ -13,6 +13,7 @@ import {
   Palette,
   Sun,
   Moon,
+  Monitor,
 } from 'lucide-react';
 import { useAuthStore } from '../store/useAuthStore';
 import { useSettingsStore } from '../store/useSettingsStore';
@@ -52,36 +53,28 @@ export const Sidebar = ({ isOpen }: { isOpen?: boolean; onClose?: () => void }) 
   const logout = useAuthStore((s) => s.logout);
   const navigate = useNavigate();
   const appName = useSettingsStore((s) => s.appName);
-  const { theme, accent, setAccent, toggleTheme } = useThemeStore();
+  const appLogoUrl = useSettingsStore((s) => s.appLogoUrl);
+  const { theme, accent, setAccent, setTheme } = useThemeStore();
 
   return (
     <nav className={`app-sidebar${isOpen ? ' sidebar-open' : ''}`}>
       <Link to="/servers" className="app-sidebar-brand">
-        {/* Terminal >_ SVG icon */}
-        <svg
-          width="28"
-          height="28"
-          viewBox="0 0 28 28"
-          fill="none"
-          xmlns="http://www.w3.org/2000/svg"
-          style={{
-            flexShrink: 0,
-            filter: 'drop-shadow(0 0 6px hsl(var(--primary) / 0.6))',
-          }}
-          aria-hidden
-        >
-          <rect width="28" height="28" rx="7" fill="hsl(var(--primary) / 0.12)" />
-          <text
-            x="5"
-            y="19"
-            fontFamily="'Geist Mono', ui-monospace, monospace"
-            fontSize="12"
-            fontWeight="600"
-            fill="hsl(var(--primary))"
-          >
-            {'> _'}
-          </text>
-        </svg>
+        {appLogoUrl ? (
+          <img
+            src={appLogoUrl}
+            alt="App logo"
+            style={{
+              width: 28,
+              height: 28,
+              objectFit: 'contain',
+              borderRadius: 6,
+              flexShrink: 0,
+            }}
+            onError={(e) => {
+              (e.currentTarget as HTMLImageElement).style.display = 'none';
+            }}
+          />
+        ) : null}
         {appName}
       </Link>
 
@@ -105,29 +98,72 @@ export const Sidebar = ({ isOpen }: { isOpen?: boolean; onClose?: () => void }) 
             Theme
           </span>
         </div>
-        {/* Dark/Light toggle */}
-        <button
-          type="button"
-          onClick={toggleTheme}
-          style={{
-            width: '100%',
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
-            padding: '6px 10px',
-            marginBottom: 10,
-            borderRadius: 6,
-            border: '1px solid hsl(var(--border))',
-            background: 'hsl(var(--surface-2))',
-            color: 'hsl(var(--fg-2))',
-            fontSize: 12,
-            cursor: 'pointer',
-            transition: 'background 150ms',
-          }}
-        >
-          {theme === 'dark' ? <Moon size={13} /> : <Sun size={13} />}
-          {theme === 'dark' ? 'Dark Mode' : 'Light Mode'}
-        </button>
+        {/* Light / Dark / System selector */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6, marginBottom: 10 }}>
+          <button
+            type="button"
+            onClick={() => setTheme('light')}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 6,
+              padding: '6px 8px',
+              borderRadius: 6,
+              border: '1px solid hsl(var(--border))',
+              background: theme === 'light' ? 'hsl(var(--primary) / 0.14)' : 'hsl(var(--surface-2))',
+              color: theme === 'light' ? 'hsl(var(--fg))' : 'hsl(var(--fg-2))',
+              fontSize: 11,
+              cursor: 'pointer',
+            }}
+            title="Light theme"
+          >
+            <Sun size={12} />
+            Light
+          </button>
+          <button
+            type="button"
+            onClick={() => setTheme('dark')}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 6,
+              padding: '6px 8px',
+              borderRadius: 6,
+              border: '1px solid hsl(var(--border))',
+              background: theme === 'dark' ? 'hsl(var(--primary) / 0.14)' : 'hsl(var(--surface-2))',
+              color: theme === 'dark' ? 'hsl(var(--fg))' : 'hsl(var(--fg-2))',
+              fontSize: 11,
+              cursor: 'pointer',
+            }}
+            title="Dark theme"
+          >
+            <Moon size={12} />
+            Dark
+          </button>
+          <button
+            type="button"
+            onClick={() => setTheme('system')}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 6,
+              padding: '6px 8px',
+              borderRadius: 6,
+              border: '1px solid hsl(var(--border))',
+              background: theme === 'system' ? 'hsl(var(--primary) / 0.14)' : 'hsl(var(--surface-2))',
+              color: theme === 'system' ? 'hsl(var(--fg))' : 'hsl(var(--fg-2))',
+              fontSize: 11,
+              cursor: 'pointer',
+            }}
+            title="Use system preference"
+          >
+            <Monitor size={12} />
+            System
+          </button>
+        </div>
         {/* Accent colors */}
         <div className="flex flex-wrap gap-2">
           {accentColors.map((c) => (

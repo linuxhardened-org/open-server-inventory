@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
-export type ThemeMode = 'light' | 'dark';
+export type ThemeMode = 'light' | 'dark' | 'system';
 export type AccentColor = 'emerald' | 'blue' | 'purple' | 'orange' | 'pink' | 'cyan';
 
 export const accentColors: { id: AccentColor; label: string; color: string }[] = [
@@ -13,9 +13,16 @@ export const accentColors: { id: AccentColor; label: string; color: string }[] =
   { id: 'cyan', label: 'Cyan', color: '#06b6d4' },
 ];
 
+export function resolveThemeMode(mode: ThemeMode): 'light' | 'dark' {
+  if (mode !== 'system') return mode;
+  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return 'light';
+  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+}
+
 export function applyDomTheme(mode: ThemeMode, accent: AccentColor = 'emerald') {
   const root = document.documentElement;
-  if (mode === 'dark') {
+  const resolved = resolveThemeMode(mode);
+  if (resolved === 'dark') {
     root.classList.add('dark');
   } else {
     root.classList.remove('dark');
@@ -45,7 +52,8 @@ export const useThemeStore = create<{
         applyDomTheme(get().theme, accent);
       },
       toggleTheme: () => {
-        const next = get().theme === 'light' ? 'dark' : 'light';
+        const t = get().theme;
+        const next: ThemeMode = t === 'light' ? 'dark' : t === 'dark' ? 'system' : 'light';
         get().setTheme(next);
       },
     }),
@@ -63,7 +71,8 @@ export function initThemeFromStorage() {
   try {
     const raw = localStorage.getItem('sv-theme');
     const parsed = raw ? JSON.parse(raw) : null;
-    const theme = parsed?.state?.theme === 'dark' ? 'dark' : 'light';
+    const stored = parsed?.state?.theme;
+    const theme: ThemeMode = stored === 'dark' || stored === 'light' || stored === 'system' ? stored : 'light';
     const accent = parsed?.state?.accent || 'emerald';
     applyDomTheme(theme, accent);
   } catch {

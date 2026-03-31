@@ -21,3 +21,18 @@ Add screenshots here for the README. Recommended files:
 - Login: 600x400 (cropped view)
 
 Save as PNG with descriptive names matching the README references.
+
+## Selenium automation (Setup flow)
+
+You can auto-capture Setup screenshots with:
+
+```bash
+pip install selenium
+python3 scripts/selenium_setup_screenshots.py --base-url http://localhost:5173
+```
+
+Generated files:
+
+- `docs/screenshots/setup/setup_step1_db_selection.png`
+- `docs/screenshots/setup/setup_step1_local_loading.png` (captured only if loading state is visible)
+- `docs/screenshots/setup/setup_step2_app_name.png`

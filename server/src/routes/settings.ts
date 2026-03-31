@@ -75,19 +75,34 @@ router.get('/db-status', async (_req, res) => {
 router.put('/', sessionAuth, adminAuth, async (req, res) => {
   const schema = z.object({
     app_name: z.string().trim().min(1).max(80).optional(),
+    app_logo_url: z
+      .string()
+      .trim()
+      .max(2048)
+      .refine(
+        (v) => v === '' || v.startsWith('/') || /^https?:\/\//i.test(v) || /^data:image\//i.test(v),
+        'Logo must be an uploaded image data URL, an absolute http(s) URL, or app-relative path (e.g. /images/logo.png)'
+      )
+      .optional(),
   });
   const parsed = schema.safeParse(req.body);
   if (!parsed.success) return sendError(res, 'Invalid input', 400);
 
   try {
-    const { app_name } = parsed.data;
+    const { app_name, app_logo_url } = parsed.data;
     if (app_name !== undefined) {
       await db.query(
         'INSERT INTO app_settings (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value',
         ['app_name', app_name]
       );
     }
-    sendSuccess(res, { app_name });
+    if (app_logo_url !== undefined) {
+      await db.query(
+        'INSERT INTO app_settings (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value',
+        ['app_logo_url', app_logo_url]
+      );
+    }
+    sendSuccess(res, { app_name, app_logo_url });
   } catch (err: any) {
     sendError(res, err.message || 'Failed to save settings');
   }

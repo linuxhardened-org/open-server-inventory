@@ -4,6 +4,7 @@ CREATE TABLE IF NOT EXISTS users (
   username VARCHAR(255) UNIQUE NOT NULL,
   password_hash TEXT NOT NULL,
   real_name VARCHAR(255),
+  profile_picture_url TEXT,
   role VARCHAR(50) DEFAULT 'operator',
   totp_secret TEXT,
   totp_enabling_secret TEXT, -- Temp storage for 2FA setup

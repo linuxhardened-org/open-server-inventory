@@ -16,14 +16,25 @@ interface ServerTableProps {
 
 export const ServerTable = ({ servers, customColumns, onRowClick }: ServerTableProps) => {
   return (
-    <div className="overflow-x-auto rounded-xl" style={{ border: '1px solid hsl(var(--border))' }}>
+    <div
+      className="overflow-x-auto rounded-xl"
+      style={{
+        border: '1px solid hsl(var(--border))',
+        background: 'hsl(var(--surface) / 0.75)',
+        boxShadow: '0 18px 40px -28px hsl(var(--primary) / 0.45)',
+        backdropFilter: 'blur(8px)',
+      }}
+    >
       <table className="w-full text-left border-collapse">
         <thead>
           <tr
             style={{
               height: 36,
-              background: 'hsl(var(--surface-3))',
+              background: 'hsl(var(--surface-3) / 0.9)',
               borderBottom: '1px solid hsl(var(--border))',
+              position: 'sticky',
+              top: 0,
+              zIndex: 2,
             }}
           >
             <th
@@ -165,13 +176,15 @@ export const ServerTable = ({ servers, customColumns, onRowClick }: ServerTableP
               style={{
                 height: 48,
                 borderBottom: '1px solid hsl(var(--border))',
-                transition: 'background 75ms',
+                transition: 'background 140ms, transform 140ms',
               }}
               onMouseEnter={(e) => {
                 (e.currentTarget as HTMLTableRowElement).style.background = 'hsl(var(--surface-2))';
+                (e.currentTarget as HTMLTableRowElement).style.transform = 'translateY(-1px)';
               }}
               onMouseLeave={(e) => {
                 (e.currentTarget as HTMLTableRowElement).style.background = '';
+                (e.currentTarget as HTMLTableRowElement).style.transform = '';
               }}
             >
               {/* Status */}
@@ -214,6 +227,7 @@ export const ServerTable = ({ servers, customColumns, onRowClick }: ServerTableP
                           borderRadius: '50%',
                           background: dotColor,
                           flexShrink: 0,
+                          boxShadow: `0 0 10px ${dotColor}`,
                         }}
                       />
                       {server.status ?? 'unknown'}

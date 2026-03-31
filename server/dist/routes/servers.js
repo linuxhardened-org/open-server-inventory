@@ -34,6 +34,9 @@ const serverSchema = zod_1.z.object({
     name: zod_1.z.string(),
     hostname: zod_1.z.string(),
     ip_address: zod_1.z.string().optional(),
+    private_ip: zod_1.z.string().optional(),
+    ipv6_address: zod_1.z.string().optional(),
+    private_ipv6: zod_1.z.string().optional(),
     os: zod_1.z.string().optional(),
     cpu_cores: zod_1.z.number().optional(),
     ram_gb: zod_1.z.number().optional(),
@@ -161,10 +164,10 @@ router.post('/', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
         yield client.query('BEGIN');
         const insertResult = yield client.query(`
-      INSERT INTO servers (name, hostname, ip_address, os, cpu_cores, ram_gb, group_id, ssh_key_id, status, notes)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+      INSERT INTO servers (name, hostname, ip_address, private_ip, ipv6_address, private_ipv6, os, cpu_cores, ram_gb, group_id, ssh_key_id, status, notes)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
       RETURNING id
-    `, [data.name, data.hostname, data.ip_address || null, data.os || null, data.cpu_cores || null, data.ram_gb || null, data.group_id || null, data.ssh_key_id || null, data.status || 'active', data.notes || null]);
+    `, [data.name, data.hostname, data.ip_address || null, data.private_ip || null, data.ipv6_address || null, data.private_ipv6 || null, data.os || null, data.cpu_cores || null, data.ram_gb || null, data.group_id || null, data.ssh_key_id || null, data.status || 'active', data.notes || null]);
         const serverId = insertResult.rows[0].id;
         yield saveCustomValues(client, serverId, custom_values);
         if (tags && tags.length > 0) {
@@ -199,9 +202,9 @@ router.put('/:id', (req, res) => __awaiter(void 0, void 0, void 0, function* () 
     try {
         yield client.query('BEGIN');
         yield client.query(`
-      UPDATE servers SET name = $1, hostname = $2, ip_address = $3, os = $4, cpu_cores = $5, ram_gb = $6, group_id = $7, ssh_key_id = $8, status = $9, notes = $10, updated_at = CURRENT_TIMESTAMP
-      WHERE id = $11
-    `, [data.name, data.hostname, data.ip_address || null, data.os || null, data.cpu_cores || null, data.ram_gb || null, data.group_id || null, data.ssh_key_id || null, data.status || 'active', data.notes || null, serverId]);
+      UPDATE servers SET name = $1, hostname = $2, ip_address = $3, private_ip = $4, ipv6_address = $5, private_ipv6 = $6, os = $7, cpu_cores = $8, ram_gb = $9, group_id = $10, ssh_key_id = $11, status = $12, notes = $13, updated_at = CURRENT_TIMESTAMP
+      WHERE id = $14
+    `, [data.name, data.hostname, data.ip_address || null, data.private_ip || null, data.ipv6_address || null, data.private_ipv6 || null, data.os || null, data.cpu_cores || null, data.ram_gb || null, data.group_id || null, data.ssh_key_id || null, data.status || 'active', data.notes || null, serverId]);
         if (custom_values !== undefined) {
             yield saveCustomValues(client, Number(serverId), custom_values);
         }

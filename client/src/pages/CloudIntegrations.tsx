@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 import axios, { getApiErrorMessage } from '../lib/api';
 import toast from 'react-hot-toast';
 import { LINODE_LOGO_URL } from '../lib/cloudAssets';
+import { useRealtimeResource } from '../hooks/useRealtimeResource';
 
 interface CloudProvider {
   id: number;
@@ -40,12 +41,17 @@ export const CloudIntegrations = () => {
   const [loading, setLoading] = useState(true);
   const [addingProvider, setAddingProvider] = useState(false);
   const [syncingId, setSyncingId] = useState<number | null>(null);
+  const [bulkSyncing, setBulkSyncing] = useState(false);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
+  const [selectedProviderIds, setSelectedProviderIds] = useState<number[]>([]);
   const [newProvider, setNewProvider] = useState({ name: '', api_token: '', auto_sync: true, sync_hour: 0 });
 
   const fetchProviders = useCallback(async () => {
     try {
       const res = (await axios.get('/cloud-providers')) as { success: boolean; data: CloudProvider[] };
-      setProviders(Array.isArray(res?.data) ? res.data : []);
+      const rows = Array.isArray(res?.data) ? res.data : [];
+      setProviders(rows);
+      setSelectedProviderIds((prev) => prev.filter((id) => rows.some((p) => p.id === id)));
     } catch (err: unknown) {
       toast.error(getApiErrorMessage(err, 'Could not load cloud providers'));
     } finally {
@@ -56,6 +62,8 @@ export const CloudIntegrations = () => {
   useEffect(() => {
     fetchProviders();
   }, [fetchProviders]);
+  useRealtimeResource('cloud-providers', () => void fetchProviders());
+  useRealtimeResource('servers', () => void fetchProviders());
 
   const handleAddProvider = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -121,6 +129,52 @@ export const CloudIntegrations = () => {
     }
   };
 
+  const allSelected = providers.length > 0 && selectedProviderIds.length === providers.length;
+  const hasSelection = selectedProviderIds.length > 0;
+
+  const toggleSelected = (id: number) => {
+    setSelectedProviderIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  };
+
+  const toggleSelectAll = () => {
+    setSelectedProviderIds((prev) => (prev.length === providers.length ? [] : providers.map((p) => p.id)));
+  };
+
+  const handleBulkSync = async () => {
+    if (!hasSelection) return;
+    setBulkSyncing(true);
+    try {
+      const settled = await Promise.allSettled(
+        selectedProviderIds.map((id) => axios.post(`/cloud-providers/${id}/sync`))
+      );
+      const ok = settled.filter((r) => r.status === 'fulfilled').length;
+      const fail = settled.length - ok;
+      if (ok > 0) toast.success(`Synced ${ok} provider${ok !== 1 ? 's' : ''}`);
+      if (fail > 0) toast.error(`${fail} sync operation${fail !== 1 ? 's' : ''} failed`);
+      await fetchProviders();
+    } finally {
+      setBulkSyncing(false);
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (!hasSelection) return;
+    if (!confirm(`Delete ${selectedProviderIds.length} selected provider(s)? Imported servers will remain.`)) return;
+    setBulkDeleting(true);
+    try {
+      const settled = await Promise.allSettled(
+        selectedProviderIds.map((id) => axios.delete(`/cloud-providers/${id}`))
+      );
+      const ok = settled.filter((r) => r.status === 'fulfilled').length;
+      const fail = settled.length - ok;
+      if (ok > 0) toast.success(`Deleted ${ok} provider${ok !== 1 ? 's' : ''}`);
+      if (fail > 0) toast.error(`${fail} delete operation${fail !== 1 ? 's' : ''} failed`);
+      await fetchProviders();
+    } finally {
+      setBulkDeleting(false);
+    }
+  };
+
   return (
     <div className="page animate-in">
       <header className="page-header">
@@ -171,6 +225,39 @@ export const CloudIntegrations = () => {
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '6px 4px 2px' }}>
+              <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 12, color: 'hsl(var(--fg-2))' }}>
+                <input
+                  type="checkbox"
+                  checked={allSelected}
+                  onChange={toggleSelectAll}
+                  style={{ width: 15, height: 15, accentColor: 'hsl(var(--primary))' }}
+                />
+                Select all
+              </label>
+              <span style={{ fontSize: 12, color: 'hsl(var(--fg-3))' }}>
+                {selectedProviderIds.length} selected
+              </span>
+              <button
+                type="button"
+                onClick={handleBulkSync}
+                disabled={!hasSelection || bulkSyncing || bulkDeleting}
+                className="sv-btn-primary"
+                style={{ marginLeft: 'auto', padding: '6px 12px', fontSize: 12, gap: 5 }}
+              >
+                <RefreshCw style={{ width: 13, height: 13, animation: bulkSyncing ? 'spin 1s linear infinite' : 'none' }} />
+                {bulkSyncing ? 'Syncing selected...' : 'Sync selected'}
+              </button>
+              <button
+                type="button"
+                onClick={handleBulkDelete}
+                disabled={!hasSelection || bulkSyncing || bulkDeleting}
+                className="sv-btn-ghost"
+                style={{ padding: '6px 10px', color: 'hsl(var(--danger))', border: '1px solid hsl(var(--border-2))' }}
+              >
+                {bulkDeleting ? 'Deleting...' : 'Delete selected'}
+              </button>
+            </div>
             {providers.map((provider) => (
               <div
                 key={provider.id}
@@ -185,6 +272,13 @@ export const CloudIntegrations = () => {
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                  <input
+                    type="checkbox"
+                    checked={selectedProviderIds.includes(provider.id)}
+                    onChange={() => toggleSelected(provider.id)}
+                    style={{ width: 15, height: 15, accentColor: 'hsl(var(--primary))' }}
+                    aria-label={`Select ${provider.name}`}
+                  />
                   <div
                     style={{
                       width: 42,

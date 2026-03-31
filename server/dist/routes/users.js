@@ -24,7 +24,7 @@ const router = (0, express_1.Router)();
 router.use(sessionAuth_1.sessionAuth, adminAuth_1.adminAuth);
 router.get('/', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
-        const result = yield db_1.default.query('SELECT id, username, real_name, role, totp_enabled, created_at FROM users');
+        const result = yield db_1.default.query('SELECT id, username, real_name, profile_picture_url, role, totp_enabled, created_at FROM users');
         (0, response_1.sendSuccess)(res, result.rows);
     }
     catch (err) {
@@ -107,13 +107,20 @@ router.patch('/:id', (req, res) => __awaiter(void 0, void 0, void 0, function* (
     }
     const schema = zod_1.z.object({
         real_name: zod_1.z.string().max(255).nullable().optional(),
+        profile_picture_url: zod_1.z
+            .string()
+            .trim()
+            .max(2048)
+            .refine((v) => v === '' || v.startsWith('/') || /^https?:\/\//i.test(v), 'Profile picture URL must be an absolute http(s) URL or app-relative path')
+            .nullable()
+            .optional(),
     });
     const parseResult = schema.safeParse(req.body);
     if (!parseResult.success)
         return (0, response_1.sendError)(res, 'Invalid input');
-    const { real_name } = parseResult.data;
+    const { real_name, profile_picture_url } = parseResult.data;
     try {
-        const result = yield db_1.default.query('UPDATE users SET real_name = $1 WHERE id = $2 RETURNING id, username, real_name, role', [real_name !== null && real_name !== void 0 ? real_name : null, userId]);
+        const result = yield db_1.default.query('UPDATE users SET real_name = $1, profile_picture_url = $2 WHERE id = $3 RETURNING id, username, real_name, profile_picture_url, role', [real_name !== null && real_name !== void 0 ? real_name : null, profile_picture_url !== null && profile_picture_url !== void 0 ? profile_picture_url : null, userId]);
         if (result.rowCount && result.rowCount > 0) {
             (0, response_1.sendSuccess)(res, result.rows[0]);
         }

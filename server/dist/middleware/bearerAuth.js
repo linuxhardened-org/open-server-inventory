@@ -29,14 +29,16 @@ const bearerAuth = (req, res, next) => __awaiter(void 0, void 0, void 0, functio
     try {
         const result = yield db_1.default.query('SELECT * FROM api_tokens WHERE token_hash = $1', [tokenHash]);
         const apiToken = result.rows[0];
-        if (apiToken) {
-            yield db_1.default.query('UPDATE api_tokens SET last_used_at = CURRENT_TIMESTAMP WHERE id = $1', [apiToken.id]);
-            req.userId = apiToken.user_id;
-            next();
+        if (!apiToken) {
+            return (0, response_1.sendError)(res, 'Unauthorized: Invalid API token', 401);
         }
-        else {
-            (0, response_1.sendError)(res, 'Unauthorized: Invalid API token', 401);
+        // Check if token has expired
+        if (apiToken.expires_at && new Date(apiToken.expires_at) < new Date()) {
+            return (0, response_1.sendError)(res, 'Unauthorized: API token has expired', 401);
         }
+        yield db_1.default.query('UPDATE api_tokens SET last_used_at = CURRENT_TIMESTAMP WHERE id = $1', [apiToken.id]);
+        req.userId = apiToken.user_id;
+        next();
     }
     catch (error) {
         console.error('Database error in bearerAuth:', error);

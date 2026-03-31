@@ -23,7 +23,13 @@ const groupSchema = zod_1.z.object({
 });
 router.get('/', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
-        const result = yield db_1.default.query('SELECT * FROM groups');
+        const result = yield db_1.default.query(`
+      SELECT g.*, COUNT(s.id)::int AS "serverCount"
+      FROM groups g
+      LEFT JOIN servers s ON s.group_id = g.id
+      GROUP BY g.id
+      ORDER BY g.name
+    `);
         (0, response_1.sendSuccess)(res, result.rows);
     }
     catch (err) {

@@ -1,4 +1,5 @@
 import express from 'express';
+import http from 'http';
 import session from 'express-session';
 import connectPgSimple from 'connect-pg-simple';
 import cors from 'cors';
@@ -26,11 +27,13 @@ import { bearerAuth } from './middleware/bearerAuth';
 import db, { initDB } from './db';
 import { attachClientSpa } from './spaStatic';
 import { runAutoSync } from './utils/cloudSync';
+import { emitRealtime, initRealtime } from './realtime';
 
 const PgSession = connectPgSimple(session);
 
 const app = express();
 const PORT = env.port;
+const httpServer = http.createServer(app);
 
 app.use(morgan('dev'));
 app.use(cors({
@@ -39,7 +42,7 @@ app.use(cors({
 }));
 app.use(express.json({ limit: '5mb' }));
 
-app.use(session({
+const sessionMiddleware = session({
   store: new PgSession({
     pool: db.pool,
     tableName: 'session'
@@ -53,7 +56,38 @@ app.use(session({
     httpOnly: true,
     maxAge: 1000 * 60 * 60 * 24 // 24 hours
   }
-}));
+});
+app.use(sessionMiddleware);
+
+// Mutation -> realtime invalidation bridge (keeps route handlers decoupled).
+app.use((req, res, next) => {
+  if (!req.originalUrl.startsWith('/api/')) return next();
+  if (!['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method)) return next();
+
+  res.on('finish', () => {
+    if (res.statusCode >= 400) return;
+    const [pathNoQuery] = req.originalUrl.split('?');
+    const parts = pathNoQuery.split('/').filter(Boolean); // ['api', 'servers', ':id']
+    const resource = parts[1] ?? 'unknown';
+    const targetId = parts[2];
+    const action =
+      req.method === 'POST'
+        ? 'created'
+        : req.method === 'DELETE'
+          ? 'deleted'
+          : 'updated';
+    emitRealtime({
+      resource,
+      action,
+      id: targetId,
+      at: new Date().toISOString(),
+      actor_user_id: req.session?.userId ?? req.userId ?? null,
+      meta: { path: pathNoQuery, status: res.statusCode },
+    });
+  });
+
+  next();
+});
 
 // Routes
 app.use('/api/auth', authRoutes);
@@ -89,7 +123,8 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
 
 // Initialize Database before starting the server
 initDB().then(() => {
-  app.listen(PORT, () => {
+  initRealtime(httpServer, sessionMiddleware);
+  httpServer.listen(PORT, () => {
     console.log(`ServerVault Backend running on http://localhost:${PORT}`);
   });
 

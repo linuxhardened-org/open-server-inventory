@@ -61,7 +61,7 @@ export const SshKeys = () => {
   );
 
   return (
-      <div className="page">
+      <div className="page animate-in">
         <header className="page-header">
           <div className="page-header-text">
             <h1>SSH Keys</h1>
