@@ -51,23 +51,19 @@ Empty fields are hidden instead of displaying placeholder values.
 - DigitalOcean (official logo shown in Cloud Integrations panel)
 - Vultr (official logo shown in Cloud Integrations panel)
 
-## Setup Screenshots
+## Screenshots
 
-> Generated with Selenium script: `scripts/selenium_setup_screenshots.py`
-> If screenshots are not visible, generate them locally first:
-> `python3 scripts/selenium_setup_screenshots.py --base-url http://localhost:8080`
+> Captured with Playwright script: `scripts/playwright_capture_screenshots.mjs`
+> Refresh screenshots anytime with:
+> `node scripts/playwright_capture_screenshots.mjs http://localhost:8080`
 
-### Step 1 — Database Selection
+### Login
 
-`docs/screenshots/setup/setup_step1_db_selection.png`
+![Login Screenshot](docs/screenshots/login_fresh.png)
 
-### Step 1 — Local PostgreSQL Preparation (Realtime)
+### Setup
 
-`docs/screenshots/setup/setup_step1_local_loading.png`
-
-### Step 2 — Organization Name
-
-`docs/screenshots/setup/setup_step2_app_name.png`
+![Setup Screenshot](docs/screenshots/setup_fresh.png)
 
 ## Quick Start
 

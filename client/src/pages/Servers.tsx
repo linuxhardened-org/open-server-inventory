@@ -548,6 +548,15 @@ export const Servers = () => {
           <button
             type="button"
             className="sv-btn-ghost"
+            style={{ border: '1px solid hsl(var(--border-2))', gap: 6 }}
+            disabled={visibleServers.length === 0}
+            onClick={toggleSelectAllVisible}
+          >
+            {allVisibleSelected ? 'Clear selection' : 'Select visible'}
+          </button>
+          <button
+            type="button"
+            className="sv-btn-ghost"
             style={{ border: '1px solid hsl(var(--border-2))', color: 'hsl(var(--danger))' }}
             disabled={selectedServerIds.length === 0 || bulkDeleting}
             onClick={handleBulkDeleteServers}

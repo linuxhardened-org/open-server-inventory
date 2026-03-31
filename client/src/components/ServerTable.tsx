@@ -57,7 +57,14 @@ export const ServerTable = ({
                 type="checkbox"
                 checked={allSelected && servers.length > 0}
                 onChange={() => onToggleSelectAll?.()}
-                style={{ width: 14, height: 14, accentColor: 'hsl(var(--primary))' }}
+                style={{
+                  width: 16,
+                  height: 16,
+                  accentColor: 'hsl(var(--primary))',
+                  cursor: 'pointer',
+                  borderRadius: 4,
+                  backgroundColor: 'hsl(var(--surface))',
+                }}
                 aria-label="Select all servers"
               />
             </th>
@@ -216,7 +223,14 @@ export const ServerTable = ({
                   type="checkbox"
                   checked={selectedIds.includes(server.id)}
                   onChange={() => onToggleSelect?.(server.id)}
-                  style={{ width: 14, height: 14, accentColor: 'hsl(var(--primary))' }}
+                  style={{
+                    width: 16,
+                    height: 16,
+                    accentColor: 'hsl(var(--primary))',
+                    cursor: 'pointer',
+                    borderRadius: 4,
+                    backgroundColor: 'hsl(var(--surface))',
+                  }}
                   aria-label={`Select ${server.hostname}`}
                 />
               </td>

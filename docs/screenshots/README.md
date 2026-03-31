@@ -22,17 +22,17 @@ Add screenshots here for the README. Recommended files:
 
 Save as PNG with descriptive names matching the README references.
 
-## Selenium automation (Setup flow)
+## Playwright automation
 
-You can auto-capture Setup screenshots with:
+You can auto-capture screenshots with:
 
 ```bash
-pip install selenium
-python3 scripts/selenium_setup_screenshots.py --base-url http://localhost:5173
+npm install
+npx playwright install chromium
+node scripts/playwright_capture_screenshots.mjs http://localhost:8080
 ```
 
 Generated files:
 
-- `docs/screenshots/setup/setup_step1_db_selection.png`
-- `docs/screenshots/setup/setup_step1_local_loading.png` (captured only if loading state is visible)
-- `docs/screenshots/setup/setup_step2_app_name.png`
+- `docs/screenshots/login_fresh.png`
+- `docs/screenshots/setup_fresh.png`

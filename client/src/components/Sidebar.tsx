@@ -99,7 +99,7 @@ export const Sidebar = ({ isOpen }: { isOpen?: boolean; onClose?: () => void }) 
           </span>
         </div>
         {/* Light / Dark / System selector */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 12 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 8, marginBottom: 12 }}>
           <button
             type="button"
             onClick={() => setTheme('light')}
@@ -108,6 +108,7 @@ export const Sidebar = ({ isOpen }: { isOpen?: boolean; onClose?: () => void }) 
               alignItems: 'center',
               justifyContent: 'center',
               gap: 6,
+              minHeight: 32,
               padding: '7px 8px',
               borderRadius: 8,
               border: '1px solid hsl(var(--border))',
@@ -130,6 +131,7 @@ export const Sidebar = ({ isOpen }: { isOpen?: boolean; onClose?: () => void }) 
               alignItems: 'center',
               justifyContent: 'center',
               gap: 6,
+              minHeight: 32,
               padding: '7px 8px',
               borderRadius: 8,
               border: '1px solid hsl(var(--border))',
@@ -152,6 +154,7 @@ export const Sidebar = ({ isOpen }: { isOpen?: boolean; onClose?: () => void }) 
               alignItems: 'center',
               justifyContent: 'center',
               gap: 6,
+              minHeight: 32,
               padding: '7px 8px',
               borderRadius: 8,
               border: '1px solid hsl(var(--border))',
@@ -168,7 +171,7 @@ export const Sidebar = ({ isOpen }: { isOpen?: boolean; onClose?: () => void }) 
           </button>
         </div>
         {/* Accent colors */}
-        <div className="flex flex-wrap gap-2.5">
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 22px)', gap: 10, justifyContent: 'space-between' }}>
           {accentColors.map((c) => (
             <button
               key={c.id}
