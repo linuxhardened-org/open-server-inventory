@@ -4,7 +4,7 @@ import path from 'node:path';
 import { chromium } from 'playwright';
 
 const baseUrl = process.argv[2] || 'http://localhost:8080';
-const username = process.argv[3] || 'Admin';
+const username = process.argv[3] || 'admin';
 const password = process.argv[4] || 'changeme';
 const outDir = path.resolve('docs/screenshots');
 
@@ -21,7 +21,9 @@ async function shot(page, fileName) {
 async function run() {
   await ensureDir(outDir);
   const browser = await chromium.launch({ headless: true });
-  const page = await browser.newPage({ viewport: { width: 1440, height: 920 } });
+  const context = await browser.newContext({ viewport: { width: 1440, height: 920 } });
+  await context.clearCookies();
+  const page = await context.newPage();
 
   try {
     // --- Login page screenshot ---
@@ -30,13 +32,19 @@ async function run() {
     await shot(page, 'login_fresh.png');
 
     // --- Log in ---
-    // If already redirected to /servers (active session), skip login
-    if (!page.url().includes('/login')) {
-      console.log('Already authenticated, skipping login form');
-    } else {
-      await page.waitForSelector('#login-username', { timeout: 10000 });
-      await page.fill('#login-username', username);
-      await page.fill('#login-password', password);
+    await page.waitForSelector('#login-username', { timeout: 10000 });
+    await page.fill('#login-username', username);
+    await page.fill('#login-password', password);
+    await page.click('button[type="submit"]');
+
+    // Handle forced password change on first login
+    await page.waitForURL(/\/(servers|change-password)/, { timeout: 15000 });
+    if (page.url().includes('/change-password')) {
+      console.log('Password change required, submitting new password...');
+      await page.waitForSelector('input[type="password"]', { timeout: 8000 });
+      const pwFields = page.locator('input[type="password"]');
+      await pwFields.nth(0).fill(password);
+      await pwFields.nth(1).fill(password);
       await page.click('button[type="submit"]');
       await page.waitForURL(`${baseUrl}/servers`, { timeout: 15000 });
     }
