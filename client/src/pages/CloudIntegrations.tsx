@@ -89,14 +89,16 @@ export const CloudIntegrations = () => {
     }
   };
 
-  const handleAuditToken = async () => {
-    if (!newProvider.api_token.trim()) { toast.error('Enter an API token first'); return; }
+  const handleAuditToken = async (tokenOverride?: string, providerOverride?: string) => {
+    const token = tokenOverride ?? newProvider.api_token.trim();
+    const provider = providerOverride ?? newProvider.provider;
+    if (!token) { toast.error('Enter an API token first'); return; }
     setAuditing(true);
     setAuditResult(null);
     try {
       const res = await axios.post('/cloud-providers/audit-token', {
-        provider: newProvider.provider,
-        api_token: newProvider.api_token.trim(),
+        provider,
+        api_token: token,
       }) as { success: boolean; data: AuditResult };
       setAuditResult(res.data);
       setAuditExpanded(true);
@@ -470,7 +472,8 @@ export const CloudIntegrations = () => {
                     setAuditResult(null);
                     if (auditDebounceRef.current) clearTimeout(auditDebounceRef.current);
                     if (val.trim() && !submitting) {
-                      auditDebounceRef.current = setTimeout(() => handleAuditToken(), 800);
+                      const capturedProvider = newProvider.provider;
+                      auditDebounceRef.current = setTimeout(() => handleAuditToken(val.trim(), capturedProvider), 800);
                     }
                   }}
                   className="sv-input"
