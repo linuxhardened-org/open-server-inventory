@@ -78,10 +78,10 @@ router.put('/', sessionAuth, adminAuth, async (req, res) => {
     app_logo_url: z
       .string()
       .trim()
-      .max(2048)
+      .max(500000) // allow base64 image data URLs (up to ~375KB image)
       .refine(
-        (v) => v === '' || v.startsWith('/') || /^https?:\/\//i.test(v) || /^data:image\//i.test(v),
-        'Logo must be an uploaded image data URL, an absolute http(s) URL, or app-relative path (e.g. /images/logo.png)'
+        (v) => v === '' || v.startsWith('/') || /^https?:\/\//i.test(v) || /^data:image\/(png|jpeg|gif|webp);base64,/i.test(v),
+        'Logo must be an http(s) URL, app-relative path, or base64 PNG/JPEG/GIF/WebP data URI'
       )
       .optional(),
   });

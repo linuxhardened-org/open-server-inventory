@@ -5,6 +5,8 @@ import connectPgSimple from 'connect-pg-simple';
 import cors from 'cors';
 import morgan from 'morgan';
 import cron from 'node-cron';
+import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
 
 import { env } from './config/env';
 import authRoutes from './routes/auth';
@@ -35,17 +37,19 @@ const app = express();
 const PORT = env.port;
 const httpServer = http.createServer(app);
 
-app.use(morgan('dev'));
+app.use(helmet({ contentSecurityPolicy: false }));
+app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 app.use(cors({
   origin: env.clientUrl,
   credentials: true
 }));
-app.use(express.json({ limit: '5mb' }));
+app.use(express.json({ limit: '1mb' }));
 
 const sessionMiddleware = session({
   store: new PgSession({
     pool: db.pool,
-    tableName: 'session'
+    tableName: 'session',
+    pruneSessionInterval: 60 * 15, // prune expired sessions every 15 min
   }),
   secret: env.sessionSecret,
   resave: false,
@@ -89,7 +93,17 @@ app.use((req, res, next) => {
   next();
 });
 
+// Health check endpoint
+app.get('/health', (_req, res) => res.json({ status: 'ok', uptime: process.uptime() }));
+
+// Rate limiters
+const loginLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 20, standardHeaders: true, legacyHeaders: false });
+const apiLimiter = rateLimit({ windowMs: 60 * 1000, max: 120, standardHeaders: true, legacyHeaders: false });
+
 // Routes
+app.use('/api/auth/login', loginLimiter);
+app.use('/api/auth/2fa', loginLimiter);
+app.use('/api', apiLimiter);
 app.use('/api/auth', authRoutes);
 
 // Protected routes (Session or Bearer)
@@ -136,3 +150,14 @@ initDB().then(() => {
   console.error('Failed to start server due to database initialization error:', err);
   process.exit(1);
 });
+
+// Graceful shutdown
+const shutdown = () => {
+  console.log('Shutting down gracefully...');
+  httpServer.close(() => {
+    db.pool.end(() => process.exit(0));
+  });
+  setTimeout(() => process.exit(1), 10000);
+};
+process.on('SIGTERM', shutdown);
+process.on('SIGINT', shutdown);
