@@ -143,8 +143,9 @@ app.use('/api/ips', authMiddleware, ips_1.default);
 (0, spaStatic_1.attachClientSpa)(app);
 // Error handling
 app.use((err, req, res, next) => {
-    console.error(err.stack);
-    res.status(500).json({ success: false, error: 'Internal Server Error' });
+    console.error(`[${req.method}] ${req.originalUrl} →`, err);
+    const message = (err === null || err === void 0 ? void 0 : err.message) || 'Internal Server Error';
+    res.status((err === null || err === void 0 ? void 0 : err.status) || 500).json({ success: false, error: message });
 });
 // Initialize Database before starting the server
 (0, db_1.initDB)().then(() => {
@@ -152,9 +153,9 @@ app.use((err, req, res, next) => {
     httpServer.listen(PORT, () => {
         console.log(`ServerVault Backend running on http://localhost:${PORT}`);
     });
-    // Schedule cloud provider auto-sync - runs every hour, syncs providers scheduled for that hour
-    node_cron_1.default.schedule('0 * * * *', cloudSync_1.runAutoSync);
-    console.log('Cloud auto-sync scheduler running (checks every hour)');
+    // Schedule cloud provider auto-sync - checks every 5 min, syncs per provider interval
+    node_cron_1.default.schedule('*/5 * * * *', cloudSync_1.runAutoSync);
+    console.log('Cloud auto-sync scheduler running (checks every 5 min, syncs per provider interval)');
 }).catch(err => {
     console.error('Failed to start server due to database initialization error:', err);
     process.exit(1);

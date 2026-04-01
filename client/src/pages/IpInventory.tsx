@@ -427,9 +427,10 @@ export const IpInventory = () => {
 
       {!loading && filteredIps.length > 0 && (
         <div className="sv-card" style={{ padding: 0, overflow: 'hidden' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 640 }}>
             <thead>
-              <tr style={{ borderBottom: '1px solid hsl(var(--border))' }}>
+              <tr style={{ borderBottom: '1px solid hsl(var(--border))', background: 'hsl(var(--surface-3))', position: 'sticky', top: 0, zIndex: 2 }}>
                 <th
                   style={{
                     padding: '12px 16px',
@@ -609,6 +610,7 @@ export const IpInventory = () => {
               })}
             </tbody>
           </table>
+          </div>
           {/* Pagination */}
           {filteredIps.length > 0 && (
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10, padding: '10px 16px', borderTop: '1px solid hsl(var(--border))' }}>

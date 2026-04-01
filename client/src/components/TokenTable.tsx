@@ -27,8 +27,9 @@ function getExpiryStatus(expiresAt: string | null): { label: string; isExpired: 
 export default function TokenTable({ tokens, onRevoke, onRegenerate }: TokenTableProps) {
   return (
     <div className="overflow-hidden rounded-xl border border-border bg-surface">
-      <table className="w-full text-left">
-        <thead className="bg-surface-lighter text-xs uppercase tracking-wider text-secondary">
+      <div className="overflow-x-auto">
+      <table className="w-full text-left" style={{ minWidth: 560 }}>
+        <thead className="bg-surface-lighter text-xs uppercase tracking-wider text-secondary" style={{ position: 'sticky', top: 0, zIndex: 2 }}>
           <tr>
             <th className="px-6 py-4">Token Name</th>
             <th className="px-6 py-4">Expiration</th>
@@ -102,6 +103,7 @@ export default function TokenTable({ tokens, onRevoke, onRegenerate }: TokenTabl
           )}
         </tbody>
       </table>
+      </div>
     </div>
   );
 }

@@ -166,9 +166,10 @@ export const Users = () => {
       </div>
 
       <div style={{ borderRadius: 10, border: '1px solid hsl(var(--border))', overflow: 'hidden' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+        <div style={{ overflowX: 'auto' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 480 }}>
           <thead>
-            <tr style={{ background: 'hsl(var(--surface-3))', borderBottom: '1px solid hsl(var(--border))' }}>
+            <tr style={{ background: 'hsl(var(--surface-3))', borderBottom: '1px solid hsl(var(--border))', position: 'sticky', top: 0, zIndex: 2 }}>
               <th style={{ padding: '12px 10px', textAlign: 'left', fontSize: 11, fontWeight: 500, color: 'hsl(var(--fg-3))', textTransform: 'uppercase', letterSpacing: '0.04em', width: 36 }} />
               <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: 11, fontWeight: 500, color: 'hsl(var(--fg-3))', textTransform: 'uppercase', letterSpacing: '0.04em' }}>User</th>
               <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: 11, fontWeight: 500, color: 'hsl(var(--fg-3))', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Role</th>
@@ -249,6 +250,7 @@ export const Users = () => {
             )}
           </tbody>
         </table>
+        </div>
       </div>
 
       {isAdding && createPortal(
