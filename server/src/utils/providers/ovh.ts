@@ -45,9 +45,26 @@ export function parseOvhCredentials(apiToken: string): OvhCredentials {
   throw new Error('OVH credentials must be JSON: {"appKey":"...","appSecret":"...","consumerKey":"..."}');
 }
 
-/** OVHcloud v1 request signing — SHA1 HMAC over method+url+body+timestamp */
-function ovhSignedHeaders(creds: OvhCredentials, method: string, url: string, body = ''): Record<string, string> {
-  const timestamp = Math.floor(Date.now() / 1000);
+/** Fetch OVH server time — avoids auth failures from local clock drift */
+async function getOvhTimestamp(baseUrl: string): Promise<number> {
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 5_000);
+    let ts: number;
+    try {
+      const res = await fetch(`${baseUrl}/auth/time`, { signal: controller.signal });
+      ts = await res.json() as number;
+    } finally {
+      clearTimeout(timeout);
+    }
+    return typeof ts === 'number' ? ts : Math.floor(Date.now() / 1000);
+  } catch {
+    return Math.floor(Date.now() / 1000); // fallback to local time
+  }
+}
+
+/** OVHcloud v1 request signing — SHA1 of concatenated fields, NOT HMAC */
+function ovhSignedHeaders(creds: OvhCredentials, method: string, url: string, timestamp: number, body = ''): Record<string, string> {
   const pre = `${creds.appSecret}+${creds.consumerKey}+${method}+${url}+${body}+${timestamp}`;
   const sig = '$1$' + createHash('sha1').update(pre).digest('hex');
   return {
@@ -103,14 +120,14 @@ function extractIps(instance: OvhInstance): { publicIpv4: string | null; private
   };
 }
 
-async function fetchJson<T>(baseUrl: string, path: string, creds: OvhCredentials): Promise<T> {
+async function fetchJson<T>(baseUrl: string, path: string, creds: OvhCredentials, timestamp: number): Promise<T> {
   const url = `${baseUrl}${path}`;
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 10_000);
   let res: Response;
   try {
     res = await fetch(url, {
-      headers: ovhSignedHeaders(creds, 'GET', url),
+      headers: ovhSignedHeaders(creds, 'GET', url, timestamp),
       signal: controller.signal,
     });
   } finally {
@@ -124,14 +141,17 @@ async function fetchJson<T>(baseUrl: string, path: string, creds: OvhCredentials
 }
 
 async function fetchOvhInstances(baseUrl: string, creds: OvhCredentials): Promise<Array<{ projectId: string; instance: OvhInstance }>> {
-  const projects = await fetchJson<OvhProject[]>(baseUrl, '/cloud/project', creds);
+  // Fetch OVH server time once — each request needs its own fresh timestamp
+  const baseTimestamp = await getOvhTimestamp(baseUrl);
+  const projects = await fetchJson<OvhProject[]>(baseUrl, '/cloud/project', creds, baseTimestamp);
   const projectIds = projects.map(extractProjectId).filter((v): v is string => Boolean(v));
   const results = await Promise.all(
     projectIds.map(async (projectId) => {
       const instances = await fetchJson<OvhInstance[]>(
         baseUrl,
         `/cloud/project/${encodeURIComponent(projectId)}/instance`,
-        creds
+        creds,
+        baseTimestamp
       );
       return (instances ?? []).map((instance) => ({ projectId, instance }));
     })
