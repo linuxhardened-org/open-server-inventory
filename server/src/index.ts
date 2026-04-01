@@ -117,8 +117,9 @@ attachClientSpa(app);
 
 // Error handling
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
-  console.error(err.stack);
-  res.status(500).json({ success: false, error: 'Internal Server Error' });
+  console.error(`[${req.method}] ${req.originalUrl} →`, err);
+  const message = err?.message || 'Internal Server Error';
+  res.status(err?.status || 500).json({ success: false, error: message });
 });
 
 // Initialize Database before starting the server

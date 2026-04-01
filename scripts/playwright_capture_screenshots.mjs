@@ -30,10 +30,17 @@ async function run() {
     await shot(page, 'login_fresh.png');
 
     // --- Log in ---
-    await page.fill('input[type="text"]', username);
-    await page.fill('input[type="password"]', password);
-    await page.click('button[type="submit"]');
-    await page.waitForURL(`${baseUrl}/servers`, { timeout: 15000 });
+    // If already redirected to /servers (active session), skip login
+    if (!page.url().includes('/login')) {
+      console.log('Already authenticated, skipping login form');
+    } else {
+      await page.waitForSelector('#login-username', { timeout: 10000 });
+      await page.fill('#login-username', username);
+      await page.fill('#login-password', password);
+      await page.click('button[type="submit"]');
+      await page.waitForURL(`${baseUrl}/servers`, { timeout: 15000 });
+    }
+    await page.goto(`${baseUrl}/servers`, { waitUntil: 'networkidle', timeout: 30000 });
     await page.waitForTimeout(1200);
 
     // --- Servers ---
