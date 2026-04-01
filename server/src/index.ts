@@ -37,7 +37,22 @@ const app = express();
 const PORT = env.port;
 const httpServer = http.createServer(app);
 
-app.use(helmet({ contentSecurityPolicy: false }));
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      imgSrc: ["'self'", "data:", "blob:", "https:"],
+      connectSrc: ["'self'", "ws:", "wss:", "https:"],
+      fontSrc: ["'self'", "data:"],
+      objectSrc: ["'none'"],
+      baseUri: ["'self'"],
+      frameAncestors: ["'none'"],
+    },
+  },
+  crossOriginEmbedderPolicy: false,
+}));
 app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 app.use(cors({
   origin: env.clientUrl,
@@ -62,6 +77,18 @@ const sessionMiddleware = session({
   }
 });
 app.use(sessionMiddleware);
+
+// CSRF protection for session-based mutations (Bearer token requests are exempt)
+app.use('/api', (req: express.Request, res: express.Response, next: express.NextFunction) => {
+  if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) return next();
+  if (req.headers.authorization) return next(); // Bearer token clients are exempt
+  const origin = (req.headers.origin || req.headers.referer || '') as string;
+  const allowed = env.clientUrl.replace(/\/$/, '');
+  if (origin && !origin.startsWith(allowed)) {
+    return res.status(403).json({ success: false, error: 'CSRF check failed' });
+  }
+  next();
+});
 
 // Mutation -> realtime invalidation bridge (keeps route handlers decoupled).
 app.use((req, res, next) => {
@@ -108,7 +135,8 @@ app.use('/api/auth', authRoutes);
 
 // Protected routes (Session or Bearer)
 const authMiddleware = (req: express.Request, res: express.Response, next: express.NextFunction) => {
-  if (req.headers.authorization) {
+  const auth = req.headers.authorization;
+  if (auth && /^[Bb]earer\s+sv_[a-f0-9]{64}$/.test(auth)) {
     return bearerAuth(req, res, next);
   }
   return sessionAuth(req, res, next);
@@ -131,8 +159,10 @@ attachClientSpa(app);
 
 // Error handling
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
-  console.error(`[${req.method}] ${req.originalUrl} →`, err);
-  const message = err?.message || 'Internal Server Error';
+  const safeMethod = String(req.method).replace(/[^\w]/g, '').slice(0, 10);
+  const safeUrl = String(req.originalUrl).replace(/[\r\n\t]/g, '').slice(0, 200);
+  console.error(`[${safeMethod}] ${safeUrl} →`, err?.message);
+  const message = typeof err?.message === 'string' ? err.message.slice(0, 500) : 'Internal Server Error';
   res.status(err?.status || 500).json({ success: false, error: message });
 });
 

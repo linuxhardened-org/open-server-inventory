@@ -122,6 +122,13 @@ export const Settings = () => {
     }
   };
 
+  const safeLogo = (() => {
+    const v = appLogoInput.trim();
+    if (!v) return '';
+    if (/^https?:\/\//i.test(v) || v.startsWith('/') || /^data:image\/(png|jpeg|gif|webp);base64,/i.test(v)) return v;
+    return '';
+  })();
+
   const handleReset = async () => {
     if (!confirm('CRITICAL: This will delete ALL inventory data (servers, groups, tags, keys). This cannot be undone. Proceed?')) return;
     const password = prompt('Please enter your administrator password to confirm:');
@@ -229,7 +236,7 @@ export const Settings = () => {
               <div>
                 <label className="block text-sm font-medium text-secondary mb-1.5">Preview</label>
                 <img
-                  src={appLogoInput.trim()}
+                  src={safeLogo}
                   alt="Logo preview"
                   style={{ width: 48, height: 48, objectFit: 'contain', borderRadius: 8, border: '1px solid hsl(var(--border))', padding: 6, background: 'hsl(var(--surface-2))' }}
                 />

@@ -45,7 +45,7 @@ router.get('/', async (_req, res) => {
     // Expose which DB backend is active (without revealing credentials)
     const dbUrl = env.databaseUrl;
     settings._db_provider = dbUrl
-      ? dbUrl.includes('supabase.com') ? 'supabase' : 'external'
+      ? ((() => { try { return new URL(dbUrl).hostname.endsWith('.supabase.com'); } catch { return false; } })() ? 'supabase' : 'external')
       : 'local';
     sendSuccess(res, settings);
   } catch (err: any) {
@@ -62,7 +62,7 @@ router.get('/db-status', async (_req, res) => {
     sendSuccess(res, {
       connected: true,
       provider: dbUrl
-        ? dbUrl.includes('supabase.com') ? 'supabase' : 'external'
+        ? ((() => { try { return new URL(dbUrl).hostname.endsWith('.supabase.com'); } catch { return false; } })() ? 'supabase' : 'external')
         : 'local',
       version: version.split(' ').slice(0, 2).join(' '),
     });

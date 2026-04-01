@@ -75,6 +75,13 @@ export const Profile = () => {
     }
   };
 
+  const safeProfilePic = (() => {
+    const v = profilePictureUrl.trim();
+    if (!v) return '';
+    if (/^https?:\/\//i.test(v) || v.startsWith('/') || /^data:image\/(png|jpeg|gif|webp);base64,/i.test(v)) return v;
+    return '';
+  })();
+
   return (
     <div className="page animate-in">
       <header className="page-header">
@@ -104,7 +111,7 @@ export const Profile = () => {
           <div className="w-24 h-24 mx-auto mb-4">
             {profilePictureUrl.trim() ? (
               <img
-                src={profilePictureUrl.trim()}
+                src={safeProfilePic}
                 alt="Profile"
                 className="w-24 h-24 rounded-full object-cover border-2 border-primary/20"
                 onError={(e) => {
