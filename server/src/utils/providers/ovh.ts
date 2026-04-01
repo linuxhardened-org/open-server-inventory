@@ -124,7 +124,7 @@ const ACTIVE_STATUSES = new Set([
   // VPS statuses
   'RUNNING',
   // Dedicated server statuses
-  'READY',
+  'READY', 'OK', 'TEST',
 ]);
 
 function normalizeStatus(status?: string): 'active' | 'inactive' {
