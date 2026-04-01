@@ -62,17 +62,25 @@ export const CloudIntegrations = () => {
     if (!newProvider.name.trim() || !newProvider.api_token.trim()) return;
     setSubmitting(true);
     try {
-      await axios.post('/cloud-providers', {
+      const res = await axios.post('/cloud-providers', {
         name: newProvider.name.trim(),
         provider: newProvider.provider,
         api_token: newProvider.api_token.trim(),
         auto_sync: newProvider.auto_sync,
         sync_interval_minutes: newProvider.sync_interval_minutes,
-      });
-      toast.success('Cloud provider added');
+      }) as { success: boolean; data: { id: number } };
       setAddingProvider(false);
       setNewProvider({ name: '', provider: 'linode', api_token: '', auto_sync: true, sync_interval_minutes: 60 });
       setAuditResult(null);
+      await fetchProviders();
+      // Instantly sync the new provider in the background
+      toast.loading('Syncing servers...', { id: 'initial-sync' });
+      try {
+        await axios.post(`/cloud-providers/${res.data.id}/sync`);
+        toast.success('Provider added and synced', { id: 'initial-sync' });
+      } catch {
+        toast.error('Provider added but initial sync failed', { id: 'initial-sync' });
+      }
       await fetchProviders();
     } catch (err: unknown) {
       toast.error((err as { error?: string })?.error || 'Failed to add provider');
