@@ -396,6 +396,9 @@ export const CloudIntegrations = () => {
             style={{
               width: '90%',
               maxWidth: 420,
+              maxHeight: '90vh',
+              display: 'flex',
+              flexDirection: 'column',
               background: 'hsl(var(--surface))',
               border: '1px solid hsl(var(--border))',
               borderRadius: 12,
@@ -409,7 +412,7 @@ export const CloudIntegrations = () => {
                 Add Cloud Provider
               </h2>
             </div>
-            <form onSubmit={handleAddProvider} style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <form onSubmit={handleAddProvider} style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 14, overflowY: 'auto', flex: 1 }}>
               <div>
                 <label style={{ display: 'block', fontSize: 11, fontWeight: 500, color: 'hsl(var(--fg-2))', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                   Name <span style={{ color: 'hsl(var(--danger))' }}>*</span>
@@ -448,36 +451,16 @@ export const CloudIntegrations = () => {
                   type="password"
                   value={newProvider.api_token}
                   onChange={(e) => { setNewProvider({ ...newProvider, api_token: e.target.value }); setAuditResult(null); }}
+                  onBlur={(e) => { if (e.target.value.trim()) handleAuditToken(); }}
                   className="sv-input"
                   style={{ width: '100%' }}
                   placeholder="Linode Personal Access Token"
                   required
                 />
-                <p style={{ fontSize: 11, color: 'hsl(var(--fg-3))', marginTop: 6 }}>
+                <p style={{ fontSize: 11, color: 'hsl(var(--fg-3))', marginTop: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
                   Generate a read-only token at cloud.linode.com/profile/tokens
+                  {auditing && <span style={{ color: 'hsl(var(--fg-3))', fontStyle: 'italic' }}>· checking permissions...</span>}
                 </p>
-                <button
-                  type="button"
-                  onClick={handleAuditToken}
-                  disabled={auditing || !newProvider.api_token.trim()}
-                  style={{
-                    marginTop: 8,
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 6,
-                    fontSize: 12,
-                    padding: '5px 10px',
-                    borderRadius: 6,
-                    border: '1px solid hsl(var(--border-2))',
-                    background: 'hsl(var(--surface-2))',
-                    color: 'hsl(var(--fg-2))',
-                    cursor: auditing || !newProvider.api_token.trim() ? 'not-allowed' : 'pointer',
-                    opacity: !newProvider.api_token.trim() ? 0.5 : 1,
-                  }}
-                >
-                  <ShieldCheck style={{ width: 13, height: 13 }} />
-                  {auditing ? 'Auditing...' : 'Audit Permissions'}
-                </button>
 
                 {/* Audit Result Panel */}
                 {auditResult && (() => {
