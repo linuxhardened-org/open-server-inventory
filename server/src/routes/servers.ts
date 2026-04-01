@@ -65,6 +65,11 @@ router.get('/', async (req, res) => {
   try {
     const limit = Math.min(parseInt(String(req.query.limit ?? '5000'), 10) || 5000, 5000);
     const offset = Math.max(parseInt(String(req.query.offset ?? '0'), 10) || 0, 0);
+    
+    // Fetch total count for pagination
+    const countRes = await db.query('SELECT COUNT(*)::int AS count FROM servers');
+    const total = (countRes.rows[0] as { count: number }).count;
+
     const serversResult = await db.query(`
       SELECT s.*, g.name as group_name, k.name as ssh_key_name
       FROM servers s
@@ -77,7 +82,7 @@ router.get('/', async (req, res) => {
     const rows = serversResult.rows as Record<string, unknown>[];
     const ids = rows.map((s) => s.id as number);
     if (ids.length === 0) {
-      return sendSuccess(res, []);
+      return sendSuccess(res, { servers: [], total });
     }
 
     const [disksRes, interfacesRes, tagsRes] = await Promise.all([
@@ -122,7 +127,7 @@ router.get('/', async (req, res) => {
       };
     });
 
-    sendSuccess(res, results);
+    sendSuccess(res, { servers: results, total });
   } catch (err: any) {
     sendError(res, err.message);
   }

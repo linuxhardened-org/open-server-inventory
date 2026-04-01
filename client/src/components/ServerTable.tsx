@@ -29,29 +29,37 @@ export const ServerTable = ({
 }: ServerTableProps) => {
   return (
     <div
-      className="overflow-x-auto rounded-xl"
+      className="overflow-x-auto overflow-y-auto rounded-xl"
       style={{
         border: '1px solid hsl(var(--border))',
         background: 'hsl(var(--surface) / 0.75)',
         boxShadow: '0 18px 40px -28px hsl(var(--primary) / 0.45)',
         backdropFilter: 'blur(8px)',
+        maxHeight: 520,
       }}
     >
-      <table className="w-full text-left border-collapse">
+      <table className="w-full text-left" style={{ borderCollapse: 'separate', borderSpacing: 0 }}>
         <thead>
           <tr
             style={{
               height: 36,
-              background: 'hsl(var(--surface-3) / 0.9)',
-              borderBottom: '1px solid hsl(var(--border))',
               position: 'sticky',
               top: 0,
-              zIndex: 2,
+              zIndex: 10,
             }}
           >
             <th
               className="px-3"
-              style={{ width: 36, fontSize: 11, color: 'hsl(var(--fg-3))', fontWeight: 500 }}
+              style={{ 
+                width: 36, 
+                fontSize: 11, 
+                color: 'hsl(var(--fg-3))', 
+                fontWeight: 500,
+                background: 'hsl(var(--surface-3))',
+                borderBottom: '1px solid hsl(var(--border))',
+                position: 'sticky',
+                top: 0,
+              }}
             >
               <input
                 type="checkbox"
@@ -68,90 +76,33 @@ export const ServerTable = ({
                 aria-label="Select all servers"
               />
             </th>
-            <th
-              className="px-4"
-              style={{
-                fontSize: 11,
-                textTransform: 'uppercase',
-                letterSpacing: '0.06em',
-                color: 'hsl(var(--fg-3))',
-                fontWeight: 500,
-              }}
-            >
-              Status
-            </th>
-            <th
-              className="px-4"
-              style={{
-                fontSize: 11,
-                textTransform: 'uppercase',
-                letterSpacing: '0.06em',
-                color: 'hsl(var(--fg-3))',
-                fontWeight: 500,
-              }}
-            >
-              Hostname
-            </th>
-            <th
-              className="px-4"
-              style={{
-                fontSize: 11,
-                textTransform: 'uppercase',
-                letterSpacing: '0.06em',
-                color: 'hsl(var(--fg-3))',
-                fontWeight: 500,
-              }}
-            >
-              Addresses
-            </th>
-            <th
-              className="px-4"
-              style={{
-                fontSize: 11,
-                textTransform: 'uppercase',
-                letterSpacing: '0.06em',
-                color: 'hsl(var(--fg-3))',
-                fontWeight: 500,
-              }}
-            >
-              OS
-            </th>
-            <th
-              className="px-4"
-              style={{
-                fontSize: 11,
-                textTransform: 'uppercase',
-                letterSpacing: '0.06em',
-                color: 'hsl(var(--fg-3))',
-                fontWeight: 500,
-              }}
-            >
-              Region
-            </th>
-            <th
-              className="px-4"
-              style={{
-                fontSize: 11,
-                textTransform: 'uppercase',
-                letterSpacing: '0.06em',
-                color: 'hsl(var(--fg-3))',
-                fontWeight: 500,
-              }}
-            >
-              Resources
-            </th>
-            <th
-              className="px-4"
-              style={{
-                fontSize: 11,
-                textTransform: 'uppercase',
-                letterSpacing: '0.06em',
-                color: 'hsl(var(--fg-3))',
-                fontWeight: 500,
-              }}
-            >
-              Tags
-            </th>
+            {[
+              'Status',
+              'Hostname',
+              'Addresses',
+              'OS',
+              'Region',
+              'Resources',
+              'Tags',
+            ].map((label) => (
+              <th
+                key={label}
+                className="px-4"
+                style={{
+                  fontSize: 11,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.06em',
+                  color: 'hsl(var(--fg-3))',
+                  fontWeight: 500,
+                  background: 'hsl(var(--surface-3))',
+                  borderBottom: '1px solid hsl(var(--border))',
+                  position: 'sticky',
+                  top: 0,
+                }}
+              >
+                {label}
+              </th>
+            ))}
             {customColumns.map((col) => (
               <th
                 key={col.id}
@@ -163,6 +114,10 @@ export const ServerTable = ({
                   letterSpacing: '0.06em',
                   color: 'hsl(var(--fg-3))',
                   fontWeight: 500,
+                  background: 'hsl(var(--surface-3))',
+                  borderBottom: '1px solid hsl(var(--border))',
+                  position: 'sticky',
+                  top: 0,
                 }}
               >
                 {col.name}
@@ -176,6 +131,10 @@ export const ServerTable = ({
                 letterSpacing: '0.06em',
                 color: 'hsl(var(--fg-3))',
                 fontWeight: 500,
+                background: 'hsl(var(--surface-3))',
+                borderBottom: '1px solid hsl(var(--border))',
+                position: 'sticky',
+                top: 0,
               }}
             >
               Actions

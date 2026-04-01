@@ -105,16 +105,29 @@ html.accent-cyan { --primary: 188 94% 43%; }
 html.dark.accent-cyan { --primary: 188 94% 48%; }
 
 /* ─── Scrollbar ─── */
-::-webkit-scrollbar { width: 6px; height: 6px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: hsl(var(--border-2)); border-radius: 9999px; }
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: hsl(var(--surface-2)); }
+::-webkit-scrollbar-thumb { 
+  background: hsl(var(--border-2)); 
+  border-radius: 5px;
+  border: 2px solid hsl(var(--surface-2));
+}
 ::-webkit-scrollbar-thumb:hover { background: hsl(var(--fg-3)); }
+
+/* Firefox support */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: hsl(var(--border-2)) hsl(var(--surface-2));
+}
 
 /* ─── Layout shell ─── */
 .app-shell {
   display: flex;
   height: 100vh;
+  width: 100vw;
   overflow: hidden;
+  position: fixed;
+  inset: 0;
 }
 
 .app-sidebar {
@@ -188,7 +201,7 @@ html.dark.accent-cyan { --primary: 188 94% 48%; }
 
 .app-content {
   flex: 1;
-  overflow-y: auto;
+  overflow: visible;
   padding: 20px;
 }
 

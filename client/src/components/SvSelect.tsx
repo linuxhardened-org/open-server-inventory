@@ -26,30 +26,40 @@ type Props = {
 
 export function SvSelect({ value, onChange, options, placeholder, compact, style }: Props) {
   const [open, setOpen] = useState(false);
-  const [dropRect, setDropRect] = useState<{ top: number; left: number; width: number } | null>(null);
+  const [dropRect, setDropRect] = useState<{ top?: number; bottom?: number; left: number; width: number } | null>(null);
   const btnRef = useRef<HTMLButtonElement>(null);
   const selected = options.find((o) => o.value === value);
 
-  const handleOpen = () => {
+  const updatePosition = () => {
     if (btnRef.current) {
       const r = btnRef.current.getBoundingClientRect();
-      setDropRect({ top: r.bottom + 4, left: r.left, width: r.width });
+      const spaceBelow = window.innerHeight - r.bottom;
+      const dropdownHeight = 280; // matching maxHeight in style
+      
+      if (spaceBelow < dropdownHeight && r.top > spaceBelow) {
+        // Open upwards
+        setDropRect({ bottom: window.innerHeight - r.top + 4, left: r.left, width: r.width });
+      } else {
+        // Open downwards
+        setDropRect({ top: r.bottom + 4, left: r.left, width: r.width });
+      }
     }
+  };
+
+  const handleOpen = () => {
+    if (!open) updatePosition();
     setOpen((o) => !o);
   };
 
   // Recalculate position on scroll/resize
   useEffect(() => {
     if (!open) return;
-    const update = () => {
-      if (btnRef.current) {
-        const r = btnRef.current.getBoundingClientRect();
-        setDropRect({ top: r.bottom + 4, left: r.left, width: r.width });
-      }
+    window.addEventListener('scroll', updatePosition, true);
+    window.addEventListener('resize', updatePosition);
+    return () => { 
+      window.removeEventListener('scroll', updatePosition, true); 
+      window.removeEventListener('resize', updatePosition); 
     };
-    window.addEventListener('scroll', update, true);
-    window.addEventListener('resize', update);
-    return () => { window.removeEventListener('scroll', update, true); window.removeEventListener('resize', update); };
   }, [open]);
 
   return (
@@ -114,6 +124,7 @@ export function SvSelect({ value, onChange, options, placeholder, compact, style
           style={{
             position: 'fixed',
             top: dropRect.top,
+            bottom: dropRect.bottom,
             left: dropRect.left,
             minWidth: compact ? 120 : dropRect.width,
             zIndex: 9999,

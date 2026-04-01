@@ -14,19 +14,23 @@ export const accentColors: { id: AccentColor; label: string; color: string }[] =
 ];
 
 export function resolveThemeMode(mode: ThemeMode): 'light' | 'dark' {
-  if (mode !== 'system') return mode;
+  if (mode === 'light' || mode === 'dark') return mode;
   if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return 'light';
-  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+  return isDark ? 'dark' : 'light';
 }
 
 export function applyDomTheme(mode: ThemeMode, accent: AccentColor = 'emerald') {
   const root = document.documentElement;
   const resolved = resolveThemeMode(mode);
+  
+  // Update class on <html>
   if (resolved === 'dark') {
     root.classList.add('dark');
   } else {
     root.classList.remove('dark');
   }
+  
   // Remove all accent classes and add the selected one
   accentColors.forEach(c => root.classList.remove(`accent-${c.id}`));
   root.classList.add(`accent-${accent}`);
@@ -53,7 +57,10 @@ export const useThemeStore = create<{
       },
       toggleTheme: () => {
         const t = get().theme;
-        const next: ThemeMode = t === 'light' ? 'dark' : t === 'dark' ? 'system' : 'light';
+        // If system, resolve current and toggle to opposite. 
+        // Header toggle only switches between explicit light/dark.
+        const resolved = resolveThemeMode(t);
+        const next: ThemeMode = resolved === 'light' ? 'dark' : 'light';
         get().setTheme(next);
       },
     }),

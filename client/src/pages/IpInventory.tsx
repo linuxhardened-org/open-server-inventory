@@ -40,6 +40,7 @@ export const IpInventory = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [ips, setIps] = useState<ServerIp[]>([]);
+  const [totalIps, setTotalIps] = useState(0);
   const [servers, setServers] = useState<ServerModel[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState(() => searchParams.get('q')?.trim() ?? '');
@@ -51,21 +52,29 @@ export const IpInventory = () => {
   const [addLabel, setAddLabel] = useState('');
   const [adding, setAdding] = useState(false);
 
+  const [ipPageSize, setIpPageSize] = useState(25);
+  const [ipPage, setIpPage] = useState(1);
+
   const fetchIps = useCallback(async () => {
     try {
-      const res = (await api.get('/ips')) as { success?: boolean; data?: ServerIp[] };
-      setIps(Array.isArray(res?.data) ? res.data : []);
+      setLoading(true);
+      const limit = ipPageSize;
+      const offset = (ipPage - 1) * ipPageSize;
+      const res = (await api.get(`/ips?limit=${limit}&offset=${offset}`)) as { success?: boolean; data?: { ips: ServerIp[]; total: number } };
+      const payload = res?.data;
+      setIps(Array.isArray(payload?.ips) ? payload.ips : []);
+      setTotalIps(payload?.total || 0);
     } catch (err: unknown) {
       toast.error(getApiErrorMessage(err, 'Failed to load IPs'));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [ipPageSize, ipPage]);
 
   const fetchServers = useCallback(async () => {
     try {
-      const res = (await api.get('/servers')) as { success?: boolean; data?: ServerModel[] };
-      setServers(Array.isArray(res?.data) ? res.data : []);
+      const res = (await api.get('/servers')) as { success?: boolean; data?: { servers: ServerModel[] } };
+      setServers(Array.isArray(res?.data?.servers) ? res.data.servers : []);
     } catch {
       /* optional for add form */
     }
@@ -73,8 +82,11 @@ export const IpInventory = () => {
 
   useEffect(() => {
     void fetchIps();
+  }, [fetchIps]);
+
+  useEffect(() => {
     void fetchServers();
-  }, [fetchIps, fetchServers]);
+  }, [fetchServers]);
   useRealtimeResource('ips', () => void fetchIps());
   useRealtimeResource('servers', () => void fetchServers());
 
@@ -141,11 +153,9 @@ export const IpInventory = () => {
     return matchesSearch && matchesType;
   });
 
-  const [ipPageSize, setIpPageSize] = useState(25);
-  const [ipPage, setIpPage] = useState(1);
   useEffect(() => { setIpPage(1); }, [searchTerm, filterType]);
-  const ipTotalPages = Math.max(1, Math.ceil(filteredIps.length / ipPageSize));
-  const paginatedIps = filteredIps.slice((ipPage - 1) * ipPageSize, ipPage * ipPageSize);
+  const ipTotalPages = Math.max(1, Math.ceil(totalIps / ipPageSize));
+  const paginatedIps = ips;
 
   const publicCount = ips.filter((ip) => ip.ip_type === 'public').length;
   const privateCount = ips.filter((ip) => ip.ip_type === 'private').length;
@@ -187,7 +197,7 @@ export const IpInventory = () => {
                   border: '1px solid hsl(var(--border-2))',
                 }}
               >
-                {ips.length}
+                {totalIps}
               </span>
             )}
           </div>
@@ -427,10 +437,10 @@ export const IpInventory = () => {
 
       {!loading && filteredIps.length > 0 && (
         <div className="sv-card" style={{ padding: 0, overflow: 'hidden' }}>
-          <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 640 }}>
+          <div style={{ overflowX: 'auto', overflowY: 'auto', maxHeight: 520 }}>
+          <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: 0, minWidth: 640 }}>
             <thead>
-              <tr style={{ borderBottom: '1px solid hsl(var(--border))', background: 'hsl(var(--surface-3))', position: 'sticky', top: 0, zIndex: 2 }}>
+              <tr style={{ position: 'sticky', top: 0, zIndex: 10 }}>
                 <th
                   style={{
                     padding: '12px 16px',
@@ -440,6 +450,10 @@ export const IpInventory = () => {
                     textTransform: 'uppercase',
                     letterSpacing: '0.05em',
                     color: 'hsl(var(--fg-2))',
+                    background: 'hsl(var(--surface-3))',
+                    borderBottom: '1px solid hsl(var(--border))',
+                    position: 'sticky',
+                    top: 0,
                   }}
                 >
                   IP Address
@@ -453,6 +467,10 @@ export const IpInventory = () => {
                     textTransform: 'uppercase',
                     letterSpacing: '0.05em',
                     color: 'hsl(var(--fg-2))',
+                    background: 'hsl(var(--surface-3))',
+                    borderBottom: '1px solid hsl(var(--border))',
+                    position: 'sticky',
+                    top: 0,
                   }}
                 >
                   Type
@@ -466,6 +484,10 @@ export const IpInventory = () => {
                     textTransform: 'uppercase',
                     letterSpacing: '0.05em',
                     color: 'hsl(var(--fg-2))',
+                    background: 'hsl(var(--surface-3))',
+                    borderBottom: '1px solid hsl(var(--border))',
+                    position: 'sticky',
+                    top: 0,
                   }}
                 >
                   Source
@@ -479,6 +501,10 @@ export const IpInventory = () => {
                     textTransform: 'uppercase',
                     letterSpacing: '0.05em',
                     color: 'hsl(var(--fg-2))',
+                    background: 'hsl(var(--surface-3))',
+                    borderBottom: '1px solid hsl(var(--border))',
+                    position: 'sticky',
+                    top: 0,
                   }}
                 >
                   Server
@@ -492,6 +518,10 @@ export const IpInventory = () => {
                     textTransform: 'uppercase',
                     letterSpacing: '0.05em',
                     color: 'hsl(var(--fg-2))',
+                    background: 'hsl(var(--surface-3))',
+                    borderBottom: '1px solid hsl(var(--border))',
+                    position: 'sticky',
+                    top: 0,
                   }}
                 >
                   Label
@@ -505,6 +535,10 @@ export const IpInventory = () => {
                     textTransform: 'uppercase',
                     letterSpacing: '0.05em',
                     color: 'hsl(var(--fg-2))',
+                    background: 'hsl(var(--surface-3))',
+                    borderBottom: '1px solid hsl(var(--border))',
+                    position: 'sticky',
+                    top: 0,
                   }}
                 >
                   Actions
@@ -623,7 +657,7 @@ export const IpInventory = () => {
                   compact
                 />
                 <span style={{ fontSize: 12, color: 'hsl(var(--fg-3))' }}>
-                  {(ipPage - 1) * ipPageSize + 1}–{Math.min(ipPage * ipPageSize, filteredIps.length)} of {filteredIps.length}
+                  {(ipPage - 1) * ipPageSize + 1}–{Math.min(ipPage * ipPageSize, totalIps)} of {totalIps}
                 </span>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>

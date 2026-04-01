@@ -15,6 +15,7 @@ export const Servers = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const [servers, setServers] = useState<Server[]>([]);
+  const [totalServers, setTotalServers] = useState(0);
   const [customColumns, setCustomColumns] = useState<CustomColumn[]>([]);
   const [groups, setGroups] = useState<Group[]>([]);
   const [tags, setTags] = useState<Tag[]>([]);
@@ -24,6 +25,8 @@ export const Servers = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedServerIds, setSelectedServerIds] = useState<number[]>([]);
   const [bulkDeleting, setBulkDeleting] = useState(false);
+  const [pageSize, setPageSize] = useState(25);
+  const [currentPage, setCurrentPage] = useState(1);
 
   // Get filter params from URL
   const filterGroupId = searchParams.get('group');
@@ -31,17 +34,23 @@ export const Servers = () => {
 
   const load = useCallback(async () => {
     try {
+      setLoading(true);
+      const limit = pageSize;
+      const offset = (currentPage - 1) * pageSize;
+
       const [sRes, cRes, gRes, tRes] = await Promise.allSettled([
-        api.get<ApiListResponse<Server[]>>('/servers'),
+        api.get<ApiListResponse<{ servers: Server[]; total: number }>>(`/servers?limit=${limit}&offset=${offset}`),
         api.get<ApiListResponse<CustomColumn[]>>('/custom-columns'),
         api.get<ApiListResponse<Group[]>>('/groups'),
         api.get<ApiListResponse<Tag[]>>('/tags'),
       ]);
 
       if (sRes.status === 'fulfilled') {
-        const rows = sRes.value?.data;
-        setServers(Array.isArray(rows) ? rows : []);
-        setSelectedServerIds((prev) => prev.filter((id) => (Array.isArray(rows) ? rows : []).some((s) => s.id === id)));
+        const payload = sRes.value?.data;
+        const rows = payload?.servers || [];
+        setServers(rows);
+        setTotalServers(payload?.total || 0);
+        setSelectedServerIds((prev) => prev.filter((id) => rows.some((s) => s.id === id)));
       } else {
         toast.error(getApiErrorMessage(sRes.reason, 'Failed to load servers'));
       }
@@ -71,7 +80,7 @@ export const Servers = () => {
 
   useEffect(() => {
     load();
-  }, [load]);
+  }, [load, pageSize, currentPage]);
   useRealtimeResource('servers', () => void load());
   useRealtimeResource('groups', () => void load());
   useRealtimeResource('tags', () => void load());
@@ -204,17 +213,12 @@ export const Servers = () => {
       }),
     [filteredByParams, searchTerm]
   );
-  const [pageSize, setPageSize] = useState(25);
-  const [currentPage, setCurrentPage] = useState(1);
-
   // Reset page when filters/search change
   useEffect(() => { setCurrentPage(1); }, [searchTerm, filterGroupId, filterTagId, filterStatus]);
 
-  const totalPages = Math.max(1, Math.ceil(visibleServers.length / pageSize));
-  const paginatedServers = useMemo(
-    () => visibleServers.slice((currentPage - 1) * pageSize, currentPage * pageSize),
-    [visibleServers, currentPage, pageSize]
-  );
+  const totalPages = Math.max(1, Math.ceil(totalServers / pageSize));
+  const paginatedServers = visibleServers;
+
   const allVisibleSelected = paginatedServers.length > 0 && paginatedServers.every((s) => selectedServerIds.includes(s.id));
 
   const toggleServerSelected = (id: number) => {
@@ -333,7 +337,7 @@ export const Servers = () => {
               style={{ width: 7, height: 7, borderRadius: '50%', background: 'hsl(var(--fg-3))', flexShrink: 0 }}
             />
             <span style={{ fontSize: 13, color: 'hsl(var(--fg-2))' }}>
-              <span style={{ fontWeight: 600, color: 'hsl(var(--fg))' }}>{filteredByParams.length}</span> total
+              <span style={{ fontWeight: 600, color: 'hsl(var(--fg))' }}>{totalServers}</span> total
             </span>
           </div>
           <div
@@ -651,17 +655,15 @@ export const Servers = () => {
             ))}
           </div>
         ) : (
-          <div style={{ overflowX: 'auto', overflowY: 'auto', maxHeight: 520 }}>
-            <ServerTable
-              servers={paginatedServers}
-              customColumns={customColumns}
-              onRowClick={(server) => navigate(`/servers/${server.id}`)}
-              selectedIds={selectedServerIds}
-              onToggleSelect={toggleServerSelected}
-              allSelected={allVisibleSelected}
-              onToggleSelectAll={toggleSelectAllVisible}
-            />
-          </div>
+          <ServerTable
+            servers={paginatedServers}
+            customColumns={customColumns}
+            onRowClick={(server) => navigate(`/servers/${server.id}`)}
+            selectedIds={selectedServerIds}
+            onToggleSelect={toggleServerSelected}
+            allSelected={allVisibleSelected}
+            onToggleSelectAll={toggleSelectAllVisible}
+          />
         )}
 
         {/* Pagination controls */}
@@ -676,7 +678,7 @@ export const Servers = () => {
                 options={[10, 25, 50, 100, 200].map((n) => ({ value: String(n), label: String(n) }))}
               />
               <span style={{ fontSize: 12, color: 'hsl(var(--fg-3))' }}>
-                {(currentPage - 1) * pageSize + 1}–{Math.min(currentPage * pageSize, visibleServers.length)} of {visibleServers.length}
+                {(currentPage - 1) * pageSize + 1}–{Math.min(currentPage * pageSize, totalServers)} of {totalServers}
               </span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>

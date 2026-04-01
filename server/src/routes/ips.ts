@@ -257,10 +257,16 @@ async function listServerIpsMerged(serverId: number): Promise<MergedIpRow[]> {
 }
 
 // GET / - List all IPs (server record fields + server_ips catalog), deduped
-router.get('/', async (_req, res) => {
+router.get('/', async (req, res) => {
   try {
-    const rows = await listAllIpsMerged();
-    sendSuccess(res, rows);
+    const limit = Math.min(parseInt(String(req.query.limit ?? '5000'), 10) || 5000, 5000);
+    const offset = Math.max(parseInt(String(req.query.offset ?? '0'), 10) || 0, 0);
+
+    const allRows = await listAllIpsMerged();
+    const total = allRows.length;
+    const paginatedRows = allRows.slice(offset, offset + limit);
+
+    sendSuccess(res, { ips: paginatedRows, total });
   } catch (err: any) {
     sendError(res, err.message);
   }

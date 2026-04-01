@@ -3,20 +3,34 @@
 This document provides foundational context and instructions for AI agents working in the ServerVault repository.
 
 ## Project Overview
-**ServerVault** is an open-source, self-hosted server inventory management system. It allows teams to track physical servers, virtual machines, and cloud instances in a unified dashboard.
+**ServerVault** is an open-source, self-hosted server inventory management system for DevOps teams, sysadmins, and IT professionals. It allows teams to track physical servers, virtual machines, and cloud instances in a unified, modern dashboard.
 
-- **Architecture:** Monolith-style deployment where an Express.js backend serves both a REST API and a React Single Page Application (SPA).
-- **Frontend:** React 18, TypeScript, Vite, Tailwind CSS, Zustand (state), Framer Motion (animations).
+- **Architecture:** Monolith-style deployment where an Express.js backend serves both a REST API and a React Single Page Application (SPA). In development, Vite proxies `/api/*` requests to Express.
+- **Frontend:** React 18, TypeScript, Vite, Tailwind CSS, Zustand (state), Framer Motion (animations), Lucide React (icons), Geist Sans/Mono (fonts).
 - **Backend:** Node.js (Express), TypeScript, PostgreSQL (raw SQL via `pg` driver, no ORM).
-- **Database:** PostgreSQL stores inventory, user data, sessions, and audit logs. Schema is defined in `server/src/db/schema.ts` and initialized on startup.
-- **Security:** Session-based auth for the UI; Bearer Token auth for API automation. Supports TOTP-based 2FA.
+- **Realtime:** Socket.IO (WebSocket) for live inventory updates and cross-client consistency.
+- **Database:** PostgreSQL stores inventory, user data, sessions, and audit logs. Schema is auto-created on server startup (`initDB()`).
+- **Security:** Session-based auth for UI; Bearer Token auth for API. Supports TOTP-based 2FA via `speakeasy`.
 
-## Project Structure
+## Project Structure & File Map
 - `client/`: Frontend source (Vite + React).
 - `server/`: Backend source (Express + TypeScript).
 - `docs/`: Screenshots and documentation.
-- `Makefile`: Root-level task runner for development and builds.
-- `docker-compose.yml`: Container orchestration for production and local testing.
+- `Makefile`: Root-level task runner.
+- `docker-compose.yml`: Production orchestration.
+
+### Feature Mapping (For AI Routing)
+| Feature | Backend (server/src/...) | Frontend (client/src/...) |
+| :--- | :--- | :--- |
+| **Auth & 2FA** | `routes/auth.ts`, `utils/crypto.ts`, `utils/totp.ts` | `store/useAuthStore.ts`, `pages/Login.tsx` |
+| **Inventory** | `routes/servers.ts`, `db/schema.ts` | `pages/Servers.tsx`, `components/ServerTable.tsx` |
+| **IP Catalog** | `routes/ips.ts` | `pages/IpInventory.tsx` |
+| **Groups/Tags** | `routes/groups.ts`, `routes/tags.ts` | `pages/Groups.tsx`, `pages/Tags.tsx` |
+| **Custom Fields** | `routes/customColumns.ts` | `components/AddServerModal.tsx` |
+| **Cloud Sync** | `utils/cloudSync.ts`, `utils/providers/` | `pages/CloudIntegrations.tsx` |
+| **Realtime** | `realtime.ts` | `lib/realtime.ts`, `hooks/useRealtimeResource.ts` |
+| **Styles/UI** | `spaStatic.ts` | `index.css`, `components/Layout.tsx`, `store/useThemeStore.ts` |
+| **Settings** | `routes/settings.ts`, `routes/tokens.ts` | `pages/Settings.tsx`, `pages/ApiSettings.tsx` |
 
 ## Building and Running
 
@@ -40,6 +54,7 @@ This document provides foundational context and instructions for AI agents worki
    SESSION_SECRET=your-32-char-minimum-random-secret
    CLIENT_URL=http://localhost:5173
    NODE_ENV=development
+   COOKIE_SECURE=false
    ```
 3. **Seed Database:**
    ```bash
@@ -52,38 +67,48 @@ This document provides foundational context and instructions for AI agents worki
    - Frontend: `http://localhost:5173`
    - Backend API: `http://localhost:3001`
 
-### Production Build
+### Default Login
+- **Username:** `Admin`
+- **Password:** `Admin@123`
+- *Note: Password change is required on first login.*
+
+### Production & Docker
 ```bash
-make build
-# This builds client/dist/ and server/dist/, then serves both from the server.
+make build   # Build client/dist and server/dist
+make start   # docker-compose up --build (serves on :8080)
 ```
 
 ## Development Conventions
 
 ### Backend (Express)
-- **Routing:** Each resource has its own file in `server/src/routes/`.
+- **Routing:** 10 core routes: auth, servers, groups, tags, ssh-keys, tokens, custom-columns, users, stats, export-import.
 - **Validation:** Use **Zod** for request body/query validation within route handlers.
-- **Database:** Use raw SQL queries with the `pg` pool. SQL strings should be kept clean and parameterized.
 - **Auth:**
-  - `sessionAuth`: Middleware for browser-based session access.
-  - `bearerAuth`: Middleware for API token access.
-  - `authMiddleware`: Combined middleware (checks Authorization header first, then session).
-- **Response Format:**
-  - Success: `{ success: true, data: ... }`
-  - Error: `{ success: false, error: "Error message" }`
+  - `sessionAuth`: Browser-based (express-session with `connect-pg-simple`, 24h TTL).
+  - `bearerAuth`: API-based (SHA-256 hashed tokens in `api_tokens` table, `Authorization: Bearer sv_xxx`).
+  - `authMiddleware`: Combined middleware (checks bearer first, then session).
+- **Response Format:** Always `{ success: true, data: ... }` or `{ success: false, error: "..." }`.
 
 ### Frontend (React)
-- **State Management:** Use **Zustand** stores in `client/src/store/`.
-- **Styling:** Use **Tailwind CSS**. Prefer the "Obsidian-inspired" dark/terminal aesthetic.
-- **API Client:** Use the pre-configured Axios instance in `client/src/lib/api.ts`.
-- **Icons:** Use **Lucide React**.
+- **Routing:** React Router v6 (routes defined in `App.tsx`).
+- **State:** Zustand stores in `client/src/store/` (`useAuthStore`, `useServerStore`, `useThemeStore`).
+- **API Client:** Axios in `client/src/lib/api.ts` with `baseURL: /api` and `withCredentials: true`.
+- **Types:** Shared TypeScript interfaces in `client/src/types/index.ts`.
 
 ### Database Schema
-- **Dynamic Metadata:** Instead of adding columns to the `servers` table, use `custom_columns` and `server_custom_values` for user-defined metadata.
-- **Audit Logging:** Every mutation to a server should record an entry in `server_history`.
-- **Atomic Operations:** Use PostgreSQL transactions (`BEGIN`, `COMMIT`, `ROLLBACK`) for operations affecting multiple tables (e.g., creating a server with tags and custom values).
+- **Key Tables:** `servers`, `server_disks`, `server_interfaces`, `server_tags`, `server_custom_values`, `server_history`.
+- **Custom Columns:** Dynamic metadata via `custom_columns` + `server_custom_values` (normalized).
+- **Audit Logging:** Every mutation records an entry in `server_history` (append-only).
+- **Atomic Operations:** Use PostgreSQL transactions for operations affecting multiple tables.
 
-## Testing
-- **Current Status:** No automated test suite exists.
-- **Manual Verification:** Verify API changes using `curl` or by testing through the local UI.
-- **TODO:** Implement unit tests for backend utility functions (e.g., `totp.ts`, `crypto.ts`).
+## Special Features
+- **Linode Cloud Sync:** Captures primary/additional IPs, VPC private IPs, NAT 1:1 public mappings, and VPC subnet metadata.
+- **Cloud Token Auditor:** Scans API tokens for overpermissioned scopes.
+- **Export/Import:** JSON-based full backup/restore (admin only).
+
+## Efficiency & Optimization
+- **Shell:** Use bash for all tasks.
+- **Code Edits:** Use surgical replacements; show only changed parts.
+- **Brevity:** Keep responses under 120 words.
+- **Troubleshooting:** Return: Cause, Fix, Verify.
+- **Output:** Prefer code blocks and bullets over prose.
