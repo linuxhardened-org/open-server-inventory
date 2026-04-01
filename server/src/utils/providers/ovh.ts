@@ -30,6 +30,45 @@ type OvhInstance = {
   osType?: string;
 };
 
+type OvhVps = {
+  name?: string;
+  displayName?: string;
+  vcore?: number;
+  memoryLimit?: number; // MB
+  zone?: string;
+  cluster?: string;
+  state?: string;
+  model?: { name?: string; offer?: string };
+};
+
+type OvhDedicatedServer = {
+  name?: string;
+  ip?: string;
+  datacenter?: string;
+  state?: string;
+  os?: string;
+  cpuCount?: number;
+  memory?: number; // GB or MB depending on field
+  professionalUse?: boolean;
+  commercialRange?: string;
+};
+
+/** Normalised record type — common shape regardless of source (cloud/vps/dedicated) */
+type OvhServerRecord = {
+  cloudInstanceId: string;
+  name: string;
+  hostname: string;
+  publicIpv4: string | null;
+  privateIpv4: string | null;
+  publicIpv6: string | null;
+  cpuCores: number | null;
+  ramGb: number | null;
+  os: string | null;
+  region: string | null;
+  status: 'active' | 'inactive';
+  notes: string;
+};
+
 /** Parse api_token field — must be JSON with appKey/appSecret/consumerKey */
 export function parseOvhCredentials(apiToken: string): OvhCredentials {
   try {
@@ -63,7 +102,7 @@ async function getOvhTimestamp(baseUrl: string): Promise<number> {
   }
 }
 
-/** OVHcloud v1 request signing — SHA1 of concatenated fields, NOT HMAC */
+/** OVHcloud v1 request signing — plain SHA1 of concatenated fields, NOT HMAC */
 function ovhSignedHeaders(creds: OvhCredentials, method: string, url: string, timestamp: number, body = ''): Record<string, string> {
   const pre = `${creds.appSecret}+${creds.consumerKey}+${method}+${url}+${body}+${timestamp}`;
   const sig = '$1$' + createHash('sha1').update(pre).digest('hex');
@@ -78,9 +117,14 @@ function ovhSignedHeaders(creds: OvhCredentials, method: string, url: string, ti
 
 /** OVH instance statuses that indicate the server is running/reachable */
 const ACTIVE_STATUSES = new Set([
+  // Cloud instance statuses
   'ACTIVE', 'BUILD', 'BUILDING', 'REBOOT', 'HARD_REBOOT',
   'REBUILD', 'MIGRATING', 'RESIZE', 'VERIFY_RESIZE', 'REVERT_RESIZE',
   'RESCUE', 'PASSWORD',
+  // VPS statuses
+  'RUNNING',
+  // Dedicated server statuses
+  'READY',
 ]);
 
 function normalizeStatus(status?: string): 'active' | 'inactive' {
@@ -92,7 +136,7 @@ function extractProjectId(row: OvhProject): string | null {
   return row.project_id ?? row.projectId ?? row.serviceName ?? null;
 }
 
-function extractIps(instance: OvhInstance): { publicIpv4: string | null; privateIpv4: string | null; publicIpv6: string | null } {
+function extractCloudIps(instance: OvhInstance): { publicIpv4: string | null; privateIpv4: string | null; publicIpv6: string | null } {
   const raw = instance.ipAddresses ?? [];
 
   // OVH structured format with type/version fields
@@ -120,7 +164,7 @@ function extractIps(instance: OvhInstance): { publicIpv4: string | null; private
   };
 }
 
-async function fetchJson<T>(baseUrl: string, path: string, creds: OvhCredentials, timestamp: number): Promise<T> {
+async function fetchJson<T>(baseUrl: string, path: string, creds: OvhCredentials, timestamp: number): Promise<T | null> {
   const url = `${baseUrl}${path}`;
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 10_000);
@@ -133,6 +177,8 @@ async function fetchJson<T>(baseUrl: string, path: string, creds: OvhCredentials
   } finally {
     clearTimeout(timeout);
   }
+  // 403 = scope not granted, 404 = resource not found — treat as empty rather than error
+  if (res.status === 403 || res.status === 404) return null;
   if (!res.ok) {
     const body = await res.text().catch(() => '');
     throw new Error(`OVHcloud API error ${res.status}: ${body.slice(0, 200)}`);
@@ -140,35 +186,135 @@ async function fetchJson<T>(baseUrl: string, path: string, creds: OvhCredentials
   return (await res.json()) as T;
 }
 
-async function fetchOvhInstances(baseUrl: string, creds: OvhCredentials): Promise<Array<{ projectId: string; instance: OvhInstance }>> {
-  // Fetch OVH server time once — each request needs its own fresh timestamp
-  const baseTimestamp = await getOvhTimestamp(baseUrl);
-  const projects = await fetchJson<OvhProject[]>(baseUrl, '/cloud/project', creds, baseTimestamp);
+async function fetchCloudInstanceRecords(baseUrl: string, creds: OvhCredentials, timestamp: number): Promise<OvhServerRecord[]> {
+  const projects = await fetchJson<OvhProject[]>(baseUrl, '/cloud/project', creds, timestamp);
+  if (!projects) return [];
   const projectIds = projects.map(extractProjectId).filter((v): v is string => Boolean(v));
-  const results = await Promise.all(
+
+  const perProject = await Promise.all(
     projectIds.map(async (projectId) => {
       const instances = await fetchJson<OvhInstance[]>(
-        baseUrl,
-        `/cloud/project/${encodeURIComponent(projectId)}/instance`,
-        creds,
-        baseTimestamp
+        baseUrl, `/cloud/project/${encodeURIComponent(projectId)}/instance`, creds, timestamp
       );
-      return (instances ?? []).map((instance) => ({ projectId, instance }));
+      return (instances ?? []).map((instance): OvhServerRecord => {
+        const instanceId = String(instance.id ?? `${projectId}:${instance.name ?? 'unknown'}`);
+        const { publicIpv4, privateIpv4, publicIpv6 } = extractCloudIps(instance);
+        const cpuCores = instance.flavor?.vcpus ?? instance.vcpus ?? null;
+        const ramMb = instance.flavor?.ram ?? instance.ram ?? null;
+        return {
+          cloudInstanceId: `cloud:${projectId}:${instanceId}`,
+          name: instance.name ?? `ovh-${instanceId}`,
+          hostname: instance.name ?? `ovh-${instanceId}`,
+          publicIpv4,
+          privateIpv4,
+          publicIpv6,
+          cpuCores,
+          ramGb: typeof ramMb === 'number' ? Math.max(1, Math.round(ramMb / 1024)) : null,
+          os: instance.image?.name ?? instance.osType ?? instance.image?.type ?? null,
+          region: instance.region ?? null,
+          status: normalizeStatus(instance.status),
+          notes: `OVHcloud Public Cloud · Project ${projectId}`,
+        };
+      });
     })
   );
 
-  return results.flat();
+  return perProject.flat();
 }
 
-function hashInstances(items: Array<{ projectId: string; instance: OvhInstance }>): string {
-  const sorted = [...items].sort((a, b) => {
-    const aId = `${a.projectId}:${a.instance.id ?? ''}`;
-    const bId = `${b.projectId}:${b.instance.id ?? ''}`;
-    return aId.localeCompare(bId);
-  });
-  const key = sorted
-    .map((x) => `${x.projectId}:${x.instance.id ?? ''}:${x.instance.status ?? ''}`)
-    .join('|');
+async function fetchVpsRecords(baseUrl: string, creds: OvhCredentials, timestamp: number): Promise<OvhServerRecord[]> {
+  const serviceNames = await fetchJson<string[]>(baseUrl, '/vps', creds, timestamp);
+  if (!serviceNames) return [];
+
+  const records = await Promise.all(
+    serviceNames.map(async (serviceName): Promise<OvhServerRecord | null> => {
+      const [vps, rawIps] = await Promise.all([
+        fetchJson<OvhVps>(baseUrl, `/vps/${encodeURIComponent(serviceName)}`, creds, timestamp),
+        fetchJson<string[]>(baseUrl, `/vps/${encodeURIComponent(serviceName)}/ips`, creds, timestamp),
+      ]);
+      if (!vps) return null;
+
+      const ips = rawIps ?? [];
+      const isPrivate = (ip: string) => {
+        const m = ip.match(/^(\d+)\.(\d+)/);
+        if (!m) return false;
+        const [a, b] = [parseInt(m[1], 10), parseInt(m[2], 10)];
+        return a === 10 || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168);
+      };
+      const publicIpv4 = ips.find((ip) => ip.includes('.') && !isPrivate(ip)) ?? null;
+      const privateIpv4 = ips.find((ip) => ip.includes('.') && isPrivate(ip)) ?? null;
+      const publicIpv6 = ips.find((ip) => ip.includes(':')) ?? null;
+
+      const ramGb = vps.memoryLimit ? Math.max(1, Math.round(vps.memoryLimit / 1024)) : null;
+      const region = vps.zone ?? vps.cluster ?? null;
+
+      return {
+        cloudInstanceId: `vps:${serviceName}`,
+        name: vps.displayName ?? vps.name ?? serviceName,
+        hostname: vps.name ?? serviceName,
+        publicIpv4,
+        privateIpv4,
+        publicIpv6,
+        cpuCores: vps.vcore ?? null,
+        ramGb,
+        os: null, // VPS OS not available in main endpoint
+        region,
+        status: normalizeStatus(vps.state),
+        notes: `OVHcloud VPS · ${vps.model?.offer ?? vps.model?.name ?? serviceName}`,
+      };
+    })
+  );
+
+  return records.filter((r): r is OvhServerRecord => r !== null);
+}
+
+async function fetchDedicatedServerRecords(baseUrl: string, creds: OvhCredentials, timestamp: number): Promise<OvhServerRecord[]> {
+  const serviceNames = await fetchJson<string[]>(baseUrl, '/dedicated/server', creds, timestamp);
+  if (!serviceNames) return [];
+
+  const records = await Promise.all(
+    serviceNames.map(async (serviceName): Promise<OvhServerRecord | null> => {
+      const server = await fetchJson<OvhDedicatedServer>(
+        baseUrl, `/dedicated/server/${encodeURIComponent(serviceName)}`, creds, timestamp
+      );
+      if (!server) return null;
+
+      const primaryIp = server.ip ?? null;
+      const isPrivate = primaryIp ? (() => {
+        const m = primaryIp.match(/^(\d+)\.(\d+)/);
+        if (!m) return false;
+        const [a, b] = [parseInt(m[1], 10), parseInt(m[2], 10)];
+        return a === 10 || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168);
+      })() : false;
+
+      // Dedicated server memory: OVH typically reports in MB
+      const ramGb = server.memory
+        ? (server.memory > 1024 ? Math.max(1, Math.round(server.memory / 1024)) : server.memory)
+        : null;
+
+      return {
+        cloudInstanceId: `dedicated:${serviceName}`,
+        name: server.name ?? serviceName,
+        hostname: server.name ?? serviceName,
+        publicIpv4: primaryIp && !isPrivate ? primaryIp : null,
+        privateIpv4: primaryIp && isPrivate ? primaryIp : null,
+        publicIpv6: null,
+        cpuCores: server.cpuCount ?? null,
+        ramGb,
+        os: server.os ?? null,
+        region: server.datacenter ?? null,
+        status: normalizeStatus(server.state),
+        notes: `OVHcloud Dedicated · ${server.commercialRange ?? serviceName}`,
+      };
+    })
+  );
+
+  return records.filter((r): r is OvhServerRecord => r !== null);
+}
+
+function hashRecords(records: OvhServerRecord[]): string {
+  const sorted = [...records].sort((a, b) => a.cloudInstanceId.localeCompare(b.cloudInstanceId));
+  const key = sorted.map((r) => `${r.cloudInstanceId}:${r.status}`).join('|');
   return createHash('sha256').update(key).digest('hex').slice(0, 16);
 }
 
@@ -182,6 +328,41 @@ async function getOrCreateGroup(client: import('pg').PoolClient, groupName: stri
   return result.rows[0].id;
 }
 
+async function upsertRecord(
+  client: import('pg').PoolClient,
+  providerId: number,
+  groupId: number,
+  r: OvhServerRecord
+): Promise<void> {
+  const existing = await client.query(
+    'SELECT id FROM servers WHERE cloud_provider_id = $1 AND cloud_instance_id = $2',
+    [providerId, r.cloudInstanceId]
+  );
+
+  if (existing.rows.length > 0) {
+    await client.query(
+      `UPDATE servers SET
+        name=$1, hostname=$2,
+        ip_address=$3, private_ip=$4, ipv6_address=$5,
+        os=$6, cpu_cores=$7, ram_gb=$8, region=$9, status=$10, notes=$11,
+        group_id=COALESCE(group_id, $12),
+        updated_at=CURRENT_TIMESTAMP
+      WHERE id=$13`,
+      [r.name, r.hostname, r.publicIpv4, r.privateIpv4, r.publicIpv6,
+       r.os, r.cpuCores, r.ramGb, r.region, r.status, r.notes,
+       groupId, existing.rows[0].id]
+    );
+  } else {
+    await client.query(
+      `INSERT INTO servers (name,hostname,ip_address,private_ip,ipv6_address,os,cpu_cores,ram_gb,region,status,notes,cloud_provider_id,cloud_instance_id,group_id)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)`,
+      [r.name, r.hostname, r.publicIpv4, r.privateIpv4, r.publicIpv6,
+       r.os, r.cpuCores, r.ramGb, r.region, r.status, r.notes,
+       providerId, r.cloudInstanceId, groupId]
+    );
+  }
+}
+
 async function syncOvhProviderByBaseUrl(
   providerId: number,
   apiToken: string,
@@ -190,19 +371,26 @@ async function syncOvhProviderByBaseUrl(
   baseUrl: string
 ): Promise<SyncResult> {
   const creds = parseOvhCredentials(apiToken);
-  const instances = await fetchOvhInstances(baseUrl, creds);
-  const hash = hashInstances(instances);
+  const timestamp = await getOvhTimestamp(baseUrl);
+
+  // Fetch all server types in parallel — skip any that return 403 (not in scope)
+  const [cloudRecords, vpsRecords, dedicatedRecords] = await Promise.all([
+    fetchCloudInstanceRecords(baseUrl, creds, timestamp).catch(() => [] as OvhServerRecord[]),
+    fetchVpsRecords(baseUrl, creds, timestamp).catch(() => [] as OvhServerRecord[]),
+    fetchDedicatedServerRecords(baseUrl, creds, timestamp).catch(() => [] as OvhServerRecord[]),
+  ]);
+
+  const allRecords = [...cloudRecords, ...vpsRecords, ...dedicatedRecords];
+  const hash = hashRecords(allRecords);
 
   if (storedHash && hash === storedHash) {
     await db.query('UPDATE cloud_providers SET last_sync_at = CURRENT_TIMESTAMP WHERE id = $1', [providerId]);
     emitRealtime({
-      resource: 'cloud-providers',
-      action: 'updated',
-      at: new Date().toISOString(),
-      id: providerId,
+      resource: 'cloud-providers', action: 'updated',
+      at: new Date().toISOString(), id: providerId,
       meta: { providerName, skipped: true },
     });
-    return { count: instances.length, hash, skipped: true };
+    return { count: allRecords.length, hash, skipped: true };
   }
 
   const client = await db.pool.connect();
@@ -210,64 +398,29 @@ async function syncOvhProviderByBaseUrl(
     await client.query('BEGIN');
     const groupId = await getOrCreateGroup(client, providerName);
 
-    for (const { projectId, instance } of instances) {
-      const instanceId = String(instance.id ?? `${projectId}:${instance.name ?? 'unknown'}`);
-      const cloudInstanceId = `${projectId}:${instanceId}`;
-      const { publicIpv4, privateIpv4, publicIpv6 } = extractIps(instance);
-      const cpuCores = instance.flavor?.vcpus ?? instance.vcpus ?? null;
-      const ramMb = instance.flavor?.ram ?? instance.ram ?? null;
-      const ramGb = typeof ramMb === 'number' ? Math.max(1, Math.round(ramMb / 1024)) : null;
-      const os = instance.image?.name ?? instance.osType ?? instance.image?.type ?? 'Linux';
-      const name = instance.name ?? `ovh-${instanceId}`;
-      const region = instance.region ?? null;
-      const status = normalizeStatus(instance.status);
-      const notes = `OVHcloud instance · Project ${projectId}`;
-
-      const existing = await client.query(
-        'SELECT id FROM servers WHERE cloud_provider_id = $1 AND cloud_instance_id = $2',
-        [providerId, cloudInstanceId]
-      );
-
-      if (existing.rows.length > 0) {
-        await client.query(
-          `UPDATE servers SET
-            name=$1, hostname=$2,
-            ip_address=$3, private_ip=$4, ipv6_address=$5,
-            os=$6, cpu_cores=$7, ram_gb=$8, region=$9, status=$10, notes=$11,
-            group_id=COALESCE(group_id, $12),
-            updated_at=CURRENT_TIMESTAMP
-          WHERE id=$13`,
-          [name, name, publicIpv4, privateIpv4, publicIpv6, os, cpuCores, ramGb, region, status, notes, groupId, existing.rows[0].id]
-        );
-      } else {
-        await client.query(
-          `INSERT INTO servers (name,hostname,ip_address,private_ip,ipv6_address,os,cpu_cores,ram_gb,region,status,notes,cloud_provider_id,cloud_instance_id,group_id)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)`,
-          [name, name, publicIpv4, privateIpv4, publicIpv6, os, cpuCores, ramGb, region, status, notes, providerId, cloudInstanceId, groupId]
-        );
-      }
+    for (const record of allRecords) {
+      await upsertRecord(client, providerId, groupId, record);
     }
 
     await client.query(
       'UPDATE cloud_providers SET last_sync_at=CURRENT_TIMESTAMP, server_count=$1, instance_hash=$2 WHERE id=$3',
-      [instances.length, hash, providerId]
+      [allRecords.length, hash, providerId]
     );
 
     await client.query('COMMIT');
     emitRealtime({
-      resource: 'servers',
-      action: 'sync',
+      resource: 'servers', action: 'sync',
       at: new Date().toISOString(),
-      meta: { providerId, providerName, syncedCount: instances.length },
+      meta: { providerId, providerName,
+        syncedCount: allRecords.length,
+        breakdown: { cloud: cloudRecords.length, vps: vpsRecords.length, dedicated: dedicatedRecords.length } },
     });
     emitRealtime({
-      resource: 'cloud-providers',
-      action: 'updated',
-      at: new Date().toISOString(),
-      id: providerId,
-      meta: { providerName, syncedCount: instances.length },
+      resource: 'cloud-providers', action: 'updated',
+      at: new Date().toISOString(), id: providerId,
+      meta: { providerName, syncedCount: allRecords.length },
     });
-    return { count: instances.length, hash, skipped: false };
+    return { count: allRecords.length, hash, skipped: false };
   } catch (err) {
     await client.query('ROLLBACK');
     throw err;
