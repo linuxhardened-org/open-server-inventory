@@ -120,7 +120,7 @@ export const Sidebar = ({ isOpen }: { isOpen?: boolean; onClose?: () => void }) 
             }}
             title="Light theme"
           >
-            <Sun size={12} />
+            <Sun size={14} />
             Light
           </button>
           <button
@@ -143,7 +143,7 @@ export const Sidebar = ({ isOpen }: { isOpen?: boolean; onClose?: () => void }) 
             }}
             title="Dark theme"
           >
-            <Moon size={12} />
+            <Moon size={14} />
             Dark
           </button>
           <button
@@ -166,7 +166,7 @@ export const Sidebar = ({ isOpen }: { isOpen?: boolean; onClose?: () => void }) 
             }}
             title="Use system preference"
           >
-            <Monitor size={12} />
+            <Monitor size={14} />
             System
           </button>
         </div>
