@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { Cloud, RefreshCw, Plus, Trash2, ShieldCheck, ShieldAlert, ShieldX, ChevronDown, ChevronUp } from 'lucide-react';
 import { SvSelect } from '../components/SvSelect';
@@ -36,6 +36,7 @@ export const CloudIntegrations = () => {
   const [auditResult, setAuditResult] = useState<AuditResult | null>(null);
   const [auditExpanded, setAuditExpanded] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const auditDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const fetchProviders = useCallback(async () => {
     try {
       const res = (await axios.get('/cloud-providers')) as { success: boolean; data: CloudProvider[] };
@@ -455,8 +456,15 @@ export const CloudIntegrations = () => {
                 <input
                   type="password"
                   value={newProvider.api_token}
-                  onChange={(e) => { setNewProvider({ ...newProvider, api_token: e.target.value }); setAuditResult(null); }}
-                  onBlur={(e) => { if (e.target.value.trim() && !submitting) handleAuditToken(); }}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setNewProvider({ ...newProvider, api_token: val });
+                    setAuditResult(null);
+                    if (auditDebounceRef.current) clearTimeout(auditDebounceRef.current);
+                    if (val.trim() && !submitting) {
+                      auditDebounceRef.current = setTimeout(() => handleAuditToken(), 800);
+                    }
+                  }}
                   className="sv-input"
                   style={{ width: '100%' }}
                   placeholder="Linode Personal Access Token"
