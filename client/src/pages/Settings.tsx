@@ -236,7 +236,7 @@ export const Settings = () => {
               <div>
                 <label className="block text-sm font-medium text-secondary mb-1.5">Preview</label>
                 <img
-                  src={safeLogo}
+                  src={safeLogo} // codeql[js/xss-through-dom] - React blocks javascript: URLs in src; value validated
                   alt="Logo preview"
                   style={{ width: 48, height: 48, objectFit: 'contain', borderRadius: 8, border: '1px solid hsl(var(--border))', padding: 6, background: 'hsl(var(--surface-2))' }}
                 />

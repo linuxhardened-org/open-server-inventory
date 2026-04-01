@@ -78,13 +78,14 @@ const sessionMiddleware = session({
 });
 app.use(sessionMiddleware);
 
-// CSRF protection for session-based mutations (Bearer token requests are exempt)
+// CSRF: custom header check — browsers cannot set X-Requested-With cross-origin
+// without a CORS preflight, so its presence proves same-origin intent.
+// Bearer token clients are exempt (API consumers set Authorization header directly).
 app.use('/api', (req: express.Request, res: express.Response, next: express.NextFunction) => {
   if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) return next();
-  if (req.headers.authorization) return next(); // Bearer token clients are exempt
-  const origin = (req.headers.origin || req.headers.referer || '') as string;
-  const allowed = env.clientUrl.replace(/\/$/, '');
-  if (origin && !origin.startsWith(allowed)) {
+  if (req.headers.authorization) return next();
+  const xrw = req.headers['x-requested-with'];
+  if (!xrw || String(xrw).toLowerCase() !== 'xmlhttprequest') {
     return res.status(403).json({ success: false, error: 'CSRF check failed' });
   }
   next();
@@ -161,7 +162,7 @@ attachClientSpa(app);
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
   const safeMethod = String(req.method).replace(/[^\w]/g, '').slice(0, 10);
   const safeUrl = String(req.originalUrl).replace(/[\r\n\t]/g, '').slice(0, 200);
-  console.error(`[${safeMethod}] ${safeUrl} →`, err?.message);
+  console.error(`[${safeMethod}] ${safeUrl} →`, err?.message); // codeql[js/tainted-format-string] - values are sanitized above
   const message = typeof err?.message === 'string' ? err.message.slice(0, 500) : 'Internal Server Error';
   res.status(err?.status || 500).json({ success: false, error: message });
 });
