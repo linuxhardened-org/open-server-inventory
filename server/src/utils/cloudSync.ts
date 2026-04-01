@@ -3,6 +3,7 @@ import db from '../db';
 import { emitRealtime } from '../realtime';
 import { registerProvider, getSyncFn, type SyncResult } from './providers/registry';
 import { syncDigitalOceanProvider } from './providers/digitalocean';
+import { syncOvhCaProvider, syncOvhUsProvider } from './providers/ovh';
 
 /**
  * Format Linode image string to human-readable OS name
@@ -704,5 +705,7 @@ export async function runAutoSync(): Promise<void> {
 // Register providers
 registerProvider('linode', syncLinodeProvider);
 registerProvider('digitalocean', syncDigitalOceanProvider);
+registerProvider('ovh-ca', syncOvhCaProvider);
+registerProvider('ovh-us', syncOvhUsProvider);
 
 export { getSyncFn };

@@ -37,6 +37,7 @@ export const CloudIntegrations = () => {
   const [auditExpanded, setAuditExpanded] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const auditDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isAuditSupportedProvider = (provider: string) => provider === 'linode';
   const fetchProviders = useCallback(async () => {
     try {
       const res = (await axios.get('/cloud-providers')) as { success: boolean; data: CloudProvider[] };
@@ -93,6 +94,7 @@ export const CloudIntegrations = () => {
     const token = tokenOverride ?? newProvider.api_token.trim();
     const provider = providerOverride ?? newProvider.provider;
     if (!token) { toast.error('Enter an API token first'); return; }
+    if (!isAuditSupportedProvider(provider)) return;
     setAuditing(true);
     setAuditResult(null);
     try {
@@ -449,7 +451,10 @@ export const CloudIntegrations = () => {
                 </label>
                 <SvSelect
                   value={newProvider.provider}
-                  onChange={(v) => setNewProvider({ ...newProvider, provider: v })}
+                  onChange={(v) => {
+                    setNewProvider({ ...newProvider, provider: v });
+                    setAuditResult(null);
+                  }}
                   options={SUPPORTED_PROVIDERS.map((p) => ({
                     value: p.value,
                     label: p.label,
@@ -471,18 +476,26 @@ export const CloudIntegrations = () => {
                     setNewProvider({ ...newProvider, api_token: val });
                     setAuditResult(null);
                     if (auditDebounceRef.current) clearTimeout(auditDebounceRef.current);
-                    if (val.trim() && !submitting) {
+                    if (val.trim() && !submitting && isAuditSupportedProvider(newProvider.provider)) {
                       const capturedProvider = newProvider.provider;
                       auditDebounceRef.current = setTimeout(() => handleAuditToken(val.trim(), capturedProvider), 800);
                     }
                   }}
                   className="sv-input"
                   style={{ width: '100%' }}
-                  placeholder="Linode Personal Access Token"
+                  placeholder={
+                    newProvider.provider === 'linode'
+                      ? 'Linode Personal Access Token'
+                      : newProvider.provider === 'ovh-ca' || newProvider.provider === 'ovh-us'
+                        ? 'OVHcloud API bearer token'
+                        : 'Cloud provider API token'
+                  }
                   required
                 />
                 <p style={{ fontSize: 11, color: 'hsl(var(--fg-3))', marginTop: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
-                  Generate a read-only token at cloud.linode.com/profile/tokens
+                  {newProvider.provider === 'linode'
+                    ? 'Generate a read-only token at cloud.linode.com/profile/tokens'
+                    : 'Use a token with read access to list cloud instances'}
                   {auditing && <span style={{ color: 'hsl(var(--fg-3))', fontStyle: 'italic' }}>· checking permissions...</span>}
                 </p>
 
