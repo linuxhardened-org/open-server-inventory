@@ -25,8 +25,8 @@ export function getProviderLogo(provider: string): string | null {
 export const SUPPORTED_PROVIDERS = [
   { value: 'linode', label: 'Linode / Akamai Cloud', logo: LINODE_LOGO_URL, available: true },
   { value: 'digitalocean', label: 'DigitalOcean', logo: DIGITALOCEAN_LOGO_URL, available: true },
-  { value: 'ovh-ca', label: 'OVHcloud (CA)', logo: OVH_LOGO_URL, available: true },
-  { value: 'ovh-us', label: 'OVHcloud (US)', logo: OVH_LOGO_URL, available: true },
+  { value: 'ovh-ca', label: 'OVHcloud CA', logo: OVH_LOGO_URL, available: true },
+  { value: 'ovh-us', label: 'OVHcloud US', logo: OVH_LOGO_URL, available: true },
   { value: 'aws', label: 'Amazon Web Services', logo: AWS_LOGO_URL, available: false },
   { value: 'gcp', label: 'Google Cloud Platform', logo: GCP_LOGO_URL, available: false },
   { value: 'vultr', label: 'Vultr', logo: VULTR_LOGO_URL, available: false },
