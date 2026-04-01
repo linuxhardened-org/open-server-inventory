@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { ChevronDown, Check } from 'lucide-react';
 import { motion } from 'framer-motion';
 
@@ -26,7 +27,17 @@ type Props = {
 
 export function SvSelect({ value, onChange, options, placeholder, compact, style }: Props) {
   const [open, setOpen] = useState(false);
+  const [dropRect, setDropRect] = useState<{ top: number; left: number; width: number } | null>(null);
+  const btnRef = useRef<HTMLButtonElement>(null);
   const selected = options.find((o) => o.value === value);
+
+  const handleOpen = () => {
+    if (!open && btnRef.current) {
+      const r = btnRef.current.getBoundingClientRect();
+      setDropRect({ top: r.bottom + 4, left: r.left, width: r.width });
+    }
+    setOpen((o) => !o);
+  };
 
   return (
     <div style={{ position: 'relative', display: compact ? 'inline-block' : 'block', ...style }}>
@@ -36,8 +47,9 @@ export function SvSelect({ value, onChange, options, placeholder, compact, style
 
       {/* Trigger */}
       <button
+        ref={btnRef}
         type="button"
-        onClick={() => setOpen((o) => !o)}
+        onClick={handleOpen}
         style={{
           width: compact ? 'auto' : '100%',
           display: 'inline-flex',
@@ -83,17 +95,17 @@ export function SvSelect({ value, onChange, options, placeholder, compact, style
         }} />
       </button>
 
-      {/* Dropdown */}
-      {open && (
+      {/* Dropdown — rendered in a portal so overflow:hidden parents don't clip it */}
+      {open && dropRect && createPortal(
         <motion.div
           initial={{ opacity: 0, y: -4, scale: 0.98 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
           transition={{ duration: 0.12 }}
           style={{
-            position: 'absolute',
-            top: 'calc(100% + 4px)',
-            left: 0,
-            minWidth: compact ? 120 : '100%',
+            position: 'fixed',
+            top: dropRect.top,
+            left: dropRect.left,
+            minWidth: compact ? 120 : dropRect.width,
             zIndex: 99,
             background: 'hsl(var(--surface))',
             border: '1px solid hsl(var(--border))',
@@ -170,7 +182,8 @@ export function SvSelect({ value, onChange, options, placeholder, compact, style
               </button>
             );
           })}
-        </motion.div>
+        </motion.div>,
+        document.body
       )}
     </div>
   );
