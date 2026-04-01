@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { Cloud, RefreshCw, Plus, Trash2 } from 'lucide-react';
+import { Cloud, RefreshCw, Plus, Trash2, ShieldCheck, ShieldAlert, ShieldX, ChevronDown, ChevronUp } from 'lucide-react';
 import { SvSelect } from '../components/SvSelect';
 import { motion } from 'framer-motion';
 import axios, { getApiErrorMessage } from '../lib/api';
@@ -28,6 +28,13 @@ export const CloudIntegrations = () => {
   const [bulkDeleting, setBulkDeleting] = useState(false);
   const [selectedProviderIds, setSelectedProviderIds] = useState<number[]>([]);
   const [newProvider, setNewProvider] = useState({ name: '', provider: 'linode', api_token: '', auto_sync: true, sync_interval_minutes: 60 });
+
+  type Risk = 'critical' | 'high' | 'medium' | 'low' | 'ok';
+  interface AuditPermission { name: string; scope: string; present: boolean; required: boolean; risk: Risk; description: string; }
+  interface AuditResult { valid: boolean; overallRisk: Risk; unnecessaryCount: number; permissions: AuditPermission[]; }
+  const [auditing, setAuditing] = useState(false);
+  const [auditResult, setAuditResult] = useState<AuditResult | null>(null);
+  const [auditExpanded, setAuditExpanded] = useState(false);
   const fetchProviders = useCallback(async () => {
     try {
       const res = (await axios.get('/cloud-providers')) as { success: boolean; data: CloudProvider[] };
@@ -61,9 +68,28 @@ export const CloudIntegrations = () => {
       toast.success('Cloud provider added');
       setAddingProvider(false);
       setNewProvider({ name: '', provider: 'linode', api_token: '', auto_sync: true, sync_interval_minutes: 60 });
+      setAuditResult(null);
       await fetchProviders();
     } catch (err: unknown) {
       toast.error((err as { error?: string })?.error || 'Failed to add provider');
+    }
+  };
+
+  const handleAuditToken = async () => {
+    if (!newProvider.api_token.trim()) { toast.error('Enter an API token first'); return; }
+    setAuditing(true);
+    setAuditResult(null);
+    try {
+      const res = await axios.post('/cloud-providers/audit-token', {
+        provider: newProvider.provider,
+        api_token: newProvider.api_token.trim(),
+      }) as { success: boolean; data: AuditResult };
+      setAuditResult(res.data);
+      setAuditExpanded(true);
+    } catch (err: unknown) {
+      toast.error((err as { error?: string })?.error || 'Audit failed');
+    } finally {
+      setAuditing(false);
     }
   };
 
@@ -421,7 +447,7 @@ export const CloudIntegrations = () => {
                 <input
                   type="password"
                   value={newProvider.api_token}
-                  onChange={(e) => setNewProvider({ ...newProvider, api_token: e.target.value })}
+                  onChange={(e) => { setNewProvider({ ...newProvider, api_token: e.target.value }); setAuditResult(null); }}
                   className="sv-input"
                   style={{ width: '100%' }}
                   placeholder="Linode Personal Access Token"
@@ -430,6 +456,100 @@ export const CloudIntegrations = () => {
                 <p style={{ fontSize: 11, color: 'hsl(var(--fg-3))', marginTop: 6 }}>
                   Generate a read-only token at cloud.linode.com/profile/tokens
                 </p>
+                <button
+                  type="button"
+                  onClick={handleAuditToken}
+                  disabled={auditing || !newProvider.api_token.trim()}
+                  style={{
+                    marginTop: 8,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    fontSize: 12,
+                    padding: '5px 10px',
+                    borderRadius: 6,
+                    border: '1px solid hsl(var(--border-2))',
+                    background: 'hsl(var(--surface-2))',
+                    color: 'hsl(var(--fg-2))',
+                    cursor: auditing || !newProvider.api_token.trim() ? 'not-allowed' : 'pointer',
+                    opacity: !newProvider.api_token.trim() ? 0.5 : 1,
+                  }}
+                >
+                  <ShieldCheck style={{ width: 13, height: 13 }} />
+                  {auditing ? 'Auditing...' : 'Audit Permissions'}
+                </button>
+
+                {/* Audit Result Panel */}
+                {auditResult && (() => {
+                  const riskColor: Record<string, string> = {
+                    critical: 'hsl(var(--danger))',
+                    high: '#f97316',
+                    medium: '#eab308',
+                    low: '#3b82f6',
+                    ok: 'hsl(var(--primary))',
+                  };
+                  const RiskIcon = auditResult.overallRisk === 'ok' ? ShieldCheck
+                    : auditResult.overallRisk === 'critical' || auditResult.overallRisk === 'high' ? ShieldX
+                    : ShieldAlert;
+
+                  return (
+                    <div style={{ marginTop: 10, borderRadius: 8, border: `1px solid ${riskColor[auditResult.overallRisk]}33`, background: `${riskColor[auditResult.overallRisk]}0d`, overflow: 'hidden' }}>
+                      <button
+                        type="button"
+                        onClick={() => setAuditExpanded(x => !x)}
+                        style={{
+                          width: '100%',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 8,
+                          padding: '8px 10px',
+                          background: 'transparent',
+                          border: 'none',
+                          cursor: 'pointer',
+                          color: riskColor[auditResult.overallRisk],
+                          fontSize: 12,
+                          fontWeight: 600,
+                        }}
+                      >
+                        <RiskIcon style={{ width: 14, height: 14, flexShrink: 0 }} />
+                        {auditResult.overallRisk === 'ok'
+                          ? 'Token looks good — minimal permissions'
+                          : `${auditResult.unnecessaryCount} unnecessary permission${auditResult.unnecessaryCount !== 1 ? 's' : ''} detected`}
+                        <span style={{ marginLeft: 'auto', textTransform: 'uppercase', fontSize: 10, letterSpacing: '0.05em', padding: '2px 6px', borderRadius: 4, background: `${riskColor[auditResult.overallRisk]}22` }}>
+                          {auditResult.overallRisk}
+                        </span>
+                        {auditExpanded ? <ChevronUp style={{ width: 12, height: 12 }} /> : <ChevronDown style={{ width: 12, height: 12 }} />}
+                      </button>
+
+                      {auditExpanded && (
+                        <div style={{ padding: '0 10px 10px', display: 'flex', flexDirection: 'column', gap: 4 }}>
+                          {auditResult.permissions.filter(p => p.present || p.required).map(p => {
+                            const color = !p.present && p.required ? riskColor.critical
+                              : p.present && !p.required ? riskColor[p.risk]
+                              : 'hsl(var(--fg-3))';
+                            const statusLabel = !p.present && p.required ? 'MISSING'
+                              : p.present && !p.required ? 'UNNECESSARY'
+                              : p.present ? 'PRESENT' : 'NOT GRANTED';
+                            return (
+                              <div key={p.scope} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '5px 6px', borderRadius: 5, background: 'hsl(var(--surface) / 0.6)' }}>
+                                <span style={{ fontSize: 10, fontWeight: 700, color, marginTop: 1, minWidth: 90, flexShrink: 0 }}>{statusLabel}</span>
+                                <div>
+                                  <div style={{ fontSize: 11, fontWeight: 600, color: 'hsl(var(--fg))', fontFamily: 'monospace' }}>{p.scope}</div>
+                                  <div style={{ fontSize: 10, color: 'hsl(var(--fg-3))', marginTop: 1 }}>{p.description}</div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                          {auditResult.overallRisk !== 'ok' && (
+                            <p style={{ fontSize: 11, color: '#f97316', marginTop: 6, lineHeight: 1.4 }}>
+                              We recommend generating a new token with only <strong>linodes:read_only</strong> scope to follow the principle of least privilege.
+                            </p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <input
