@@ -3,10 +3,9 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?logo=docker&logoColor=white)](https://docs.docker.com/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![CodeQL](https://github.com/linuxhardened-org/open-server-inventory/actions/workflows/codeql.yml/badge.svg)](https://github.com/linuxhardened-org/open-server-inventory/actions/workflows/codeql.yml)
 
 **ServerVault** is a modern, self-hosted server inventory management application for DevOps teams, sysadmins, and IT professionals. Track all your servers, VMs, and cloud instances in one secure, beautiful dashboard.
-
-> **Keywords:** server inventory, asset management, infrastructure tracking, self-hosted CMDB, IT asset management, server documentation, DevOps tools, data center management
 
 ## Why ServerVault?
 
@@ -16,6 +15,7 @@
 - **API First** - Full REST API with Bearer token authentication for automation and integrations.
 - **Role-Based Access** - Admin and operator roles with granular permissions.
 - **2FA Security** - TOTP-based two-factor authentication for enhanced security.
+- **Production Hardened** - Helmet security headers, rate limiting, CSRF protection, and CodeQL scanning built-in.
 
 ## Features
 
@@ -32,6 +32,7 @@
 | **Dark Mode** | Eye-friendly dark theme that persists across sessions |
 | **Cloud Networking (Linode)** | Sync primary + additional public IPs, VPC IPs, NAT 1:1 mappings, and VPC subnet details |
 | **Realtime Sync** | WebSocket-driven updates (Socket.IO) with scoped subscriptions, reconnect, and cross-client consistency |
+| **Cloud Token Auditor** | Auto-scans API tokens for overpermissioned scopes and highlights unnecessary permissions |
 
 ## Cloud Sync Networking (Linode)
 
@@ -106,7 +107,7 @@ Empty fields are hidden instead of displaying placeholder values.
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-username/open-server-inventory.git
+git clone https://github.com/linuxhardened-org/open-server-inventory.git
 cd open-server-inventory
 
 # Start with Docker Compose
@@ -142,8 +143,8 @@ After initial setup, log in with the default admin account:
 
 | Field | Value |
 |-------|-------|
-| Username | `admin` |
-| Password | `changeme` |
+| Username | `Admin` |
+| Password | `Admin@123` |
 
 **Important:** You will be prompted to change the password on first login.
 
@@ -165,10 +166,7 @@ SESSION_SECRET=your-32-character-minimum-random-secret
 # Optional
 CLIENT_URL=http://localhost:8080
 NODE_ENV=production
-REDIS_URL=redis://localhost:6379
 ```
-
-`REDIS_URL` is optional, but recommended for multi-instance/horizontal deployments to fan out socket events across all app nodes.
 
 ## API Usage
 
@@ -225,6 +223,8 @@ open-server-inventory/
 | Fonts | Geist Sans, Geist Mono |
 | Icons | Lucide React |
 | Auth | Session cookies + Bearer tokens, TOTP 2FA |
+| Security | Helmet, express-rate-limit, CSRF headers, CodeQL |
+| Realtime | Socket.IO (WebSocket), server-sent events |
 
 ## Deployment
 
@@ -254,6 +254,9 @@ server {
         proxy_pass http://127.0.0.1:8080;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
     }
 }
 ```
