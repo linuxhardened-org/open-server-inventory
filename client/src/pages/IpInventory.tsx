@@ -141,7 +141,7 @@ export const IpInventory = () => {
     return matchesSearch && matchesType;
   });
 
-  const [ipPageSize, setIpPageSize] = useState(50);
+  const [ipPageSize, setIpPageSize] = useState(25);
   const [ipPage, setIpPage] = useState(1);
   useEffect(() => { setIpPage(1); }, [searchTerm, filterType]);
   const ipTotalPages = Math.max(1, Math.ceil(filteredIps.length / ipPageSize));
@@ -619,7 +619,7 @@ export const IpInventory = () => {
                 <SvSelect
                   value={String(ipPageSize)}
                   onChange={(v) => { setIpPageSize(Number(v)); setIpPage(1); }}
-                  options={[20, 50, 100, 200].map((n) => ({ value: String(n), label: String(n) }))}
+                  options={[10, 25, 50, 100, 200].map((n) => ({ value: String(n), label: String(n) }))}
                   compact
                 />
                 <span style={{ fontSize: 12, color: 'hsl(var(--fg-3))' }}>

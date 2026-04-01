@@ -45,12 +45,16 @@ type OvhDedicatedServer = {
   name?: string;
   ip?: string;
   datacenter?: string;
+  region?: string;
   state?: string;
   os?: string;
-  cpuCount?: number;
-  memory?: number; // GB or MB depending on field
-  professionalUse?: boolean;
   commercialRange?: string;
+};
+
+type OvhDedicatedHardware = {
+  numberOfProcessors?: number;
+  coresPerProcessor?: number;
+  memorySize?: { value?: number; unit?: string }; // unit is MB
 };
 
 /** Normalised record type — common shape regardless of source (cloud/vps/dedicated) */
@@ -274,9 +278,11 @@ async function fetchDedicatedServerRecords(baseUrl: string, creds: OvhCredential
 
   const records = await Promise.all(
     serviceNames.map(async (serviceName): Promise<OvhServerRecord | null> => {
-      const server = await fetchJson<OvhDedicatedServer>(
-        baseUrl, `/dedicated/server/${encodeURIComponent(serviceName)}`, creds, timestamp
-      );
+      const encoded = encodeURIComponent(serviceName);
+      const [server, hardware] = await Promise.all([
+        fetchJson<OvhDedicatedServer>(baseUrl, `/dedicated/server/${encoded}`, creds, timestamp),
+        fetchJson<OvhDedicatedHardware>(baseUrl, `/dedicated/server/${encoded}/specifications/hardware`, creds, timestamp),
+      ]);
       if (!server) return null;
 
       const primaryIp = server.ip ?? null;
@@ -287,10 +293,11 @@ async function fetchDedicatedServerRecords(baseUrl: string, creds: OvhCredential
         return a === 10 || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168);
       })() : false;
 
-      // Dedicated server memory: OVH typically reports in MB
-      const ramGb = server.memory
-        ? (server.memory > 1024 ? Math.max(1, Math.round(server.memory / 1024)) : server.memory)
+      const cpuCores = hardware
+        ? (hardware.numberOfProcessors ?? 1) * (hardware.coresPerProcessor ?? 1)
         : null;
+      const ramMb = hardware?.memorySize?.value ?? null;
+      const ramGb = ramMb ? Math.max(1, Math.round(ramMb / 1024)) : null;
 
       return {
         cloudInstanceId: `dedicated:${serviceName}`,
@@ -299,10 +306,10 @@ async function fetchDedicatedServerRecords(baseUrl: string, creds: OvhCredential
         publicIpv4: primaryIp && !isPrivate ? primaryIp : null,
         privateIpv4: primaryIp && isPrivate ? primaryIp : null,
         publicIpv6: null,
-        cpuCores: server.cpuCount ?? null,
+        cpuCores,
         ramGb,
         os: server.os ?? null,
-        region: server.datacenter ?? null,
+        region: server.region ?? server.datacenter ?? null,
         status: normalizeStatus(server.state),
         notes: `OVHcloud Dedicated · ${server.commercialRange ?? serviceName}`,
       };

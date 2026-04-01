@@ -204,7 +204,7 @@ export const Servers = () => {
       }),
     [filteredByParams, searchTerm]
   );
-  const [pageSize, setPageSize] = useState(50);
+  const [pageSize, setPageSize] = useState(25);
   const [currentPage, setCurrentPage] = useState(1);
 
   // Reset page when filters/search change
@@ -673,7 +673,7 @@ export const Servers = () => {
                 compact
                 value={String(pageSize)}
                 onChange={(v) => { setPageSize(Number(v)); setCurrentPage(1); }}
-                options={[20, 50, 100, 200].map((n) => ({ value: String(n), label: String(n) }))}
+                options={[10, 25, 50, 100, 200].map((n) => ({ value: String(n), label: String(n) }))}
               />
               <span style={{ fontSize: 12, color: 'hsl(var(--fg-3))' }}>
                 {(currentPage - 1) * pageSize + 1}–{Math.min(currentPage * pageSize, visibleServers.length)} of {visibleServers.length}

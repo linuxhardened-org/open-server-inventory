@@ -80,11 +80,20 @@ export const ApiSettings = () => {
   };
 
   const handleCopy = () => {
-    if (newToken) {
-      navigator.clipboard.writeText(newToken);
-      setCopied(true);
-      toast.success('Copied to clipboard');
-      setTimeout(() => setCopied(false), 2000);
+    if (!newToken) return;
+    const doSuccess = () => { setCopied(true); toast.success('Copied to clipboard'); setTimeout(() => setCopied(false), 2000); };
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(newToken).then(doSuccess).catch(() => {
+        const ta = document.createElement('textarea');
+        ta.value = newToken; ta.style.position = 'fixed'; ta.style.opacity = '0';
+        document.body.appendChild(ta); ta.select(); document.execCommand('copy');
+        document.body.removeChild(ta); doSuccess();
+      });
+    } else {
+      const ta = document.createElement('textarea');
+      ta.value = newToken; ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta); ta.select(); document.execCommand('copy');
+      document.body.removeChild(ta); doSuccess();
     }
   };
 
