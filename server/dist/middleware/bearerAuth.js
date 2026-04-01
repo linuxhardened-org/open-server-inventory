@@ -18,10 +18,10 @@ const response_1 = require("../utils/response");
 const token_1 = require("../utils/token");
 const bearerAuth = (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
     const authHeader = req.headers.authorization;
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    if (!authHeader || !authHeader.toLowerCase().startsWith('bearer ')) {
         return (0, response_1.sendError)(res, 'Unauthorized: Bearer token required', 401);
     }
-    const rawToken = authHeader.slice('Bearer '.length).trim();
+    const rawToken = authHeader.slice(authHeader.indexOf(' ') + 1).trim();
     if (!rawToken) {
         return (0, response_1.sendError)(res, 'Unauthorized: Bearer token required', 401);
     }

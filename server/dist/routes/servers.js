@@ -80,14 +80,18 @@ function saveCustomValues(client, serverId, customValues) {
     });
 }
 router.get('/', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    var _a;
+    var _a, _b, _c;
     try {
+        const limit = Math.min(parseInt(String((_a = req.query.limit) !== null && _a !== void 0 ? _a : '5000'), 10) || 5000, 5000);
+        const offset = Math.max(parseInt(String((_b = req.query.offset) !== null && _b !== void 0 ? _b : '0'), 10) || 0, 0);
         const serversResult = yield db_1.default.query(`
       SELECT s.*, g.name as group_name, k.name as ssh_key_name
       FROM servers s
       LEFT JOIN groups g ON s.group_id = g.id
       LEFT JOIN ssh_keys k ON s.ssh_key_id = k.id
-    `);
+      ORDER BY s.created_at DESC
+      LIMIT $1 OFFSET $2
+    `, [limit, offset]);
         const rows = serversResult.rows;
         const ids = rows.map((s) => s.id);
         if (ids.length === 0) {
@@ -107,7 +111,7 @@ router.get('/', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
         const ifBy = (0, collections_1.groupBy)(interfacesRes.rows, 'server_id');
         const tagsByServer = new Map();
         for (const r of tagsRes.rows) {
-            const list = (_a = tagsByServer.get(r.server_id)) !== null && _a !== void 0 ? _a : [];
+            const list = (_c = tagsByServer.get(r.server_id)) !== null && _c !== void 0 ? _c : [];
             list.push({ id: r.id, name: r.name, color: r.color });
             tagsByServer.set(r.server_id, list);
         }

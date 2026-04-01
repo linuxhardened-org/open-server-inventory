@@ -21,12 +21,13 @@ const crypto_1 = require("../utils/crypto");
 function buildPoolConfig(databaseUrl) {
     const url = databaseUrl !== null && databaseUrl !== void 0 ? databaseUrl : env_1.env.databaseUrl;
     if (url) {
-        return { connectionString: url, ssl: { rejectUnauthorized: false } };
+        const isProd = process.env.NODE_ENV === 'production';
+        return { connectionString: url, ssl: isProd ? { rejectUnauthorized: true } : { rejectUnauthorized: false } };
     }
     const isLocal = env_1.env.postgres.host === 'localhost' ||
         env_1.env.postgres.host === '127.0.0.1' ||
         env_1.env.postgres.host === 'db';
-    return Object.assign({ host: env_1.env.postgres.host, port: env_1.env.postgres.port, user: env_1.env.postgres.user, password: env_1.env.postgres.password, database: env_1.env.postgres.database }, (isLocal ? {} : { ssl: { rejectUnauthorized: false } }));
+    return Object.assign({ host: env_1.env.postgres.host, port: env_1.env.postgres.port, user: env_1.env.postgres.user, password: env_1.env.postgres.password, database: env_1.env.postgres.database }, (isLocal ? {} : { ssl: { rejectUnauthorized: process.env.NODE_ENV !== 'production' ? false : true } }));
 }
 /** Create and verify a pool, then init schema + migrations on it. */
 function initPoolWithConfig(config) {
@@ -46,7 +47,7 @@ function seedDefaultAdmin(p) {
         const hash = yield (0, crypto_1.hashPassword)('Admin@123');
         yield p.query(`INSERT INTO users (username, password_hash, role, password_change_required)
      VALUES ($1, $2, 'admin', TRUE)`, ['Admin', hash]);
-        console.log('Default admin seeded — username: Admin, password: Admin@123');
+        console.log('Default admin seeded — username: Admin (change password on first login)');
     });
 }
 const initDB = () => __awaiter(void 0, void 0, void 0, function* () {

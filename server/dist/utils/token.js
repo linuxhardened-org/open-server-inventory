@@ -10,7 +10,10 @@ const crypto_1 = __importDefault(require("crypto"));
 function generateApiToken() {
     return 'sv_' + crypto_1.default.randomBytes(32).toString('hex');
 }
-/** SHA-256 hex digest for at-rest storage and lookup (not reversible). */
+/** SHA-256 hex digest for at-rest storage and lookup.
+ *  API tokens are 256-bit cryptographically random strings — SHA-256 is
+ *  appropriate here. This is NOT a password hash. */
+// codeql[js/insufficient-password-hash] - high-entropy random token, not a password
 function hashApiToken(plaintext) {
-    return crypto_1.default.createHash('sha256').update(plaintext, 'utf8').digest('hex');
+    return crypto_1.default.createHash('sha256').update(plaintext, 'utf8').digest('hex'); // codeql[js/insufficient-password-hash]
 }

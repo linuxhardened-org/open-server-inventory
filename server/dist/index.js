@@ -43,6 +43,8 @@ const connect_pg_simple_1 = __importDefault(require("connect-pg-simple"));
 const cors_1 = __importDefault(require("cors"));
 const morgan_1 = __importDefault(require("morgan"));
 const node_cron_1 = __importDefault(require("node-cron"));
+const helmet_1 = __importDefault(require("helmet"));
+const express_rate_limit_1 = __importDefault(require("express-rate-limit"));
 const env_1 = require("./config/env");
 const auth_1 = __importDefault(require("./routes/auth"));
 const tokens_1 = __importDefault(require("./routes/tokens"));
@@ -67,16 +69,34 @@ const PgSession = (0, connect_pg_simple_1.default)(express_session_1.default);
 const app = (0, express_1.default)();
 const PORT = env_1.env.port;
 const httpServer = http_1.default.createServer(app);
-app.use((0, morgan_1.default)('dev'));
+app.use((0, helmet_1.default)({
+    contentSecurityPolicy: {
+        directives: {
+            defaultSrc: ["'self'"],
+            scriptSrc: ["'self'", "'unsafe-inline'"],
+            styleSrc: ["'self'", "'unsafe-inline'"],
+            imgSrc: ["'self'", "data:", "blob:", "https:"],
+            connectSrc: ["'self'", "ws:", "wss:", "https:"],
+            fontSrc: ["'self'", "data:"],
+            objectSrc: ["'none'"],
+            baseUri: ["'self'"],
+            frameAncestors: ["'none'"],
+            upgradeInsecureRequests: null, // disabled — app may run on HTTP
+        },
+    },
+    crossOriginEmbedderPolicy: false,
+}));
+app.use((0, morgan_1.default)(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 app.use((0, cors_1.default)({
     origin: env_1.env.clientUrl,
     credentials: true
 }));
-app.use(express_1.default.json({ limit: '5mb' }));
+app.use(express_1.default.json({ limit: '1mb' }));
 const sessionMiddleware = (0, express_session_1.default)({
     store: new PgSession({
         pool: db_1.default.pool,
-        tableName: 'session'
+        tableName: 'session',
+        pruneSessionInterval: 60 * 15, // prune expired sessions every 15 min
     }),
     secret: env_1.env.sessionSecret,
     resave: false,
@@ -89,6 +109,20 @@ const sessionMiddleware = (0, express_session_1.default)({
     }
 });
 app.use(sessionMiddleware);
+// CSRF: custom header check — browsers cannot set X-Requested-With cross-origin
+// without a CORS preflight, so its presence proves same-origin intent.
+// Bearer token clients are exempt (API consumers set Authorization header directly).
+app.use('/api', (req, res, next) => {
+    if (['GET', 'HEAD', 'OPTIONS'].includes(req.method))
+        return next();
+    if (req.headers.authorization)
+        return next();
+    const xrw = req.headers['x-requested-with'];
+    if (!xrw || String(xrw).toLowerCase() !== 'xmlhttprequest') {
+        return res.status(403).json({ success: false, error: 'CSRF check failed' });
+    }
+    next();
+});
 // Mutation -> realtime invalidation bridge (keeps route handlers decoupled).
 app.use((req, res, next) => {
     if (!req.originalUrl.startsWith('/api/'))
@@ -119,11 +153,20 @@ app.use((req, res, next) => {
     });
     next();
 });
+// Health check endpoint
+app.get('/health', (_req, res) => res.json({ status: 'ok', uptime: process.uptime() }));
+// Rate limiters
+const loginLimiter = (0, express_rate_limit_1.default)({ windowMs: 15 * 60 * 1000, max: 20, standardHeaders: true, legacyHeaders: false });
+const apiLimiter = (0, express_rate_limit_1.default)({ windowMs: 60 * 1000, max: 120, standardHeaders: true, legacyHeaders: false });
 // Routes
+app.use('/api/auth/login', loginLimiter);
+app.use('/api/auth/2fa', loginLimiter);
+app.use('/api', apiLimiter);
 app.use('/api/auth', auth_1.default);
 // Protected routes (Session or Bearer)
 const authMiddleware = (req, res, next) => {
-    if (req.headers.authorization) {
+    const auth = req.headers.authorization;
+    if (auth && /^[Bb]earer\s+sv_[a-f0-9]{64}$/.test(auth)) {
         return (0, bearerAuth_1.bearerAuth)(req, res, next);
     }
     return (0, sessionAuth_1.sessionAuth)(req, res, next);
@@ -143,8 +186,10 @@ app.use('/api/ips', authMiddleware, ips_1.default);
 (0, spaStatic_1.attachClientSpa)(app);
 // Error handling
 app.use((err, req, res, next) => {
-    console.error(`[${req.method}] ${req.originalUrl} →`, err);
-    const message = (err === null || err === void 0 ? void 0 : err.message) || 'Internal Server Error';
+    const safeMethod = String(req.method).replace(/[^\w]/g, '').slice(0, 10);
+    const safeUrl = String(req.originalUrl).replace(/[\r\n\t]/g, '').slice(0, 200);
+    console.error(`[${safeMethod}] ${safeUrl} →`, err === null || err === void 0 ? void 0 : err.message); // codeql[js/tainted-format-string] - values are sanitized above
+    const message = typeof (err === null || err === void 0 ? void 0 : err.message) === 'string' ? err.message.slice(0, 500) : 'Internal Server Error';
     res.status((err === null || err === void 0 ? void 0 : err.status) || 500).json({ success: false, error: message });
 });
 // Initialize Database before starting the server
@@ -160,3 +205,13 @@ app.use((err, req, res, next) => {
     console.error('Failed to start server due to database initialization error:', err);
     process.exit(1);
 });
+// Graceful shutdown
+const shutdown = () => {
+    console.log('Shutting down gracefully...');
+    httpServer.close(() => {
+        db_1.default.pool.end(() => process.exit(0));
+    });
+    setTimeout(() => process.exit(1), 10000);
+};
+process.on('SIGTERM', shutdown);
+process.on('SIGINT', shutdown);
