@@ -35,6 +35,7 @@ export const CloudIntegrations = () => {
   const [auditing, setAuditing] = useState(false);
   const [auditResult, setAuditResult] = useState<AuditResult | null>(null);
   const [auditExpanded, setAuditExpanded] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const fetchProviders = useCallback(async () => {
     try {
       const res = (await axios.get('/cloud-providers')) as { success: boolean; data: CloudProvider[] };
@@ -56,7 +57,9 @@ export const CloudIntegrations = () => {
 
   const handleAddProvider = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (submitting) return;
     if (!newProvider.name.trim() || !newProvider.api_token.trim()) return;
+    setSubmitting(true);
     try {
       await axios.post('/cloud-providers', {
         name: newProvider.name.trim(),
@@ -72,6 +75,8 @@ export const CloudIntegrations = () => {
       await fetchProviders();
     } catch (err: unknown) {
       toast.error((err as { error?: string })?.error || 'Failed to add provider');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -451,7 +456,7 @@ export const CloudIntegrations = () => {
                   type="password"
                   value={newProvider.api_token}
                   onChange={(e) => { setNewProvider({ ...newProvider, api_token: e.target.value }); setAuditResult(null); }}
-                  onBlur={(e) => { if (e.target.value.trim()) handleAuditToken(); }}
+                  onBlur={(e) => { if (e.target.value.trim() && !submitting) handleAuditToken(); }}
                   className="sv-input"
                   style={{ width: '100%' }}
                   placeholder="Linode Personal Access Token"
@@ -565,8 +570,8 @@ export const CloudIntegrations = () => {
                 <button type="button" onClick={() => setAddingProvider(false)} className="sv-btn-ghost" style={{ flex: 1, border: '1px solid hsl(var(--border-2))' }}>
                   Cancel
                 </button>
-                <button type="submit" className="sv-btn-primary" style={{ flex: 1 }}>
-                  Add Provider
+                <button type="submit" className="sv-btn-primary" style={{ flex: 1 }} disabled={submitting}>
+                  {submitting ? 'Adding...' : 'Add Provider'}
                 </button>
               </div>
             </form>
