@@ -1,7 +1,6 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { ChevronDown, Check } from 'lucide-react';
-import { motion } from 'framer-motion';
 
 export type SvSelectOption = {
   value: string;
@@ -32,17 +31,31 @@ export function SvSelect({ value, onChange, options, placeholder, compact, style
   const selected = options.find((o) => o.value === value);
 
   const handleOpen = () => {
-    if (!open && btnRef.current) {
+    if (btnRef.current) {
       const r = btnRef.current.getBoundingClientRect();
       setDropRect({ top: r.bottom + 4, left: r.left, width: r.width });
     }
     setOpen((o) => !o);
   };
 
+  // Recalculate position on scroll/resize
+  useEffect(() => {
+    if (!open) return;
+    const update = () => {
+      if (btnRef.current) {
+        const r = btnRef.current.getBoundingClientRect();
+        setDropRect({ top: r.bottom + 4, left: r.left, width: r.width });
+      }
+    };
+    window.addEventListener('scroll', update, true);
+    window.addEventListener('resize', update);
+    return () => { window.removeEventListener('scroll', update, true); window.removeEventListener('resize', update); };
+  }, [open]);
+
   return (
     <div style={{ position: 'relative', display: compact ? 'inline-block' : 'block', ...style }}>
       {open && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 98 }} onClick={() => setOpen(false)} />
+        <div style={{ position: 'fixed', inset: 0, zIndex: 9998 }} onClick={() => setOpen(false)} />
       )}
 
       {/* Trigger */}
@@ -97,20 +110,17 @@ export function SvSelect({ value, onChange, options, placeholder, compact, style
 
       {/* Dropdown — rendered in a portal so overflow:hidden parents don't clip it */}
       {open && dropRect && createPortal(
-        <motion.div
-          initial={{ opacity: 0, y: -4, scale: 0.98 }}
-          animate={{ opacity: 1, y: 0, scale: 1 }}
-          transition={{ duration: 0.12 }}
+        <div
           style={{
             position: 'fixed',
             top: dropRect.top,
             left: dropRect.left,
             minWidth: compact ? 120 : dropRect.width,
-            zIndex: 99,
+            zIndex: 9999,
             background: 'hsl(var(--surface))',
             border: '1px solid hsl(var(--border))',
             borderRadius: 9,
-            boxShadow: '0 8px 24px hsl(var(--bg) / 0.5)',
+            boxShadow: '0 8px 24px rgba(0,0,0,0.3)',
             padding: 4,
             maxHeight: 280,
             overflowY: 'auto',
@@ -182,7 +192,7 @@ export function SvSelect({ value, onChange, options, placeholder, compact, style
               </button>
             );
           })}
-        </motion.div>,
+        </div>,
         document.body
       )}
     </div>
