@@ -54,15 +54,23 @@ function extractIps(instance: OvhInstance): { publicIpv4: string | null; private
 }
 
 async function fetchJson<T>(url: string, apiToken: string): Promise<T> {
-  const res = await fetch(url, {
-    headers: {
-      Authorization: `Bearer ${apiToken}`,
-      'Content-Type': 'application/json',
-    },
-  });
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 10_000);
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      headers: {
+        Authorization: `Bearer ${apiToken}`,
+        'Content-Type': 'application/json',
+      },
+      signal: controller.signal,
+    });
+  } finally {
+    clearTimeout(timeout);
+  }
   if (!res.ok) {
     const body = await res.text().catch(() => '');
-    throw new Error(`OVHcloud API error ${res.status}: ${body}`);
+    throw new Error(`OVHcloud API error ${res.status}: ${body.slice(0, 200)}`);
   }
   return (await res.json()) as T;
 }
@@ -70,19 +78,17 @@ async function fetchJson<T>(url: string, apiToken: string): Promise<T> {
 async function fetchOvhInstances(baseUrl: string, apiToken: string): Promise<Array<{ projectId: string; instance: OvhInstance }>> {
   const projects = await fetchJson<OvhProject[]>(`${baseUrl}/cloud/project`, apiToken);
   const projectIds = projects.map(extractProjectId).filter((v): v is string => Boolean(v));
-  const all: Array<{ projectId: string; instance: OvhInstance }> = [];
+  const results = await Promise.all(
+    projectIds.map(async (projectId) => {
+      const instances = await fetchJson<OvhInstance[]>(
+        `${baseUrl}/cloud/project/${encodeURIComponent(projectId)}/instance`,
+        apiToken
+      );
+      return (instances ?? []).map((instance) => ({ projectId, instance }));
+    })
+  );
 
-  for (const projectId of projectIds) {
-    const instances = await fetchJson<OvhInstance[]>(
-      `${baseUrl}/cloud/project/${encodeURIComponent(projectId)}/instance`,
-      apiToken
-    );
-    for (const instance of instances ?? []) {
-      all.push({ projectId, instance });
-    }
-  }
-
-  return all;
+  return results.flat();
 }
 
 function hashInstances(items: Array<{ projectId: string; instance: OvhInstance }>): string {
@@ -97,7 +103,7 @@ function hashInstances(items: Array<{ projectId: string; instance: OvhInstance }
   return createHash('sha256').update(key).digest('hex').slice(0, 16);
 }
 
-async function getOrCreateGroup(client: any, groupName: string): Promise<number> {
+async function getOrCreateGroup(client: import('pg').PoolClient, groupName: string): Promise<number> {
   const existing = await client.query('SELECT id FROM groups WHERE name = $1', [groupName]);
   if (existing.rows.length > 0) return existing.rows[0].id;
   const result = await client.query(
