@@ -3,14 +3,26 @@ import db from '../../db';
 import { emitRealtime } from '../../realtime';
 import type { SyncResult } from './registry';
 
+interface OvhCredentials {
+  appKey: string;
+  appSecret: string;
+  consumerKey: string;
+}
+
 type OvhProject = string | { project_id?: string; projectId?: string; serviceName?: string };
+
+type OvhIpAddress = {
+  ip?: string;
+  type?: 'public' | 'private';
+  version?: 4 | 6;
+};
 
 type OvhInstance = {
   id?: string;
   name?: string;
   status?: string;
   region?: string;
-  ipAddresses?: Array<{ ip?: string }> | string[];
+  ipAddresses?: OvhIpAddress[] | string[];
   flavor?: { vcpus?: number; ram?: number };
   vcpus?: number;
   ram?: number;
@@ -18,21 +30,44 @@ type OvhInstance = {
   osType?: string;
 };
 
-function isPrivateIPv4(ip: string): boolean {
-  const m = ip.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
-  if (!m) return false;
-  const a = parseInt(m[1], 10);
-  const b = parseInt(m[2], 10);
-  if (a === 10) return true;
-  if (a === 172 && b >= 16 && b <= 31) return true;
-  if (a === 192 && b === 168) return true;
-  return false;
+/** Parse api_token field — must be JSON with appKey/appSecret/consumerKey */
+export function parseOvhCredentials(apiToken: string): OvhCredentials {
+  try {
+    const parsed = JSON.parse(apiToken) as Record<string, unknown>;
+    const { appKey, appSecret, consumerKey } = parsed;
+    if (typeof appKey === 'string' && typeof appSecret === 'string' && typeof consumerKey === 'string' &&
+        appKey && appSecret && consumerKey) {
+      return { appKey, appSecret, consumerKey };
+    }
+  } catch {
+    // fall through
+  }
+  throw new Error('OVH credentials must be JSON: {"appKey":"...","appSecret":"...","consumerKey":"..."}');
 }
 
+/** OVHcloud v1 request signing — SHA1 HMAC over method+url+body+timestamp */
+function ovhSignedHeaders(creds: OvhCredentials, method: string, url: string, body = ''): Record<string, string> {
+  const timestamp = Math.floor(Date.now() / 1000);
+  const pre = `${creds.appSecret}+${creds.consumerKey}+${method}+${url}+${body}+${timestamp}`;
+  const sig = '$1$' + createHash('sha1').update(pre).digest('hex');
+  return {
+    'X-Ovh-Application': creds.appKey,
+    'X-Ovh-Consumer': creds.consumerKey,
+    'X-Ovh-Timestamp': String(timestamp),
+    'X-Ovh-Signature': sig,
+    'Content-Type': 'application/json',
+  };
+}
+
+/** OVH instance statuses that indicate the server is running/reachable */
+const ACTIVE_STATUSES = new Set([
+  'ACTIVE', 'BUILD', 'BUILDING', 'REBOOT', 'HARD_REBOOT',
+  'REBUILD', 'MIGRATING', 'RESIZE', 'VERIFY_RESIZE', 'REVERT_RESIZE',
+  'RESCUE', 'PASSWORD',
+]);
+
 function normalizeStatus(status?: string): 'active' | 'inactive' {
-  const s = (status ?? '').toLowerCase();
-  if (s === 'active' || s === 'running' || s === 'build') return 'active';
-  return 'inactive';
+  return ACTIVE_STATUSES.has((status ?? '').toUpperCase()) ? 'active' : 'inactive';
 }
 
 function extractProjectId(row: OvhProject): string | null {
@@ -42,27 +77,40 @@ function extractProjectId(row: OvhProject): string | null {
 
 function extractIps(instance: OvhInstance): { publicIpv4: string | null; privateIpv4: string | null; publicIpv6: string | null } {
   const raw = instance.ipAddresses ?? [];
-  const ips = raw
-    .map((v) => (typeof v === 'string' ? v : v?.ip ?? ''))
-    .map((v) => v.trim())
-    .filter(Boolean);
 
-  const publicV4 = ips.find((ip) => ip.includes('.') && !isPrivateIPv4(ip)) ?? null;
-  const privateV4 = ips.find((ip) => ip.includes('.') && isPrivateIPv4(ip)) ?? null;
-  const publicV6 = ips.find((ip) => ip.includes(':')) ?? null;
-  return { publicIpv4: publicV4, privateIpv4: privateV4, publicIpv6: publicV6 };
+  // OVH structured format with type/version fields
+  if (raw.length > 0 && typeof raw[0] === 'object') {
+    const typed = raw as OvhIpAddress[];
+    return {
+      publicIpv4: typed.find((a) => a.type === 'public' && a.version === 4)?.ip ?? null,
+      privateIpv4: typed.find((a) => a.type === 'private' && a.version === 4)?.ip ?? null,
+      publicIpv6: typed.find((a) => a.version === 6)?.ip ?? null,
+    };
+  }
+
+  // Fallback: plain string array — infer from RFC-1918 ranges
+  const ips = (raw as string[]).map((v) => v.trim()).filter(Boolean);
+  const isPrivate = (ip: string) => {
+    const m = ip.match(/^(\d+)\.(\d+)/);
+    if (!m) return false;
+    const [a, b] = [parseInt(m[1], 10), parseInt(m[2], 10)];
+    return a === 10 || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168);
+  };
+  return {
+    publicIpv4: ips.find((ip) => ip.includes('.') && !isPrivate(ip)) ?? null,
+    privateIpv4: ips.find((ip) => ip.includes('.') && isPrivate(ip)) ?? null,
+    publicIpv6: ips.find((ip) => ip.includes(':')) ?? null,
+  };
 }
 
-async function fetchJson<T>(url: string, apiToken: string): Promise<T> {
+async function fetchJson<T>(baseUrl: string, path: string, creds: OvhCredentials): Promise<T> {
+  const url = `${baseUrl}${path}`;
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 10_000);
   let res: Response;
   try {
     res = await fetch(url, {
-      headers: {
-        Authorization: `Bearer ${apiToken}`,
-        'Content-Type': 'application/json',
-      },
+      headers: ovhSignedHeaders(creds, 'GET', url),
       signal: controller.signal,
     });
   } finally {
@@ -75,14 +123,15 @@ async function fetchJson<T>(url: string, apiToken: string): Promise<T> {
   return (await res.json()) as T;
 }
 
-async function fetchOvhInstances(baseUrl: string, apiToken: string): Promise<Array<{ projectId: string; instance: OvhInstance }>> {
-  const projects = await fetchJson<OvhProject[]>(`${baseUrl}/cloud/project`, apiToken);
+async function fetchOvhInstances(baseUrl: string, creds: OvhCredentials): Promise<Array<{ projectId: string; instance: OvhInstance }>> {
+  const projects = await fetchJson<OvhProject[]>(baseUrl, '/cloud/project', creds);
   const projectIds = projects.map(extractProjectId).filter((v): v is string => Boolean(v));
   const results = await Promise.all(
     projectIds.map(async (projectId) => {
       const instances = await fetchJson<OvhInstance[]>(
-        `${baseUrl}/cloud/project/${encodeURIComponent(projectId)}/instance`,
-        apiToken
+        baseUrl,
+        `/cloud/project/${encodeURIComponent(projectId)}/instance`,
+        creds
       );
       return (instances ?? []).map((instance) => ({ projectId, instance }));
     })
@@ -120,7 +169,8 @@ async function syncOvhProviderByBaseUrl(
   storedHash: string | null,
   baseUrl: string
 ): Promise<SyncResult> {
-  const instances = await fetchOvhInstances(baseUrl, apiToken);
+  const creds = parseOvhCredentials(apiToken);
+  const instances = await fetchOvhInstances(baseUrl, creds);
   const hash = hashInstances(instances);
 
   if (storedHash && hash === storedHash) {

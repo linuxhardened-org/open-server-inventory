@@ -27,7 +27,8 @@ export const CloudIntegrations = () => {
   const [bulkSyncing, setBulkSyncing] = useState(false);
   const [bulkDeleting, setBulkDeleting] = useState(false);
   const [selectedProviderIds, setSelectedProviderIds] = useState<number[]>([]);
-  const [newProvider, setNewProvider] = useState({ name: '', provider: 'linode', api_token: '', auto_sync: true, sync_interval_minutes: 60 });
+  const [newProvider, setNewProvider] = useState({ name: '', provider: 'linode', api_token: '', ovh_app_key: '', ovh_app_secret: '', ovh_consumer_key: '', auto_sync: true, sync_interval_minutes: 60 });
+  const isOvhProvider = (p: string) => p === 'ovh-ca' || p === 'ovh-us';
 
   type Risk = 'critical' | 'high' | 'medium' | 'low' | 'ok';
   interface AuditPermission { name: string; scope: string; present: boolean; required: boolean; risk: Risk; description: string; }
@@ -60,18 +61,25 @@ export const CloudIntegrations = () => {
   const handleAddProvider = async (e: React.FormEvent) => {
     e.preventDefault();
     if (submitting) return;
-    if (!newProvider.name.trim() || !newProvider.api_token.trim()) return;
+    const ovh = isOvhProvider(newProvider.provider);
+    if (!newProvider.name.trim()) return;
+    if (ovh) {
+      if (!newProvider.ovh_app_key.trim() || !newProvider.ovh_app_secret.trim() || !newProvider.ovh_consumer_key.trim()) return;
+    } else if (!newProvider.api_token.trim()) return;
+    const apiToken = ovh
+      ? JSON.stringify({ appKey: newProvider.ovh_app_key.trim(), appSecret: newProvider.ovh_app_secret.trim(), consumerKey: newProvider.ovh_consumer_key.trim() })
+      : newProvider.api_token.trim();
     setSubmitting(true);
     try {
       const res = await axios.post('/cloud-providers', {
         name: newProvider.name.trim(),
         provider: newProvider.provider,
-        api_token: newProvider.api_token.trim(),
+        api_token: apiToken,
         auto_sync: newProvider.auto_sync,
         sync_interval_minutes: newProvider.sync_interval_minutes,
       }) as { success: boolean; data: { id: number } };
       setAddingProvider(false);
-      setNewProvider({ name: '', provider: 'linode', api_token: '', auto_sync: true, sync_interval_minutes: 60 });
+      setNewProvider({ name: '', provider: 'linode', api_token: '', ovh_app_key: '', ovh_app_secret: '', ovh_consumer_key: '', auto_sync: true, sync_interval_minutes: 60 });
       setAuditResult(null);
       await fetchProviders();
       // Instantly sync the new provider in the background
@@ -464,6 +472,33 @@ export const CloudIntegrations = () => {
                   }))}
                 />
               </div>
+              {isOvhProvider(newProvider.provider) ? (
+                <>
+                  {[
+                    { key: 'ovh_app_key' as const, label: 'Application Key', placeholder: 'e.g. e753a62e99788f8a' },
+                    { key: 'ovh_app_secret' as const, label: 'Application Secret', placeholder: '32-character secret' },
+                    { key: 'ovh_consumer_key' as const, label: 'Consumer Key', placeholder: '32-character consumer key' },
+                  ].map(({ key, label, placeholder }) => (
+                    <div key={key}>
+                      <label style={{ display: 'block', fontSize: 11, fontWeight: 500, color: 'hsl(var(--fg-2))', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                        {label} <span style={{ color: 'hsl(var(--danger))' }}>*</span>
+                      </label>
+                      <input
+                        type="password"
+                        value={newProvider[key]}
+                        onChange={(e) => setNewProvider({ ...newProvider, [key]: e.target.value })}
+                        className="sv-input"
+                        style={{ width: '100%' }}
+                        placeholder={placeholder}
+                        required
+                      />
+                    </div>
+                  ))}
+                  <p style={{ fontSize: 11, color: 'hsl(var(--fg-3))', marginTop: -6 }}>
+                    Create credentials at api.ovh.com/createApp — request only GET access to /cloud/project
+                  </p>
+                </>
+              ) : (
               <div>
                 <label style={{ display: 'block', fontSize: 11, fontWeight: 500, color: 'hsl(var(--fg-2))', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                   API Token <span style={{ color: 'hsl(var(--danger))' }}>*</span>
@@ -483,19 +518,11 @@ export const CloudIntegrations = () => {
                   }}
                   className="sv-input"
                   style={{ width: '100%' }}
-                  placeholder={
-                    newProvider.provider === 'linode'
-                      ? 'Linode Personal Access Token'
-                      : newProvider.provider === 'ovh-ca' || newProvider.provider === 'ovh-us'
-                        ? 'OVHcloud API bearer token'
-                        : 'Cloud provider API token'
-                  }
+                  placeholder="Linode Personal Access Token"
                   required
                 />
                 <p style={{ fontSize: 11, color: 'hsl(var(--fg-3))', marginTop: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
-                  {newProvider.provider === 'linode'
-                    ? 'Generate a read-only token at cloud.linode.com/profile/tokens'
-                    : 'Use a token with read access to list cloud instances'}
+                  Generate a read-only token at cloud.linode.com/profile/tokens
                   {auditing && <span style={{ color: 'hsl(var(--fg-3))', fontStyle: 'italic' }}>· checking permissions...</span>}
                 </p>
 
@@ -571,6 +598,7 @@ export const CloudIntegrations = () => {
                   );
                 })()}
               </div>
+              )}
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <input
                   type="checkbox"
