@@ -54,16 +54,51 @@ Empty fields are hidden instead of displaying placeholder values.
 ## Screenshots
 
 > Captured with Playwright script: `scripts/playwright_capture_screenshots.mjs`
-> Refresh screenshots anytime with:
-> `node scripts/playwright_capture_screenshots.mjs http://localhost:8080`
+> Refresh anytime: `node scripts/playwright_capture_screenshots.mjs http://localhost:8080`
 
 ### Login
 
-![Login Screenshot](docs/screenshots/login_fresh.png)
+![Login](docs/screenshots/login_fresh.png)
 
-### Setup
+### Server Inventory
 
-![Setup Screenshot](docs/screenshots/setup_fresh.png)
+![Servers](docs/screenshots/servers.png)
+
+### Server Detail
+
+![Server Detail](docs/screenshots/server_detail.png)
+
+### Groups
+
+![Groups](docs/screenshots/groups.png)
+
+### Tags
+
+![Tags](docs/screenshots/tags.png)
+
+### IP Inventory
+
+![IP Inventory](docs/screenshots/ip_inventory.png)
+
+### Cloud Integrations
+
+![Cloud Integrations](docs/screenshots/cloud_integrations.png)
+
+### Users
+
+![Users](docs/screenshots/users.png)
+
+### API Settings
+
+![API Settings](docs/screenshots/api_settings.png)
+
+### Profile
+
+![Profile](docs/screenshots/profile.png)
+
+### Settings
+
+![Settings](docs/screenshots/settings.png)
 
 ## Quick Start
 
