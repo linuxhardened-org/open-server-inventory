@@ -1,4 +1,7 @@
 import { Router } from 'express';
+import { promisify } from 'util';
+import { exec } from 'child_process';
+import path from 'path';
 import { z } from 'zod';
 import db, { seedDefaultAdmin } from '../db';
 import { verifyPassword, hashPassword } from '../utils/crypto';
@@ -8,6 +11,7 @@ import { sessionAuth } from '../middleware/sessionAuth';
 import { savePersistedConfig } from '../utils/persistedConfig';
 
 const router = Router();
+const execAsync = promisify(exec);
 
 const loginSchema = z.object({
   username: z.string().min(1),
@@ -19,6 +23,74 @@ const loginSchema = z.object({
 const setupSchema = z.object({
   app_name: z.string().trim().min(1).max(80).optional(),
   database_url: z.string().url().optional(),
+});
+
+async function sleep(ms: number): Promise<void> {
+  await new Promise((r) => setTimeout(r, ms));
+}
+
+async function canReachLocalDb(): Promise<boolean> {
+  try {
+    await db.query('SELECT 1');
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function ensureDockerLocalDb(): Promise<void> {
+  // Project root where docker-compose.yml lives
+  const projectRoot = path.resolve(process.cwd(), '..');
+  // Optional: set SV_SETUP_DOCKER_SUDO=1 to prefix with sudo -n
+  const useSudo = process.env.SV_SETUP_DOCKER_SUDO === '1';
+  const prefix = useSudo ? 'sudo -n ' : '';
+  const cmd = `${prefix}docker compose up -d --build db`;
+  await execAsync(cmd, { cwd: projectRoot, timeout: 120000, maxBuffer: 1024 * 1024 });
+}
+
+// POST /api/auth/prepare-local-db — verify/prepare local DB for setup wizard
+router.post('/prepare-local-db', async (_req, res) => {
+  try {
+    // If local DB isn't reachable, try to start/build dockerized postgres first.
+    if (!(await canReachLocalDb())) {
+      try {
+        await ensureDockerLocalDb();
+      } catch (err: any) {
+        return sendSuccess(res, {
+          ready: false,
+          error: `Local DB is unreachable and Docker start failed: ${err?.message || 'unknown error'}`,
+        });
+      }
+
+      // Wait for DB to become reachable
+      let up = false;
+      for (let i = 0; i < 15; i++) {
+        if (await canReachLocalDb()) {
+          up = true;
+          break;
+        }
+        await sleep(1000);
+      }
+      if (!up) {
+        return sendSuccess(res, {
+          ready: false,
+          error: 'PostgreSQL container started, but DB is still not reachable',
+        });
+      }
+    }
+
+    // Ensure local DB schema/migrations are ready before final setup submit.
+    const { schema } = await import('../db/schema');
+    const { runMigrations } = await import('../db/migrations');
+    await db.pool.query(schema);
+    await runMigrations(db.pool);
+    const versionR = await db.query('SELECT version() AS version');
+    const version = ((versionR.rows[0] as { version?: string } | undefined)?.version ?? '').trim();
+    sendSuccess(res, { ready: true, version: version ? version.split(' ').slice(0, 2).join(' ') : undefined });
+  } catch (err: any) {
+    // Keep 200-style payload so wizard can show inline retry state.
+    sendSuccess(res, { ready: false, error: err.message || 'Could not initialize local database' });
+  }
 });
 
 // POST /api/auth/test-db — test a DATABASE_URL before committing during setup
@@ -140,6 +212,7 @@ router.post('/login', async (req, res) => {
       id: number;
       username: string;
       real_name: string | null;
+      profile_picture_url: string | null;
       role: string;
       password_hash: string;
       totp_enabled: boolean;
@@ -175,6 +248,7 @@ router.post('/login', async (req, res) => {
         id: user.id,
         username: user.username,
         realName: user.real_name,
+        profilePictureUrl: user.profile_picture_url,
         role: user.role,
         totpEnabled: !!user.totp_enabled,
         passwordChangeRequired: !!user.password_change_required,
@@ -228,7 +302,7 @@ router.post('/logout', (req, res) => {
 
 router.get('/me', sessionAuth, async (req, res) => {
   try {
-    const result = await db.query('SELECT id, username, real_name, role, totp_enabled, created_at FROM users WHERE id = $1', [req.session.userId]);
+    const result = await db.query('SELECT id, username, real_name, profile_picture_url, role, totp_enabled, created_at FROM users WHERE id = $1', [req.session.userId]);
     const user = result.rows[0] as any;
     sendSuccess(res, user);
   } catch (err: any) {
@@ -240,15 +314,25 @@ router.get('/me', sessionAuth, async (req, res) => {
 router.patch('/profile', sessionAuth, async (req, res) => {
   const schema = z.object({
     real_name: z.string().max(255).nullable().optional(),
+    profile_picture_url: z
+      .string()
+      .trim()
+      .max(2048)
+      .refine(
+        (v) => v === '' || v.startsWith('/') || /^https?:\/\//i.test(v),
+        'Profile picture URL must be an absolute http(s) URL or app-relative path'
+      )
+      .nullable()
+      .optional(),
   });
   const parsed = schema.safeParse(req.body);
   if (!parsed.success) return sendError(res, 'Invalid input', 400);
 
-  const { real_name } = parsed.data;
+  const { real_name, profile_picture_url } = parsed.data;
   try {
     const result = await db.query(
-      'UPDATE users SET real_name = $1 WHERE id = $2 RETURNING id, username, real_name, role, totp_enabled, created_at',
-      [real_name ?? null, req.session.userId]
+      'UPDATE users SET real_name = $1, profile_picture_url = $2 WHERE id = $3 RETURNING id, username, real_name, profile_picture_url, role, totp_enabled, created_at',
+      [real_name ?? null, profile_picture_url ?? null, req.session.userId]
     );
     if (result.rowCount && result.rowCount > 0) {
       sendSuccess(res, result.rows[0]);

@@ -2,6 +2,7 @@ export interface User {
   id: number;
   username: string;
   real_name?: string;
+  profile_picture_url?: string | null;
   role: 'admin' | 'operator';
   totp_enabled: boolean;
   password_change_required?: boolean;
@@ -54,6 +55,18 @@ export interface CustomColumn {
   name: string;
   key: string;
   position: number;
+  created_at: string;
+}
+
+export interface CloudProvider {
+  id: number;
+  name: string;
+  provider: string;
+  auto_sync: boolean;
+  sync_hour: number;
+  sync_interval_minutes: number;
+  last_sync_at: string | null;
+  server_count: number;
   created_at: string;
 }
 

@@ -9,12 +9,29 @@ export async function runMigrations(pool: Pool): Promise<void> {
   await migrateLegacyApiTokens(pool);
   await migratePasswordChangeRequired(pool);
   await migrateUserRealName(pool);
+  await migrateUserProfilePicture(pool);
   await migrateServerRegion(pool);
   await migrateCloudProviderSyncHour(pool);
   await migrateApiTokenExpiry(pool);
   await migrateServerIpFields(pool);
   await migrateServerPrivateIpv6(pool);
   await migrateServerLinodeNetworkExtras(pool);
+  await migrateCloudProviderSyncInterval(pool);
+  await migrateCloudProviderInstanceHash(pool);
+}
+
+async function migrateCloudProviderSyncInterval(pool: Pool): Promise<void> {
+  await pool.query(`
+    ALTER TABLE cloud_providers
+    ADD COLUMN IF NOT EXISTS sync_interval_minutes INTEGER DEFAULT 60
+  `);
+}
+
+async function migrateCloudProviderInstanceHash(pool: Pool): Promise<void> {
+  await pool.query(`
+    ALTER TABLE cloud_providers
+    ADD COLUMN IF NOT EXISTS instance_hash VARCHAR(64)
+  `);
 }
 
 async function migrateServerPrivateIpv6(pool: Pool): Promise<void> {
@@ -83,6 +100,13 @@ async function migrateUserRealName(pool: Pool): Promise<void> {
   await pool.query(`
     ALTER TABLE users
     ADD COLUMN IF NOT EXISTS real_name VARCHAR(255)
+  `);
+}
+
+async function migrateUserProfilePicture(pool: Pool): Promise<void> {
+  await pool.query(`
+    ALTER TABLE users
+    ADD COLUMN IF NOT EXISTS profile_picture_url TEXT
   `);
 }
 

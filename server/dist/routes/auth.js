@@ -41,8 +41,14 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
+const util_1 = require("util");
+const child_process_1 = require("child_process");
+const path_1 = __importDefault(require("path"));
 const zod_1 = require("zod");
 const db_1 = __importStar(require("../db"));
 const crypto_1 = require("../utils/crypto");
@@ -51,6 +57,7 @@ const response_1 = require("../utils/response");
 const sessionAuth_1 = require("../middleware/sessionAuth");
 const persistedConfig_1 = require("../utils/persistedConfig");
 const router = (0, express_1.Router)();
+const execAsync = (0, util_1.promisify)(child_process_1.exec);
 const loginSchema = zod_1.z.object({
     username: zod_1.z.string().min(1),
     password: zod_1.z.string().min(1),
@@ -61,6 +68,78 @@ const setupSchema = zod_1.z.object({
     app_name: zod_1.z.string().trim().min(1).max(80).optional(),
     database_url: zod_1.z.string().url().optional(),
 });
+function sleep(ms) {
+    return __awaiter(this, void 0, void 0, function* () {
+        yield new Promise((r) => setTimeout(r, ms));
+    });
+}
+function canReachLocalDb() {
+    return __awaiter(this, void 0, void 0, function* () {
+        try {
+            yield db_1.default.query('SELECT 1');
+            return true;
+        }
+        catch (_a) {
+            return false;
+        }
+    });
+}
+function ensureDockerLocalDb() {
+    return __awaiter(this, void 0, void 0, function* () {
+        // Project root where docker-compose.yml lives
+        const projectRoot = path_1.default.resolve(process.cwd(), '..');
+        // Optional: set SV_SETUP_DOCKER_SUDO=1 to prefix with sudo -n
+        const useSudo = process.env.SV_SETUP_DOCKER_SUDO === '1';
+        const prefix = useSudo ? 'sudo -n ' : '';
+        const cmd = `${prefix}docker compose up -d --build db`;
+        yield execAsync(cmd, { cwd: projectRoot, timeout: 120000, maxBuffer: 1024 * 1024 });
+    });
+}
+// POST /api/auth/prepare-local-db — verify/prepare local DB for setup wizard
+router.post('/prepare-local-db', (_req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    var _a, _b;
+    try {
+        // If local DB isn't reachable, try to start/build dockerized postgres first.
+        if (!(yield canReachLocalDb())) {
+            try {
+                yield ensureDockerLocalDb();
+            }
+            catch (err) {
+                return (0, response_1.sendSuccess)(res, {
+                    ready: false,
+                    error: `Local DB is unreachable and Docker start failed: ${(err === null || err === void 0 ? void 0 : err.message) || 'unknown error'}`,
+                });
+            }
+            // Wait for DB to become reachable
+            let up = false;
+            for (let i = 0; i < 15; i++) {
+                if (yield canReachLocalDb()) {
+                    up = true;
+                    break;
+                }
+                yield sleep(1000);
+            }
+            if (!up) {
+                return (0, response_1.sendSuccess)(res, {
+                    ready: false,
+                    error: 'PostgreSQL container started, but DB is still not reachable',
+                });
+            }
+        }
+        // Ensure local DB schema/migrations are ready before final setup submit.
+        const { schema } = yield Promise.resolve().then(() => __importStar(require('../db/schema')));
+        const { runMigrations } = yield Promise.resolve().then(() => __importStar(require('../db/migrations')));
+        yield db_1.default.pool.query(schema);
+        yield runMigrations(db_1.default.pool);
+        const versionR = yield db_1.default.query('SELECT version() AS version');
+        const version = ((_b = (_a = versionR.rows[0]) === null || _a === void 0 ? void 0 : _a.version) !== null && _b !== void 0 ? _b : '').trim();
+        (0, response_1.sendSuccess)(res, { ready: true, version: version ? version.split(' ').slice(0, 2).join(' ') : undefined });
+    }
+    catch (err) {
+        // Keep 200-style payload so wizard can show inline retry state.
+        (0, response_1.sendSuccess)(res, { ready: false, error: err.message || 'Could not initialize local database' });
+    }
+}));
 // POST /api/auth/test-db — test a DATABASE_URL before committing during setup
 router.post('/test-db', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const parsed = zod_1.z.object({ database_url: zod_1.z.string().min(1) }).safeParse(req.body);
@@ -150,10 +229,14 @@ router.post('/setup', (req, res) => __awaiter(void 0, void 0, void 0, function* 
     }
 }));
 router.get('/setup-status', (_req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    var _a;
     try {
         const result = yield db_1.default.query('SELECT COUNT(*)::int AS count FROM users');
         const count = result.rows[0].count;
-        (0, response_1.sendSuccess)(res, { isSetupCompleted: count > 0 });
+        const nameResult = yield db_1.default.query(`SELECT value FROM app_settings WHERE key = 'app_name'`);
+        const row = nameResult.rows[0];
+        const app_name = ((_a = row === null || row === void 0 ? void 0 : row.value) === null || _a === void 0 ? void 0 : _a.trim()) || 'ServerVault';
+        (0, response_1.sendSuccess)(res, { isSetupCompleted: count > 0, app_name });
     }
     catch (err) {
         (0, response_1.sendError)(res, err.message || 'Could not check setup status', 500);
@@ -191,6 +274,7 @@ router.post('/login', (req, res) => __awaiter(void 0, void 0, void 0, function* 
                 id: user.id,
                 username: user.username,
                 realName: user.real_name,
+                profilePictureUrl: user.profile_picture_url,
                 role: user.role,
                 totpEnabled: !!user.totp_enabled,
                 passwordChangeRequired: !!user.password_change_required,
@@ -237,7 +321,7 @@ router.post('/logout', (req, res) => {
 });
 router.get('/me', sessionAuth_1.sessionAuth, (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
-        const result = yield db_1.default.query('SELECT id, username, real_name, role, totp_enabled, created_at FROM users WHERE id = $1', [req.session.userId]);
+        const result = yield db_1.default.query('SELECT id, username, real_name, profile_picture_url, role, totp_enabled, created_at FROM users WHERE id = $1', [req.session.userId]);
         const user = result.rows[0];
         (0, response_1.sendSuccess)(res, user);
     }
@@ -249,13 +333,20 @@ router.get('/me', sessionAuth_1.sessionAuth, (req, res) => __awaiter(void 0, voi
 router.patch('/profile', sessionAuth_1.sessionAuth, (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const schema = zod_1.z.object({
         real_name: zod_1.z.string().max(255).nullable().optional(),
+        profile_picture_url: zod_1.z
+            .string()
+            .trim()
+            .max(2048)
+            .refine((v) => v === '' || v.startsWith('/') || /^https?:\/\//i.test(v), 'Profile picture URL must be an absolute http(s) URL or app-relative path')
+            .nullable()
+            .optional(),
     });
     const parsed = schema.safeParse(req.body);
     if (!parsed.success)
         return (0, response_1.sendError)(res, 'Invalid input', 400);
-    const { real_name } = parsed.data;
+    const { real_name, profile_picture_url } = parsed.data;
     try {
-        const result = yield db_1.default.query('UPDATE users SET real_name = $1 WHERE id = $2 RETURNING id, username, real_name, role, totp_enabled, created_at', [real_name !== null && real_name !== void 0 ? real_name : null, req.session.userId]);
+        const result = yield db_1.default.query('UPDATE users SET real_name = $1, profile_picture_url = $2 WHERE id = $3 RETURNING id, username, real_name, profile_picture_url, role, totp_enabled, created_at', [real_name !== null && real_name !== void 0 ? real_name : null, profile_picture_url !== null && profile_picture_url !== void 0 ? profile_picture_url : null, req.session.userId]);
         if (result.rowCount && result.rowCount > 0) {
             (0, response_1.sendSuccess)(res, result.rows[0]);
         }

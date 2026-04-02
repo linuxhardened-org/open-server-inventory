@@ -5,11 +5,11 @@ import { hashApiToken } from '../utils/token';
 
 export const bearerAuth = async (req: Request, res: Response, next: NextFunction) => {
   const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+  if (!authHeader || !authHeader.toLowerCase().startsWith('bearer ')) {
     return sendError(res, 'Unauthorized: Bearer token required', 401);
   }
 
-  const rawToken = authHeader.slice('Bearer '.length).trim();
+  const rawToken = authHeader.slice(authHeader.indexOf(' ') + 1).trim();
   if (!rawToken) {
     return sendError(res, 'Unauthorized: Bearer token required', 401);
   }

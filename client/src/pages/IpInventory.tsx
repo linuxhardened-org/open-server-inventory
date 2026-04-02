@@ -1,10 +1,18 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Network, Search, ExternalLink, Trash2, Globe, Lock, Server, Plus } from 'lucide-react';
+import { SvSelect } from '../components/SvSelect';
+
+const IP_TYPE_OPTS = [
+  { value: 'public', label: 'Public' },
+  { value: 'private', label: 'Private' },
+  { value: 'ipv6', label: 'IPv6' },
+];
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
 import api, { getApiErrorMessage } from '../lib/api';
 import type { Server as ServerModel } from '../types';
+import { useRealtimeResource } from '../hooks/useRealtimeResource';
 
 interface ServerIp {
   id: number;
@@ -32,6 +40,7 @@ export const IpInventory = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [ips, setIps] = useState<ServerIp[]>([]);
+  const [totalIps, setTotalIps] = useState(0);
   const [servers, setServers] = useState<ServerModel[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState(() => searchParams.get('q')?.trim() ?? '');
@@ -43,21 +52,29 @@ export const IpInventory = () => {
   const [addLabel, setAddLabel] = useState('');
   const [adding, setAdding] = useState(false);
 
+  const [ipPageSize, setIpPageSize] = useState(25);
+  const [ipPage, setIpPage] = useState(1);
+
   const fetchIps = useCallback(async () => {
     try {
-      const res = (await api.get('/ips')) as { success?: boolean; data?: ServerIp[] };
-      setIps(Array.isArray(res?.data) ? res.data : []);
+      setLoading(true);
+      const limit = ipPageSize;
+      const offset = (ipPage - 1) * ipPageSize;
+      const res = (await api.get(`/ips?limit=${limit}&offset=${offset}`)) as { success?: boolean; data?: { ips: ServerIp[]; total: number } };
+      const payload = res?.data;
+      setIps(Array.isArray(payload?.ips) ? payload.ips : []);
+      setTotalIps(payload?.total || 0);
     } catch (err: unknown) {
       toast.error(getApiErrorMessage(err, 'Failed to load IPs'));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [ipPageSize, ipPage]);
 
   const fetchServers = useCallback(async () => {
     try {
-      const res = (await api.get('/servers')) as { success?: boolean; data?: ServerModel[] };
-      setServers(Array.isArray(res?.data) ? res.data : []);
+      const res = (await api.get('/servers')) as { success?: boolean; data?: { servers: ServerModel[] } };
+      setServers(Array.isArray(res?.data?.servers) ? res.data.servers : []);
     } catch {
       /* optional for add form */
     }
@@ -65,8 +82,13 @@ export const IpInventory = () => {
 
   useEffect(() => {
     void fetchIps();
+  }, [fetchIps]);
+
+  useEffect(() => {
     void fetchServers();
-  }, [fetchIps, fetchServers]);
+  }, [fetchServers]);
+  useRealtimeResource('ips', () => void fetchIps());
+  useRealtimeResource('servers', () => void fetchServers());
 
   // Keep search in sync with ?q= (shareable lookup links)
   useEffect(() => {
@@ -131,6 +153,10 @@ export const IpInventory = () => {
     return matchesSearch && matchesType;
   });
 
+  useEffect(() => { setIpPage(1); }, [searchTerm, filterType]);
+  const ipTotalPages = Math.max(1, Math.ceil(totalIps / ipPageSize));
+  const paginatedIps = ips;
+
   const publicCount = ips.filter((ip) => ip.ip_type === 'public').length;
   const privateCount = ips.filter((ip) => ip.ip_type === 'private').length;
   const ipv6Count = ips.filter((ip) => ip.ip_type === 'ipv6').length;
@@ -171,7 +197,7 @@ export const IpInventory = () => {
                   border: '1px solid hsl(var(--border-2))',
                 }}
               >
-                {ips.length}
+                {totalIps}
               </span>
             )}
           </div>
@@ -191,19 +217,18 @@ export const IpInventory = () => {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 items-end">
             <div className="min-w-0 sm:col-span-2">
               <label className="block text-xs font-medium text-secondary mb-1.5">Server</label>
-              <select
-                className="sv-input w-full"
+              <SvSelect
                 value={addServerId === '' ? '' : String(addServerId)}
-                onChange={(e) => setAddServerId(e.target.value ? parseInt(e.target.value, 10) : '')}
-                required
-              >
-                <option value="">Select server…</option>
-                {servers.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.name || s.hostname} ({s.hostname})
-                  </option>
-                ))}
-              </select>
+                onChange={(v) => setAddServerId(v ? parseInt(v, 10) : '')}
+                placeholder="Select server…"
+                options={[
+                  { value: '', label: 'Select server…', disabled: true },
+                  ...servers.map((s) => ({
+                    value: String(s.id),
+                    label: `${s.name || s.hostname} (${s.hostname})`,
+                  })),
+                ]}
+              />
             </div>
             <div className="min-w-0">
               <label className="block text-xs font-medium text-secondary mb-1.5">IP address</label>
@@ -218,15 +243,11 @@ export const IpInventory = () => {
             </div>
             <div className="min-w-0">
               <label className="block text-xs font-medium text-secondary mb-1.5">Type</label>
-              <select
-                className="sv-input w-full"
+              <SvSelect
                 value={addType}
-                onChange={(e) => setAddType(e.target.value as IpType)}
-              >
-                <option value="public">Public</option>
-                <option value="private">Private</option>
-                <option value="ipv6">IPv6</option>
-              </select>
+                onChange={(v) => setAddType(v as IpType)}
+                options={IP_TYPE_OPTS}
+              />
             </div>
           </div>
           {serverRecordIpPicks.length > 0 && (
@@ -416,9 +437,10 @@ export const IpInventory = () => {
 
       {!loading && filteredIps.length > 0 && (
         <div className="sv-card" style={{ padding: 0, overflow: 'hidden' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <div style={{ overflowX: 'auto', overflowY: 'auto', maxHeight: 520 }}>
+          <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: 0, minWidth: 640 }}>
             <thead>
-              <tr style={{ borderBottom: '1px solid hsl(var(--border))' }}>
+              <tr style={{ position: 'sticky', top: 0, zIndex: 10 }}>
                 <th
                   style={{
                     padding: '12px 16px',
@@ -428,6 +450,10 @@ export const IpInventory = () => {
                     textTransform: 'uppercase',
                     letterSpacing: '0.05em',
                     color: 'hsl(var(--fg-2))',
+                    background: 'hsl(var(--surface-3))',
+                    borderBottom: '1px solid hsl(var(--border))',
+                    position: 'sticky',
+                    top: 0,
                   }}
                 >
                   IP Address
@@ -441,6 +467,10 @@ export const IpInventory = () => {
                     textTransform: 'uppercase',
                     letterSpacing: '0.05em',
                     color: 'hsl(var(--fg-2))',
+                    background: 'hsl(var(--surface-3))',
+                    borderBottom: '1px solid hsl(var(--border))',
+                    position: 'sticky',
+                    top: 0,
                   }}
                 >
                   Type
@@ -454,6 +484,10 @@ export const IpInventory = () => {
                     textTransform: 'uppercase',
                     letterSpacing: '0.05em',
                     color: 'hsl(var(--fg-2))',
+                    background: 'hsl(var(--surface-3))',
+                    borderBottom: '1px solid hsl(var(--border))',
+                    position: 'sticky',
+                    top: 0,
                   }}
                 >
                   Source
@@ -467,6 +501,10 @@ export const IpInventory = () => {
                     textTransform: 'uppercase',
                     letterSpacing: '0.05em',
                     color: 'hsl(var(--fg-2))',
+                    background: 'hsl(var(--surface-3))',
+                    borderBottom: '1px solid hsl(var(--border))',
+                    position: 'sticky',
+                    top: 0,
                   }}
                 >
                   Server
@@ -480,6 +518,10 @@ export const IpInventory = () => {
                     textTransform: 'uppercase',
                     letterSpacing: '0.05em',
                     color: 'hsl(var(--fg-2))',
+                    background: 'hsl(var(--surface-3))',
+                    borderBottom: '1px solid hsl(var(--border))',
+                    position: 'sticky',
+                    top: 0,
                   }}
                 >
                   Label
@@ -493,6 +535,10 @@ export const IpInventory = () => {
                     textTransform: 'uppercase',
                     letterSpacing: '0.05em',
                     color: 'hsl(var(--fg-2))',
+                    background: 'hsl(var(--surface-3))',
+                    borderBottom: '1px solid hsl(var(--border))',
+                    position: 'sticky',
+                    top: 0,
                   }}
                 >
                   Actions
@@ -500,7 +546,7 @@ export const IpInventory = () => {
               </tr>
             </thead>
             <tbody>
-              {filteredIps.map((ip, index) => {
+              {paginatedIps.map((ip, index) => {
                 const typeConfig = ipTypeConfig[ip.ip_type];
                 const TypeIcon = typeConfig?.icon ?? Network;
                 const typeLabel = typeConfig?.label ?? ip.ip_type;
@@ -560,7 +606,7 @@ export const IpInventory = () => {
                     <td style={{ padding: '12px 16px' }}>
                       <button
                         type="button"
-                        onClick={() => navigate(`/servers?server=${ip.server_id}`)}
+                        onClick={() => navigate(`/servers/${ip.server_id}`)}
                         className="flex items-center gap-2"
                         style={{
                           background: 'none',
@@ -598,6 +644,31 @@ export const IpInventory = () => {
               })}
             </tbody>
           </table>
+          </div>
+          {/* Pagination */}
+          {filteredIps.length > 0 && (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10, padding: '10px 16px', borderTop: '1px solid hsl(var(--border))' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ fontSize: 12, color: 'hsl(var(--fg-2))' }}>Rows per page:</span>
+                <SvSelect
+                  value={String(ipPageSize)}
+                  onChange={(v) => { setIpPageSize(Number(v)); setIpPage(1); }}
+                  options={[10, 25, 50, 100, 200].map((n) => ({ value: String(n), label: String(n) }))}
+                  compact
+                />
+                <span style={{ fontSize: 12, color: 'hsl(var(--fg-3))' }}>
+                  {(ipPage - 1) * ipPageSize + 1}–{Math.min(ipPage * ipPageSize, totalIps)} of {totalIps}
+                </span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                <button type="button" className="sv-btn-ghost" style={{ padding: '4px 10px', fontSize: 12 }} disabled={ipPage === 1} onClick={() => setIpPage(1)}>«</button>
+                <button type="button" className="sv-btn-ghost" style={{ padding: '4px 10px', fontSize: 12 }} disabled={ipPage === 1} onClick={() => setIpPage((p) => p - 1)}>‹ Prev</button>
+                <span style={{ fontSize: 12, color: 'hsl(var(--fg-2))', padding: '0 8px' }}>Page {ipPage} of {ipTotalPages}</span>
+                <button type="button" className="sv-btn-ghost" style={{ padding: '4px 10px', fontSize: 12 }} disabled={ipPage === ipTotalPages} onClick={() => setIpPage((p) => p + 1)}>Next ›</button>
+                <button type="button" className="sv-btn-ghost" style={{ padding: '4px 10px', fontSize: 12 }} disabled={ipPage === ipTotalPages} onClick={() => setIpPage(ipTotalPages)}>»</button>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>

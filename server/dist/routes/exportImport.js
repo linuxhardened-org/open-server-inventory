@@ -44,7 +44,7 @@ router.get('/export/csv', sessionAuth_1.sessionAuth, (req, res) => __awaiter(voi
         const servers = yield db_1.default.query(`
       SELECT
         s.id, s.name, s.hostname, s.ip_address, s.os, s.cpu_cores, s.ram_gb,
-        s.status, s.notes, s.created_at, s.updated_at,
+        s.region, s.status, s.notes, s.created_at, s.updated_at,
         g.name as group_name
       FROM servers s
       LEFT JOIN groups g ON s.group_id = g.id
@@ -75,7 +75,7 @@ router.get('/export/csv', sessionAuth_1.sessionAuth, (req, res) => __awaiter(voi
         // CSV header
         const headers = [
             'ID', 'Name', 'Hostname', 'IP Address', 'OS', 'CPU Cores', 'RAM (GB)',
-            'Status', 'Group', 'Tags', 'Notes', 'Created At', 'Updated At',
+            'Region', 'Status', 'Group', 'Tags', 'Notes', 'Created At', 'Updated At',
             ...cols.map(c => c.name)
         ];
         const escapeCSV = (val) => {
@@ -95,6 +95,7 @@ router.get('/export/csv', sessionAuth_1.sessionAuth, (req, res) => __awaiter(voi
             s.os,
             s.cpu_cores,
             s.ram_gb,
+            s.region,
             s.status,
             s.group_name,
             (tagMap[s.id] || []).join('; '),

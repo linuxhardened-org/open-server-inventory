@@ -12,104 +12,97 @@ interface ServerTableProps {
   servers: Server[];
   customColumns: CustomColumn[];
   onRowClick: (server: Server) => void;
+  selectedIds?: number[];
+  onToggleSelect?: (id: number) => void;
+  allSelected?: boolean;
+  onToggleSelectAll?: () => void;
 }
 
-export const ServerTable = ({ servers, customColumns, onRowClick }: ServerTableProps) => {
+export const ServerTable = ({
+  servers,
+  customColumns,
+  onRowClick,
+  selectedIds = [],
+  onToggleSelect,
+  allSelected = false,
+  onToggleSelectAll,
+}: ServerTableProps) => {
   return (
-    <div className="overflow-x-auto rounded-xl" style={{ border: '1px solid hsl(var(--border))' }}>
-      <table className="w-full text-left border-collapse">
+    <div
+      className="overflow-x-auto overflow-y-auto rounded-xl"
+      style={{
+        border: '1px solid hsl(var(--border))',
+        background: 'hsl(var(--surface) / 0.75)',
+        boxShadow: '0 18px 40px -28px hsl(var(--primary) / 0.45)',
+        backdropFilter: 'blur(8px)',
+        maxHeight: 520,
+      }}
+    >
+      <table className="w-full text-left" style={{ borderCollapse: 'separate', borderSpacing: 0 }}>
         <thead>
           <tr
             style={{
               height: 36,
-              background: 'hsl(var(--surface-3))',
-              borderBottom: '1px solid hsl(var(--border))',
+              position: 'sticky',
+              top: 0,
+              zIndex: 10,
             }}
           >
             <th
-              className="px-4"
-              style={{
-                fontSize: 11,
-                textTransform: 'uppercase',
-                letterSpacing: '0.06em',
-                color: 'hsl(var(--fg-3))',
+              className="px-3"
+              style={{ 
+                width: 36, 
+                fontSize: 11, 
+                color: 'hsl(var(--fg-3))', 
                 fontWeight: 500,
+                background: 'hsl(var(--surface-3))',
+                borderBottom: '1px solid hsl(var(--border))',
+                position: 'sticky',
+                top: 0,
               }}
             >
-              Status
+              <input
+                type="checkbox"
+                checked={allSelected && servers.length > 0}
+                onChange={() => onToggleSelectAll?.()}
+                style={{
+                  width: 16,
+                  height: 16,
+                  accentColor: 'hsl(var(--primary))',
+                  cursor: 'pointer',
+                  borderRadius: 4,
+                  backgroundColor: 'hsl(var(--surface))',
+                }}
+                aria-label="Select all servers"
+              />
             </th>
-            <th
-              className="px-4"
-              style={{
-                fontSize: 11,
-                textTransform: 'uppercase',
-                letterSpacing: '0.06em',
-                color: 'hsl(var(--fg-3))',
-                fontWeight: 500,
-              }}
-            >
-              Hostname
-            </th>
-            <th
-              className="px-4"
-              style={{
-                fontSize: 11,
-                textTransform: 'uppercase',
-                letterSpacing: '0.06em',
-                color: 'hsl(var(--fg-3))',
-                fontWeight: 500,
-              }}
-            >
-              Addresses
-            </th>
-            <th
-              className="px-4"
-              style={{
-                fontSize: 11,
-                textTransform: 'uppercase',
-                letterSpacing: '0.06em',
-                color: 'hsl(var(--fg-3))',
-                fontWeight: 500,
-              }}
-            >
-              OS
-            </th>
-            <th
-              className="px-4"
-              style={{
-                fontSize: 11,
-                textTransform: 'uppercase',
-                letterSpacing: '0.06em',
-                color: 'hsl(var(--fg-3))',
-                fontWeight: 500,
-              }}
-            >
-              Region
-            </th>
-            <th
-              className="px-4"
-              style={{
-                fontSize: 11,
-                textTransform: 'uppercase',
-                letterSpacing: '0.06em',
-                color: 'hsl(var(--fg-3))',
-                fontWeight: 500,
-              }}
-            >
-              Resources
-            </th>
-            <th
-              className="px-4"
-              style={{
-                fontSize: 11,
-                textTransform: 'uppercase',
-                letterSpacing: '0.06em',
-                color: 'hsl(var(--fg-3))',
-                fontWeight: 500,
-              }}
-            >
-              Tags
-            </th>
+            {[
+              'Status',
+              'Hostname',
+              'Addresses',
+              'OS',
+              'Region',
+              'Resources',
+              'Tags',
+            ].map((label) => (
+              <th
+                key={label}
+                className="px-4"
+                style={{
+                  fontSize: 11,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.06em',
+                  color: 'hsl(var(--fg-3))',
+                  fontWeight: 500,
+                  background: 'hsl(var(--surface-3))',
+                  borderBottom: '1px solid hsl(var(--border))',
+                  position: 'sticky',
+                  top: 0,
+                }}
+              >
+                {label}
+              </th>
+            ))}
             {customColumns.map((col) => (
               <th
                 key={col.id}
@@ -121,6 +114,10 @@ export const ServerTable = ({ servers, customColumns, onRowClick }: ServerTableP
                   letterSpacing: '0.06em',
                   color: 'hsl(var(--fg-3))',
                   fontWeight: 500,
+                  background: 'hsl(var(--surface-3))',
+                  borderBottom: '1px solid hsl(var(--border))',
+                  position: 'sticky',
+                  top: 0,
                 }}
               >
                 {col.name}
@@ -134,6 +131,10 @@ export const ServerTable = ({ servers, customColumns, onRowClick }: ServerTableP
                 letterSpacing: '0.06em',
                 color: 'hsl(var(--fg-3))',
                 fontWeight: 500,
+                background: 'hsl(var(--surface-3))',
+                borderBottom: '1px solid hsl(var(--border))',
+                position: 'sticky',
+                top: 0,
               }}
             >
               Actions
@@ -144,7 +145,7 @@ export const ServerTable = ({ servers, customColumns, onRowClick }: ServerTableP
           {servers.length === 0 && (
             <tr>
               <td
-                colSpan={7 + customColumns.length + 1}
+                colSpan={8 + customColumns.length + 1}
                 style={{ padding: '64px 0', textAlign: 'center' }}
               >
                 <div className="flex flex-col items-center gap-3" style={{ color: 'hsl(var(--fg-3))' }}>
@@ -165,15 +166,34 @@ export const ServerTable = ({ servers, customColumns, onRowClick }: ServerTableP
               style={{
                 height: 48,
                 borderBottom: '1px solid hsl(var(--border))',
-                transition: 'background 75ms',
+                transition: 'background 140ms, transform 140ms',
               }}
               onMouseEnter={(e) => {
                 (e.currentTarget as HTMLTableRowElement).style.background = 'hsl(var(--surface-2))';
+                (e.currentTarget as HTMLTableRowElement).style.transform = 'translateY(-1px)';
               }}
               onMouseLeave={(e) => {
                 (e.currentTarget as HTMLTableRowElement).style.background = '';
+                (e.currentTarget as HTMLTableRowElement).style.transform = '';
               }}
             >
+              <td className="px-3" onClick={(e) => e.stopPropagation()}>
+                <input
+                  type="checkbox"
+                  checked={selectedIds.includes(server.id)}
+                  onChange={() => onToggleSelect?.(server.id)}
+                  style={{
+                    width: 16,
+                    height: 16,
+                    accentColor: 'hsl(var(--primary))',
+                    cursor: 'pointer',
+                    borderRadius: 4,
+                    backgroundColor: 'hsl(var(--surface))',
+                  }}
+                  aria-label={`Select ${server.hostname}`}
+                />
+              </td>
+
               {/* Status */}
               <td className="px-4">
                 {(() => {
@@ -214,6 +234,7 @@ export const ServerTable = ({ servers, customColumns, onRowClick }: ServerTableP
                           borderRadius: '50%',
                           background: dotColor,
                           flexShrink: 0,
+                          boxShadow: `0 0 10px ${dotColor}`,
                         }}
                       />
                       {server.status ?? 'unknown'}

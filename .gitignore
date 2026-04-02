@@ -33,6 +33,16 @@ Thumbs.db
 coverage/
 .nyc_output/
 
+# Selenium / browser automation
+.selenium/
+selenium*.log
+chromedriver*.log
+geckodriver*.log
+__pycache__/
+*.pyc
+.venv/
+docs/screenshots/setup/*.png
+
 # Misc
 .cache/
 .temp/

@@ -1,11 +1,13 @@
 import { useState, useEffect } from "react";
 import { createPortal } from 'react-dom';
 import { Key, Plus, Shield, Copy, Check, X } from 'lucide-react';
+import { SvSelect } from '../components/SvSelect';
 import { motion } from 'framer-motion';
 import TokenTable from '../components/TokenTable';
 import api from '../lib/api';
 import { ApiToken } from '../types';
 import toast from 'react-hot-toast';
+import { useRealtimeResource } from '../hooks/useRealtimeResource';
 
 const expiryOptions = [
   { value: '7d', label: '7 days' },
@@ -26,6 +28,7 @@ export const ApiSettings = () => {
   useEffect(() => {
     fetchTokens();
   }, []);
+  useRealtimeResource('tokens', () => void fetchTokens());
 
   const fetchTokens = async () => {
     try {
@@ -77,16 +80,25 @@ export const ApiSettings = () => {
   };
 
   const handleCopy = () => {
-    if (newToken) {
-      navigator.clipboard.writeText(newToken);
-      setCopied(true);
-      toast.success('Copied to clipboard');
-      setTimeout(() => setCopied(false), 2000);
+    if (!newToken) return;
+    const doSuccess = () => { setCopied(true); toast.success('Copied to clipboard'); setTimeout(() => setCopied(false), 2000); };
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(newToken).then(doSuccess).catch(() => {
+        const ta = document.createElement('textarea');
+        ta.value = newToken; ta.style.position = 'fixed'; ta.style.opacity = '0';
+        document.body.appendChild(ta); ta.select(); document.execCommand('copy');
+        document.body.removeChild(ta); doSuccess();
+      });
+    } else {
+      const ta = document.createElement('textarea');
+      ta.value = newToken; ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta); ta.select(); document.execCommand('copy');
+      document.body.removeChild(ta); doSuccess();
     }
   };
 
   return (
-    <div className="page">
+    <div className="page animate-in">
       <header className="page-header">
         <div className="page-header-text">
           <h1>API Settings</h1>
@@ -160,16 +172,11 @@ export const ApiSettings = () => {
                 <label style={{ display: 'block', fontSize: 11, fontWeight: 500, color: 'hsl(var(--fg-2))', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                   Expiration
                 </label>
-                <select
+                <SvSelect
                   value={tokenExpiry}
-                  onChange={(e) => setTokenExpiry(e.target.value)}
-                  className="sv-input"
-                  style={{ width: '100%' }}
-                >
-                  {expiryOptions.map((opt) => (
-                    <option key={opt.value} value={opt.value}>{opt.label}</option>
-                  ))}
-                </select>
+                  onChange={setTokenExpiry}
+                  options={expiryOptions.map((o) => ({ value: o.value, label: o.label }))}
+                />
                 <p style={{ fontSize: 11, color: 'hsl(var(--fg-3))', marginTop: 6 }}>
                   {tokenExpiry === 'never'
                     ? 'Token will never expire (not recommended for production)'

@@ -1,6 +1,19 @@
 import { useState, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Server, Pencil, Trash2, Save, RefreshCw, Network } from 'lucide-react';
+import { SvSelect } from './SvSelect';
+
+const STATUS_OPTS = [
+  { value: 'active', label: 'Active', iconColor: '#3ecf8e' },
+  { value: 'online', label: 'Online', iconColor: '#3ecf8e' },
+  { value: 'offline', label: 'Offline', iconColor: '#ef4444' },
+  { value: 'maintenance', label: 'Maintenance', iconColor: '#f59e0b' },
+];
+const IP_TYPE_OPTS = [
+  { value: 'public', label: 'Public' },
+  { value: 'private', label: 'Private' },
+  { value: 'ipv6', label: 'IPv6' },
+];
 import { Server as ServerType } from '../types';
 import api, { getApiErrorMessage } from '../lib/api';
 import { nonEmptyTrim } from '../lib/utils';
@@ -288,17 +301,11 @@ export const ServerDrawer = ({ server, isOpen, onClose, onUpdate, onRefresh }: S
                 <label style={{ display: 'block', fontSize: 11, fontWeight: 500, color: 'hsl(var(--fg-2))', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                   Status
                 </label>
-                <select
+                <SvSelect
                   value={form.status}
-                  onChange={(e) => setForm({ ...form, status: e.target.value })}
-                  className="sv-input"
-                  style={{ width: '100%' }}
-                >
-                  <option value="active">Active</option>
-                  <option value="online">Online</option>
-                  <option value="offline">Offline</option>
-                  <option value="maintenance">Maintenance</option>
-                </select>
+                  onChange={(v) => setForm({ ...form, status: v })}
+                  options={STATUS_OPTS}
+                />
               </div>
               <div>
                 <label style={{ display: 'block', fontSize: 11, fontWeight: 500, color: 'hsl(var(--fg-2))', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
@@ -538,16 +545,11 @@ export const ServerDrawer = ({ server, isOpen, onClose, onUpdate, onRefresh }: S
                     </div>
                     <div>
                       <label style={{ fontSize: 10, color: 'hsl(var(--fg-2))', display: 'block', marginBottom: 4 }}>Type</label>
-                      <select
-                        className="sv-input"
-                        style={{ width: '100%', fontSize: 12 }}
+                      <SvSelect
                         value={newIpType}
-                        onChange={(e) => setNewIpType(e.target.value as 'public' | 'private' | 'ipv6')}
-                      >
-                        <option value="public">Public</option>
-                        <option value="private">Private</option>
-                        <option value="ipv6">IPv6</option>
-                      </select>
+                        onChange={(v) => setNewIpType(v as 'public' | 'private' | 'ipv6')}
+                        options={IP_TYPE_OPTS}
+                      />
                     </div>
                     <button type="submit" disabled={addingIp || !newIpAddr.trim()} className="sv-btn-primary" style={{ padding: '6px 10px', fontSize: 12 }}>
                       {addingIp ? '…' : 'Add'}

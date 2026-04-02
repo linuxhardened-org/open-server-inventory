@@ -11,6 +11,7 @@ import { Settings } from './pages/Settings';
 import { ApiSettings } from './pages/ApiSettings';
 import { CloudIntegrations } from './pages/CloudIntegrations';
 import { IpInventory } from './pages/IpInventory';
+import { ServerDetail } from './pages/ServerDetail';
 import { Setup } from './pages/Setup';
 import { ChangePassword } from './pages/ChangePassword';
 import { Layout } from './components/Layout';
@@ -18,6 +19,7 @@ import { Toaster } from 'react-hot-toast';
 import api from './lib/api';
 import { useAuthStore } from './store/useAuthStore';
 import { useSettingsStore } from './store/useSettingsStore';
+import { connectRealtime, disconnectRealtime } from './lib/realtime';
 
 type SetupStatusResponse = {
   success: boolean;
@@ -29,9 +31,11 @@ type SetupStatusResponse = {
 
 function App() {
   const [setupChecked, setSetupChecked] = useState(false);
+  const [authChecked, setAuthChecked] = useState(false);
   const isSetupCompleted = useAuthStore((state) => state.isSetupCompleted);
   const setSetupCompletedInStore = useAuthStore((state) => state.setSetupCompleted);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const logout = useAuthStore((state) => state.logout);
   const fetchSettings = useSettingsStore((state) => state.fetchSettings);
   const appName = useSettingsStore((state) => state.appName);
 
@@ -71,7 +75,41 @@ function App() {
     if (isAuthenticated) void fetchSettings();
   }, [isAuthenticated, fetchSettings]);
 
-  if (!setupChecked) return null;
+  // Validate persisted auth at app bootstrap (prevents stale local auth when backend is down)
+  useEffect(() => {
+    let mounted = true;
+    const validate = async () => {
+      if (!isAuthenticated) {
+        if (mounted) setAuthChecked(true);
+        return;
+      }
+      try {
+        await api.get('/auth/me');
+      } catch {
+        // Network/session failure => clear stale local auth and force login
+        logout();
+      } finally {
+        if (mounted) setAuthChecked(true);
+      }
+    };
+    void validate();
+    return () => {
+      mounted = false;
+    };
+  }, [isAuthenticated, logout]);
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      disconnectRealtime();
+      return;
+    }
+    connectRealtime();
+    return () => {
+      disconnectRealtime();
+    };
+  }, [isAuthenticated]);
+
+  if (!setupChecked || !authChecked) return null;
 
   return (
     <Router>
@@ -95,6 +133,7 @@ function App() {
         <Route path="/" element={<Layout />}>
           <Route index element={<Navigate to="/servers" replace />} />
           <Route path="servers" element={<Servers />} />
+          <Route path="servers/:id" element={<ServerDetail />} />
           <Route path="groups" element={<Groups />} />
           <Route path="tags" element={<Tags />} />
           <Route path="cloud" element={<CloudIntegrations />} />

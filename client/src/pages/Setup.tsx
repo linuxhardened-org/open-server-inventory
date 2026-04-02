@@ -14,6 +14,7 @@ type SetupResponse = {
 };
 
 type DbTestResult = { connected: boolean; version?: string; error?: string } | null;
+type LocalPrepareResult = { ready: boolean; version?: string; error?: string } | null;
 
 type DbProvider = 'local' | 'supabase' | 'custom';
 
@@ -27,6 +28,9 @@ export const Setup = () => {
   const [databaseUrl, setDatabaseUrl] = useState('');
   const [dbTest, setDbTest] = useState<DbTestResult>(null);
   const [testing, setTesting] = useState(false);
+  const [localPreparing, setLocalPreparing] = useState(false);
+  const [localPrepare, setLocalPrepare] = useState<LocalPrepareResult>(null);
+  const [localPhase, setLocalPhase] = useState(0);
 
   // Step 2: Org name
   const [appName, setAppName] = useState('');
@@ -35,6 +39,42 @@ export const Setup = () => {
 
   // Reset test when URL changes
   useEffect(() => { setDbTest(null); }, [databaseUrl]);
+
+  // Animated status copy while preparing local DB
+  useEffect(() => {
+    if (!localPreparing) return;
+    const t = setInterval(() => {
+      setLocalPhase((p) => (p + 1) % 4);
+    }, 750);
+    return () => clearInterval(t);
+  }, [localPreparing]);
+
+  const localPhaseText = [
+    'Starting local database',
+    'Applying schema',
+    'Running migrations',
+    'Finalizing setup checks',
+  ][localPhase];
+
+  const prepareLocalDb = async () => {
+    setLocalPreparing(true);
+    setLocalPrepare(null);
+    try {
+      const res = (await api.post('/auth/prepare-local-db')) as { success: boolean; data?: LocalPrepareResult };
+      setLocalPrepare(res.data ?? { ready: false, error: 'Unexpected server response' });
+    } catch {
+      setLocalPrepare({ ready: false, error: 'Could not reach server' });
+    } finally {
+      setLocalPreparing(false);
+    }
+  };
+
+  // Auto-prepare local DB when local option is selected
+  useEffect(() => {
+    if (dbProvider !== 'local') return;
+    if (localPrepare?.ready || localPreparing) return;
+    void prepareLocalDb();
+  }, [dbProvider]);
 
   const handleTestDb = async () => {
     if (!databaseUrl.trim()) return;
@@ -51,10 +91,14 @@ export const Setup = () => {
   };
 
   const canProceedDb =
-    dbProvider === 'local' || dbTest?.connected === true;
+    dbProvider === 'local' ? localPrepare?.ready === true : dbTest?.connected === true;
 
   const handleComplete = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (dbProvider === 'local' && localPrepare?.ready !== true) {
+      toast.error('Please wait until local database setup is complete');
+      return;
+    }
     setSubmitting(true);
     try {
       const payload: Record<string, string | undefined> = {
@@ -241,10 +285,13 @@ export const Setup = () => {
         {/* Card */}
         <div
           style={{
-            background: 'hsl(var(--surface))',
+            background: 'hsl(var(--surface) / 0.88)',
+            backdropFilter: 'blur(14px) saturate(150%)',
+            WebkitBackdropFilter: 'blur(14px) saturate(150%)',
             border: '1px solid hsl(var(--border))',
             borderRadius: 16,
             overflow: 'hidden',
+            boxShadow: '0 24px 64px -30px hsl(var(--primary) / 0.4), 0 1px 0 hsl(0 0% 100% / 0.12) inset',
           }}
         >
           {/* Top accent bar */}
@@ -283,6 +330,50 @@ export const Setup = () => {
                     )}
                   </div>
                 </button>
+                {dbProvider === 'local' && (
+                  <div
+                    style={{
+                      border: '1px solid hsl(var(--border))',
+                      borderRadius: 8,
+                      padding: '10px 12px',
+                      background: 'hsl(var(--surface-2))',
+                    }}
+                  >
+                    {localPreparing ? (
+                      <div
+                        className="flex items-center gap-2"
+                        style={{ fontSize: 12, color: 'hsl(var(--fg-2))' }}
+                        aria-live="polite"
+                      >
+                        <Loader2 style={{ width: 14, height: 14 }} className="animate-spin" />
+                        <span>{localPhaseText}…</span>
+                      </div>
+                    ) : localPrepare?.ready ? (
+                      <div
+                        className="flex items-center gap-2"
+                        style={{ fontSize: 12, color: '#3ecf8e', fontWeight: 500 }}
+                      >
+                        <CheckCircle2 style={{ width: 14, height: 14 }} />
+                        Local PostgreSQL ready{localPrepare.version ? ` · ${localPrepare.version}` : ''}
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-between gap-3">
+                        <span style={{ fontSize: 12, color: '#ef4444' }}>
+                          {localPrepare?.error || 'Local database is not ready yet'}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => void prepareLocalDb()}
+                          className="sv-btn-outline"
+                          style={{ height: 28, fontSize: 12, padding: '0 10px' }}
+                          disabled={localPreparing}
+                        >
+                          Retry
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 {/* Supabase option */}
                 <button
@@ -530,7 +621,7 @@ export const Setup = () => {
                       className="sv-btn-primary"
                       style={{ flex: 1, height: 38, fontSize: 14 }}
                     >
-                      {submitting ? 'Setting up…' : 'Finish Setup'}
+                      {submitting ? (dbProvider === 'local' ? 'Building local DB…' : 'Setting up…') : 'Finish Setup'}
                       {!submitting && <ArrowRight style={{ width: 15, height: 15 }} />}
                     </button>
                   </div>

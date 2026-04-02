@@ -5,6 +5,7 @@ import { Folder, Plus, Trash2, Edit2, Search, ExternalLink } from 'lucide-react'
 import toast from 'react-hot-toast';
 import api from '../lib/api';
 import { Group } from '../types';
+import { useRealtimeResource } from '../hooks/useRealtimeResource';
 
 export const Groups = () => {
   const navigate = useNavigate();
@@ -18,6 +19,7 @@ export const Groups = () => {
   useEffect(() => {
     fetchGroups();
   }, []);
+  useRealtimeResource('groups', () => void fetchGroups());
 
   const fetchGroups = async () => {
     try {

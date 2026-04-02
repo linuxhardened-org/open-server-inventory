@@ -1,44 +1,56 @@
-import { useCallback, useEffect, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Plus, Search, Filter, Download, Trash2, Columns, X } from 'lucide-react';
+import { SvSelect } from '../components/SvSelect';
 import toast from 'react-hot-toast';
 import { ServerTable } from '../components/ServerTable';
-import { ServerDrawer } from '../components/ServerDrawer';
 import { AddServerModal } from '../components/AddServerModal';
 import type { CustomColumn, Server, Group, Tag } from '../types';
 import api, { getApiErrorMessage } from '../lib/api';
+import { useRealtimeResource } from '../hooks/useRealtimeResource';
 
 type ApiListResponse<T> = { success: boolean; data: T };
 
 export const Servers = () => {
   const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
   const [servers, setServers] = useState<Server[]>([]);
+  const [totalServers, setTotalServers] = useState(0);
   const [customColumns, setCustomColumns] = useState<CustomColumn[]>([]);
   const [groups, setGroups] = useState<Group[]>([]);
   const [tags, setTags] = useState<Tag[]>([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [selectedServer, setSelectedServer] = useState<Server | null>(null);
   const [newColumnName, setNewColumnName] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedServerIds, setSelectedServerIds] = useState<number[]>([]);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
+  const [pageSize, setPageSize] = useState(25);
+  const [currentPage, setCurrentPage] = useState(1);
 
   // Get filter params from URL
   const filterGroupId = searchParams.get('group');
   const filterTagId = searchParams.get('tag');
-  const serverIdFromUrl = searchParams.get('server');
 
   const load = useCallback(async () => {
     try {
+      setLoading(true);
+      const limit = pageSize;
+      const offset = (currentPage - 1) * pageSize;
+
       const [sRes, cRes, gRes, tRes] = await Promise.allSettled([
-        api.get<ApiListResponse<Server[]>>('/servers'),
+        api.get<ApiListResponse<{ servers: Server[]; total: number }>>(`/servers?limit=${limit}&offset=${offset}`),
         api.get<ApiListResponse<CustomColumn[]>>('/custom-columns'),
         api.get<ApiListResponse<Group[]>>('/groups'),
         api.get<ApiListResponse<Tag[]>>('/tags'),
       ]);
 
       if (sRes.status === 'fulfilled') {
-        const rows = sRes.value?.data;
-        setServers(Array.isArray(rows) ? rows : []);
+        const payload = sRes.value?.data;
+        const rows = payload?.servers || [];
+        setServers(rows);
+        setTotalServers(payload?.total || 0);
+        setSelectedServerIds((prev) => prev.filter((id) => rows.some((s) => s.id === id)));
       } else {
         toast.error(getApiErrorMessage(sRes.reason, 'Failed to load servers'));
       }
@@ -68,38 +80,22 @@ export const Servers = () => {
 
   useEffect(() => {
     load();
-  }, [load]);
-
-  // Open server drawer when linked from IP inventory (?server=id)
-  useEffect(() => {
-    if (!serverIdFromUrl || loading) return;
-    const id = parseInt(serverIdFromUrl, 10);
-    if (Number.isNaN(id)) return;
-    const match = servers.find((s) => s.id === id);
-    if (match) setSelectedServer(match);
-  }, [serverIdFromUrl, servers, loading]);
+  }, [load, pageSize, currentPage]);
+  useRealtimeResource('servers', () => void load());
+  useRealtimeResource('groups', () => void load());
+  useRealtimeResource('tags', () => void load());
+  useRealtimeResource('custom-columns', () => void load());
 
   const [showExportMenu, setShowExportMenu] = useState(false);
-
-  const closeDrawer = () => {
-    setSelectedServer(null);
-    if (searchParams.get('server')) {
-      const next = new URLSearchParams(searchParams);
-      next.delete('server');
-      setSearchParams(next, { replace: true });
-    }
-  };
+  const [showFilterPanel, setShowFilterPanel] = useState(false);
+  const [filterStatus, setFilterStatus] = useState<string>('all');
 
   const handleExport = async (format: 'json' | 'csv') => {
     setShowExportMenu(false);
     try {
       const endpoint = format === 'csv' ? '/api/export-import/export/csv' : '/api/export-import/export';
-      const response = await fetch(endpoint, {
-        credentials: 'include',
-      });
-      if (!response.ok) {
-        throw new Error('Export failed');
-      }
+      const response = await fetch(endpoint, { credentials: 'include' });
+      if (!response.ok) throw new Error('Export failed');
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -110,9 +106,43 @@ export const Servers = () => {
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
       toast.success(`${format.toUpperCase()} export downloaded`);
-    } catch (err) {
+    } catch {
       toast.error('Failed to export data');
     }
+  };
+
+  const handleExportSelected = (format: 'json' | 'csv') => {
+    setShowExportMenu(false);
+    const selected = visibleServers.filter((s) => selectedServerIds.includes(s.id));
+    if (selected.length === 0) { toast.error('No servers selected'); return; }
+    let content: string;
+    let mime: string;
+    if (format === 'json') {
+      content = JSON.stringify(selected, null, 2);
+      mime = 'application/json';
+    } else {
+      const keys = ['id', 'name', 'hostname', 'ip_address', 'private_ip', 'ipv6_address', 'os', 'cpu_cores', 'ram_gb', 'status', 'region', 'group_name', 'notes'];
+      const header = keys.join(',');
+      const rows = selected.map((s) => {
+        const rec = s as unknown as Record<string, unknown>;
+        return keys.map((k) => {
+          const v = rec[k];
+          return v == null ? '' : `"${String(v).replace(/"/g, '""')}"`;
+        }).join(',');
+      });
+      content = [header, ...rows].join('\n');
+      mime = 'text/csv';
+    }
+    const blob = new Blob([content], { type: mime });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `servervault-selected.${format}`;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    document.body.removeChild(a);
+    toast.success(`${format.toUpperCase()} export downloaded (${selected.length} servers)`);
   };
 
   const handleAddColumn = async (e: React.FormEvent) => {
@@ -143,29 +173,83 @@ export const Servers = () => {
   // Clear filter from URL
   const clearFilters = () => {
     setSearchParams({});
+    setFilterStatus('all');
   };
 
   // Get active filter info
   const activeFilterGroup = filterGroupId ? groups.find(g => g.id === parseInt(filterGroupId)) : null;
   const activeFilterTag = filterTagId ? tags.find(t => t.id === parseInt(filterTagId)) : null;
 
-  // Filter servers by group or tag
+  // Filter servers by group, tag, and status
   const filteredByParams = servers.filter((s) => {
-    if (filterGroupId) {
-      return s.group_id === parseInt(filterGroupId);
-    }
+    if (filterGroupId && s.group_id !== parseInt(filterGroupId)) return false;
     if (filterTagId) {
       const tagIdNum = parseInt(filterTagId);
-      return s.tags?.some((t) => (typeof t === 'object' ? t.id : t) === tagIdNum);
+      if (!s.tags?.some((t) => (typeof t === 'object' ? t.id : t) === tagIdNum)) return false;
     }
+    if (filterStatus !== 'all' && s.status !== filterStatus) return false;
     return true;
   });
+
+  const activeFilterCount = [filterGroupId, filterTagId, filterStatus !== 'all' ? filterStatus : null].filter(Boolean).length;
 
   const onlineCount = filteredByParams.filter((s) => s.status === 'online' || s.status === 'active').length;
   const offlineCount = filteredByParams.filter(
     (s) => s.status !== 'online' && s.status !== 'active' && s.status !== 'maintenance'
   ).length;
   const maintenanceCount = filteredByParams.filter((s) => s.status === 'maintenance').length;
+  const visibleServers = useMemo(
+    () =>
+      filteredByParams.filter((s) => {
+        if (!searchTerm) return true;
+        const q = searchTerm.toLowerCase();
+        return (
+          s.hostname?.toLowerCase().includes(q) ||
+          s.ip_address?.toLowerCase().includes(q) ||
+          s.name?.toLowerCase().includes(q) ||
+          s.os?.toLowerCase().includes(q) ||
+          s.tags?.some((t) => (typeof t === 'string' ? t : t.name).toLowerCase().includes(q))
+        );
+      }),
+    [filteredByParams, searchTerm]
+  );
+  // Reset page when filters/search change
+  useEffect(() => { setCurrentPage(1); }, [searchTerm, filterGroupId, filterTagId, filterStatus]);
+
+  const totalPages = Math.max(1, Math.ceil(totalServers / pageSize));
+  const paginatedServers = visibleServers;
+
+  const allVisibleSelected = paginatedServers.length > 0 && paginatedServers.every((s) => selectedServerIds.includes(s.id));
+
+  const toggleServerSelected = (id: number) => {
+    setSelectedServerIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  };
+
+  const toggleSelectAllVisible = () => {
+    setSelectedServerIds((prev) => {
+      if (allVisibleSelected) return prev.filter((id) => !paginatedServers.some((s) => s.id === id));
+      const merged = new Set(prev);
+      for (const s of paginatedServers) merged.add(s.id);
+      return [...merged];
+    });
+  };
+
+  const handleBulkDeleteServers = async () => {
+    if (selectedServerIds.length === 0) return;
+    if (!window.confirm(`Delete ${selectedServerIds.length} selected server(s)?`)) return;
+    setBulkDeleting(true);
+    try {
+      const settled = await Promise.allSettled(selectedServerIds.map((id) => api.delete(`/servers/${id}`)));
+      const ok = settled.filter((r) => r.status === 'fulfilled').length;
+      const fail = settled.length - ok;
+      if (ok > 0) toast.success(`Deleted ${ok} server${ok !== 1 ? 's' : ''}`);
+      if (fail > 0) toast.error(`${fail} server delete operation${fail !== 1 ? 's' : ''} failed`);
+      setSelectedServerIds([]);
+      await load();
+    } finally {
+      setBulkDeleting(false);
+    }
+  };
 
   return (
     <div className="page animate-in" style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
@@ -203,7 +287,7 @@ export const Servers = () => {
       </header>
 
       {/* Active filter banner */}
-      {(activeFilterGroup || activeFilterTag) && (
+      {(activeFilterGroup || activeFilterTag || filterStatus !== 'all') && (
         <div
           className="flex items-center gap-3"
           style={{
@@ -214,8 +298,11 @@ export const Servers = () => {
           }}
         >
           <Filter style={{ width: 14, height: 14, color: 'hsl(var(--primary))' }} />
-          <span style={{ fontSize: 13, color: 'hsl(var(--fg))' }}>
-            Showing servers in{' '}
+          <span style={{ fontSize: 13, color: 'hsl(var(--fg))', display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
+            Filtered by:
+            {filterStatus !== 'all' && (
+              <strong style={{ color: 'hsl(var(--primary))' }}>Status: {filterStatus}</strong>
+            )}
             {activeFilterGroup && (
               <strong style={{ color: 'hsl(var(--primary))' }}>Group: {activeFilterGroup.name}</strong>
             )}
@@ -250,7 +337,7 @@ export const Servers = () => {
               style={{ width: 7, height: 7, borderRadius: '50%', background: 'hsl(var(--fg-3))', flexShrink: 0 }}
             />
             <span style={{ fontSize: 13, color: 'hsl(var(--fg-2))' }}>
-              <span style={{ fontWeight: 600, color: 'hsl(var(--fg))' }}>{filteredByParams.length}</span> total
+              <span style={{ fontWeight: 600, color: 'hsl(var(--fg))' }}>{totalServers}</span> total
             </span>
           </div>
           <div
@@ -418,13 +505,88 @@ export const Servers = () => {
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
-          <button
-            type="button"
-            className="sv-btn-ghost"
-            style={{ border: '1px solid hsl(var(--border-2))', gap: 6 }}
-          >
-            <Filter style={{ width: 14, height: 14 }} aria-hidden /> Filters
-          </button>
+          {/* Filter button + panel */}
+          <div style={{ position: 'relative' }}>
+            <button
+              type="button"
+              onClick={() => setShowFilterPanel(!showFilterPanel)}
+              className="sv-btn-ghost"
+              style={{
+                border: activeFilterCount > 0 ? '1px solid hsl(var(--primary) / 0.5)' : '1px solid hsl(var(--border-2))',
+                gap: 6,
+                color: activeFilterCount > 0 ? 'hsl(var(--primary))' : undefined,
+              }}
+            >
+              <Filter style={{ width: 14, height: 14 }} aria-hidden />
+              Filters
+              {activeFilterCount > 0 && (
+                <span style={{ background: 'hsl(var(--primary))', color: '#fff', borderRadius: 9999, fontSize: 10, fontWeight: 700, padding: '1px 6px', marginLeft: 2 }}>
+                  {activeFilterCount}
+                </span>
+              )}
+            </button>
+            {showFilterPanel && (
+              <>
+                <div style={{ position: 'fixed', inset: 0, zIndex: 40 }} onClick={() => setShowFilterPanel(false)} />
+                <div style={{ position: 'absolute', top: '100%', left: 0, marginTop: 4, background: 'hsl(var(--surface))', border: '1px solid hsl(var(--border))', borderRadius: 10, zIndex: 50, minWidth: 220, boxShadow: '0 8px 24px rgba(0,0,0,0.2)', padding: 14, display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  <div>
+                    <label style={{ fontSize: 11, fontWeight: 600, color: 'hsl(var(--fg-2))', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: 6 }}>Status</label>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                      {['all', 'active', 'online', 'offline', 'maintenance'].map((s) => (
+                        <button key={s} type="button" onClick={() => { setFilterStatus(s); setShowFilterPanel(false); }}
+                          style={{ textAlign: 'left', padding: '6px 10px', borderRadius: 6, fontSize: 13, border: 'none', cursor: 'pointer', background: filterStatus === s ? 'hsl(var(--primary) / 0.1)' : 'none', color: filterStatus === s ? 'hsl(var(--primary))' : 'hsl(var(--fg-2))', fontWeight: filterStatus === s ? 600 : 400 }}>
+                          {s === 'all' ? 'All statuses' : s.charAt(0).toUpperCase() + s.slice(1)}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  {groups.length > 0 && (
+                    <div>
+                      <label style={{ fontSize: 11, fontWeight: 600, color: 'hsl(var(--fg-2))', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: 6 }}>Group</label>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                        <button type="button" onClick={() => { const next = new URLSearchParams(searchParams); next.delete('group'); setSearchParams(next); setShowFilterPanel(false); }}
+                          style={{ textAlign: 'left', padding: '6px 10px', borderRadius: 6, fontSize: 13, border: 'none', cursor: 'pointer', background: !filterGroupId ? 'hsl(var(--primary) / 0.1)' : 'none', color: !filterGroupId ? 'hsl(var(--primary))' : 'hsl(var(--fg-2))', fontWeight: !filterGroupId ? 600 : 400 }}>
+                          All groups
+                        </button>
+                        {groups.map((g) => (
+                          <button key={g.id} type="button" onClick={() => { const next = new URLSearchParams(searchParams); next.set('group', String(g.id)); setSearchParams(next); setShowFilterPanel(false); }}
+                            style={{ textAlign: 'left', padding: '6px 10px', borderRadius: 6, fontSize: 13, border: 'none', cursor: 'pointer', background: filterGroupId === String(g.id) ? 'hsl(var(--primary) / 0.1)' : 'none', color: filterGroupId === String(g.id) ? 'hsl(var(--primary))' : 'hsl(var(--fg-2))', fontWeight: filterGroupId === String(g.id) ? 600 : 400 }}>
+                            {g.name}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {tags.length > 0 && (
+                    <div>
+                      <label style={{ fontSize: 11, fontWeight: 600, color: 'hsl(var(--fg-2))', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: 6 }}>Tag</label>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                        <button type="button" onClick={() => { const next = new URLSearchParams(searchParams); next.delete('tag'); setSearchParams(next); setShowFilterPanel(false); }}
+                          style={{ textAlign: 'left', padding: '6px 10px', borderRadius: 6, fontSize: 13, border: 'none', cursor: 'pointer', background: !filterTagId ? 'hsl(var(--primary) / 0.1)' : 'none', color: !filterTagId ? 'hsl(var(--primary))' : 'hsl(var(--fg-2))', fontWeight: !filterTagId ? 600 : 400 }}>
+                          All tags
+                        </button>
+                        {tags.map((t) => (
+                          <button key={t.id} type="button" onClick={() => { const next = new URLSearchParams(searchParams); next.set('tag', String(t.id)); setSearchParams(next); setShowFilterPanel(false); }}
+                            style={{ textAlign: 'left', padding: '6px 10px', borderRadius: 6, fontSize: 13, border: 'none', cursor: 'pointer', background: filterTagId === String(t.id) ? 'hsl(var(--primary) / 0.1)' : 'none', color: filterTagId === String(t.id) ? (t.color || 'hsl(var(--primary))') : 'hsl(var(--fg-2))', fontWeight: filterTagId === String(t.id) ? 600 : 400 }}>
+                            {t.color && <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: t.color, marginRight: 6 }} />}
+                            {t.name}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {activeFilterCount > 0 && (
+                    <button type="button" onClick={() => { clearFilters(); setShowFilterPanel(false); }}
+                      style={{ fontSize: 12, color: 'hsl(var(--danger))', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left', padding: '4px 10px' }}>
+                      Clear all filters
+                    </button>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* Export dropdown */}
           <div style={{ position: 'relative' }}>
             <button
               type="button"
@@ -436,58 +598,53 @@ export const Servers = () => {
             </button>
             {showExportMenu && (
               <>
-                <div
-                  style={{ position: 'fixed', inset: 0, zIndex: 40 }}
-                  onClick={() => setShowExportMenu(false)}
-                />
-                <div
-                  style={{
-                    position: 'absolute',
-                    top: '100%',
-                    right: 0,
-                    marginTop: 4,
-                    background: 'hsl(var(--surface))',
-                    border: '1px solid hsl(var(--border))',
-                    borderRadius: 8,
-                    overflow: 'hidden',
-                    zIndex: 50,
-                    minWidth: 140,
-                    boxShadow: '0 4px 12px hsl(var(--bg) / 0.5)',
-                  }}
-                >
-                  <button
-                    type="button"
-                    onClick={() => handleExport('json')}
-                    className="sv-btn-ghost"
-                    style={{
-                      width: '100%',
-                      justifyContent: 'flex-start',
-                      borderRadius: 0,
-                      padding: '10px 14px',
-                      fontSize: 13,
-                    }}
-                  >
-                    Export as JSON
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleExport('csv')}
-                    className="sv-btn-ghost"
-                    style={{
-                      width: '100%',
-                      justifyContent: 'flex-start',
-                      borderRadius: 0,
-                      padding: '10px 14px',
-                      fontSize: 13,
-                      borderTop: '1px solid hsl(var(--border-2))',
-                    }}
-                  >
-                    Export as CSV
-                  </button>
+                <div style={{ position: 'fixed', inset: 0, zIndex: 40 }} onClick={() => setShowExportMenu(false)} />
+                <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: 4, background: 'hsl(var(--surface))', border: '1px solid hsl(var(--border))', borderRadius: 8, overflow: 'hidden', zIndex: 50, minWidth: 200, boxShadow: '0 4px 12px hsl(var(--bg) / 0.5)' }}>
+                  <div style={{ padding: '8px 14px 6px', fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'hsl(var(--fg-3))' }}>All servers</div>
+                  {(['json', 'csv'] as const).map((fmt) => (
+                    <button key={fmt} type="button" onClick={() => handleExport(fmt)} className="sv-btn-ghost"
+                      style={{ width: '100%', justifyContent: 'flex-start', borderRadius: 0, padding: '8px 14px', fontSize: 13 }}>
+                      Export as {fmt.toUpperCase()}
+                    </button>
+                  ))}
+                  {selectedServerIds.length > 0 && (
+                    <>
+                      <div style={{ padding: '8px 14px 6px', fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'hsl(var(--fg-3))', borderTop: '1px solid hsl(var(--border-2))', marginTop: 4 }}>
+                        Selected ({selectedServerIds.length})
+                      </div>
+                      {(['json', 'csv'] as const).map((fmt) => (
+                        <button key={fmt} type="button" onClick={() => handleExportSelected(fmt)} className="sv-btn-ghost"
+                          style={{ width: '100%', justifyContent: 'flex-start', borderRadius: 0, padding: '8px 14px', fontSize: 13 }}>
+                          Export selected as {fmt.toUpperCase()}
+                        </button>
+                      ))}
+                    </>
+                  )}
                 </div>
               </>
             )}
           </div>
+          <span style={{ fontSize: 12, color: 'hsl(var(--fg-2))' }}>
+            {selectedServerIds.length} selected
+          </span>
+          <button
+            type="button"
+            className="sv-btn-ghost"
+            style={{ border: '1px solid hsl(var(--border-2))', gap: 6 }}
+            disabled={visibleServers.length === 0}
+            onClick={toggleSelectAllVisible}
+          >
+            {allVisibleSelected ? 'Clear selection' : 'Select visible'}
+          </button>
+          <button
+            type="button"
+            className="sv-btn-ghost"
+            style={{ border: '1px solid hsl(var(--border-2))', color: 'hsl(var(--danger))' }}
+            disabled={selectedServerIds.length === 0 || bulkDeleting}
+            onClick={handleBulkDeleteServers}
+          >
+            {bulkDeleting ? 'Deleting...' : 'Delete selected'}
+          </button>
         </div>
 
         {/* Table */}
@@ -499,40 +656,47 @@ export const Servers = () => {
           </div>
         ) : (
           <ServerTable
-            servers={filteredByParams.filter((s) => {
-              if (!searchTerm) return true;
-              const q = searchTerm.toLowerCase();
-              return (
-                s.hostname?.toLowerCase().includes(q) ||
-                s.ip_address?.toLowerCase().includes(q) ||
-                s.name?.toLowerCase().includes(q) ||
-                s.os?.toLowerCase().includes(q) ||
-                s.tags?.some((t) => (typeof t === 'string' ? t : t.name).toLowerCase().includes(q))
-              );
-            })}
+            servers={paginatedServers}
             customColumns={customColumns}
-            onRowClick={(server) => setSelectedServer(server)}
+            onRowClick={(server) => navigate(`/servers/${server.id}`)}
+            selectedIds={selectedServerIds}
+            onToggleSelect={toggleServerSelected}
+            allSelected={allVisibleSelected}
+            onToggleSelectAll={toggleSelectAllVisible}
           />
         )}
-      </div>
 
-      {selectedServer && (
-        <ServerDrawer
-          server={selectedServer}
-          isOpen={!!selectedServer}
-          onClose={closeDrawer}
-          onUpdate={() => {
-            load();
-            setSelectedServer(null);
-            if (searchParams.get('server')) {
-              const next = new URLSearchParams(searchParams);
-              next.delete('server');
-              setSearchParams(next, { replace: true });
-            }
-          }}
-          onRefresh={load}
-        />
-      )}
+        {/* Pagination controls */}
+        {!loading && visibleServers.length > 0 && (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10, paddingTop: 8, borderTop: '1px solid hsl(var(--border))' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: 12, color: 'hsl(var(--fg-2))' }}>Rows per page:</span>
+              <SvSelect
+                compact
+                value={String(pageSize)}
+                onChange={(v) => { setPageSize(Number(v)); setCurrentPage(1); }}
+                options={[10, 25, 50, 100, 200].map((n) => ({ value: String(n), label: String(n) }))}
+              />
+              <span style={{ fontSize: 12, color: 'hsl(var(--fg-3))' }}>
+                {(currentPage - 1) * pageSize + 1}–{Math.min(currentPage * pageSize, totalServers)} of {totalServers}
+              </span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+              <button type="button" className="sv-btn-ghost" style={{ padding: '4px 10px', fontSize: 12 }}
+                disabled={currentPage === 1} onClick={() => setCurrentPage(1)}>«</button>
+              <button type="button" className="sv-btn-ghost" style={{ padding: '4px 10px', fontSize: 12 }}
+                disabled={currentPage === 1} onClick={() => setCurrentPage((p) => p - 1)}>‹ Prev</button>
+              <span style={{ fontSize: 12, color: 'hsl(var(--fg-2))', padding: '0 8px' }}>
+                Page {currentPage} of {totalPages}
+              </span>
+              <button type="button" className="sv-btn-ghost" style={{ padding: '4px 10px', fontSize: 12 }}
+                disabled={currentPage === totalPages} onClick={() => setCurrentPage((p) => p + 1)}>Next ›</button>
+              <button type="button" className="sv-btn-ghost" style={{ padding: '4px 10px', fontSize: 12 }}
+                disabled={currentPage === totalPages} onClick={() => setCurrentPage(totalPages)}>»</button>
+            </div>
+          </div>
+        )}
+      </div>
 
       <AddServerModal
         isOpen={isModalOpen}

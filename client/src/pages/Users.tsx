@@ -3,8 +3,15 @@ import { createPortal } from 'react-dom';
 import { useAuthStore } from '../store/useAuthStore';
 import { motion } from 'framer-motion';
 import { UserPlus, Shield, User, Trash2 } from 'lucide-react';
+import { SvSelect } from '../components/SvSelect';
+
+const ROLE_OPTS = [
+  { value: 'operator', label: 'Operator' },
+  { value: 'admin', label: 'Admin' },
+];
 import api from '../lib/api';
 import toast from 'react-hot-toast';
+import { useRealtimeResource } from '../hooks/useRealtimeResource';
 
 interface UserData {
   id: number;
@@ -19,6 +26,8 @@ type UsersListResponse = { success: boolean; data: UserData[] };
 export const Users = () => {
   const { user: currentUser } = useAuthStore();
   const [users, setUsers] = useState<UserData[]>([]);
+  const [selectedUserIds, setSelectedUserIds] = useState<number[]>([]);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
   const [isAdding, setIsAdding] = useState(false);
   const [newUser, setNewUser] = useState({
     username: '',
@@ -30,7 +39,9 @@ export const Users = () => {
   const fetchUsers = useCallback(async () => {
     try {
       const res = (await api.get('/users')) as UsersListResponse;
-      setUsers(Array.isArray(res?.data) ? res.data : []);
+      const rows = Array.isArray(res?.data) ? res.data : [];
+      setUsers(rows);
+      setSelectedUserIds((prev) => prev.filter((id) => rows.some((u) => u.id === id)));
     } catch (err: unknown) {
       const e = err as { error?: string };
       const msg = e?.error || '';
@@ -46,6 +57,9 @@ export const Users = () => {
   useEffect(() => {
     if (currentUser?.role === 'admin') void fetchUsers();
   }, [currentUser?.role, fetchUsers]);
+  useRealtimeResource('users', () => {
+    if (currentUser?.role === 'admin') void fetchUsers();
+  });
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -75,6 +89,35 @@ export const Users = () => {
     }
   };
 
+  const allSelected = users.length > 0 && users.filter((u) => u.id !== currentUser?.id).every((u) => selectedUserIds.includes(u.id));
+
+  const toggleSelected = (id: number) => {
+    if (id === currentUser?.id) return;
+    setSelectedUserIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  };
+
+  const toggleSelectAll = () => {
+    const selectable = users.filter((u) => u.id !== currentUser?.id).map((u) => u.id);
+    setSelectedUserIds((prev) => (allSelected ? prev.filter((id) => !selectable.includes(id)) : [...new Set([...prev, ...selectable])]));
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedUserIds.length === 0) return;
+    if (!confirm(`Delete ${selectedUserIds.length} selected user(s)?`)) return;
+    setBulkDeleting(true);
+    try {
+      const settled = await Promise.allSettled(selectedUserIds.map((id) => api.delete(`/users/${id}`)));
+      const ok = settled.filter((r) => r.status === 'fulfilled').length;
+      const fail = settled.length - ok;
+      if (ok > 0) toast.success(`Deleted ${ok} user${ok !== 1 ? 's' : ''}`);
+      if (fail > 0) toast.error(`${fail} delete operation${fail !== 1 ? 's' : ''} failed`);
+      setSelectedUserIds([]);
+      await fetchUsers();
+    } finally {
+      setBulkDeleting(false);
+    }
+  };
+
   if (currentUser?.role !== 'admin') {
     return (
       <div className="page" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '50vh' }}>
@@ -100,10 +143,34 @@ export const Users = () => {
         </button>
       </header>
 
+      <div className="flex items-center gap-3">
+        <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 12, color: 'hsl(var(--fg-2))' }}>
+          <input
+            type="checkbox"
+            checked={allSelected}
+            onChange={toggleSelectAll}
+            style={{ width: 14, height: 14, accentColor: 'hsl(var(--primary))' }}
+          />
+          Select all
+        </label>
+        <span style={{ fontSize: 12, color: 'hsl(var(--fg-3))' }}>{selectedUserIds.length} selected</span>
+        <button
+          type="button"
+          className="sv-btn-ghost"
+          style={{ border: '1px solid hsl(var(--border-2))', color: 'hsl(var(--danger))', marginLeft: 'auto' }}
+          disabled={selectedUserIds.length === 0 || bulkDeleting}
+          onClick={handleBulkDelete}
+        >
+          {bulkDeleting ? 'Deleting...' : 'Delete selected'}
+        </button>
+      </div>
+
       <div style={{ borderRadius: 10, border: '1px solid hsl(var(--border))', overflow: 'hidden' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+        <div style={{ overflowX: 'auto' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 480 }}>
           <thead>
-            <tr style={{ background: 'hsl(var(--surface-3))', borderBottom: '1px solid hsl(var(--border))' }}>
+            <tr style={{ background: 'hsl(var(--surface-3))', borderBottom: '1px solid hsl(var(--border))', position: 'sticky', top: 0, zIndex: 2 }}>
+              <th style={{ padding: '12px 10px', textAlign: 'left', fontSize: 11, fontWeight: 500, color: 'hsl(var(--fg-3))', textTransform: 'uppercase', letterSpacing: '0.04em', width: 36 }} />
               <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: 11, fontWeight: 500, color: 'hsl(var(--fg-3))', textTransform: 'uppercase', letterSpacing: '0.04em' }}>User</th>
               <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: 11, fontWeight: 500, color: 'hsl(var(--fg-3))', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Role</th>
               <th style={{ padding: '12px 16px', textAlign: 'right', fontSize: 11, fontWeight: 500, color: 'hsl(var(--fg-3))', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Actions</th>
@@ -117,6 +184,16 @@ export const Users = () => {
                 onMouseEnter={(e) => { e.currentTarget.style.background = 'hsl(var(--surface-2))'; }}
                 onMouseLeave={(e) => { e.currentTarget.style.background = ''; }}
               >
+                <td style={{ padding: '12px 10px' }}>
+                  <input
+                    type="checkbox"
+                    checked={selectedUserIds.includes(u.id)}
+                    onChange={() => toggleSelected(u.id)}
+                    disabled={u.id === currentUser?.id}
+                    style={{ width: 14, height: 14, accentColor: 'hsl(var(--primary))' }}
+                    aria-label={`Select ${u.username}`}
+                  />
+                </td>
                 <td style={{ padding: '12px 16px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                     <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'hsl(var(--primary) / 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -166,13 +243,14 @@ export const Users = () => {
             ))}
             {users.length === 0 && (
               <tr>
-                <td colSpan={3} style={{ padding: 40, textAlign: 'center', color: 'hsl(var(--fg-3))', fontSize: 13 }}>
+                <td colSpan={4} style={{ padding: 40, textAlign: 'center', color: 'hsl(var(--fg-3))', fontSize: 13 }}>
                   No users found.
                 </td>
               </tr>
             )}
           </tbody>
         </table>
+        </div>
       </div>
 
       {isAdding && createPortal(
@@ -212,15 +290,11 @@ export const Users = () => {
               <Field label="Password" value={newUser.password} onChange={(v) => setNewUser({ ...newUser, password: v })} type="password" required />
               <div>
                 <label style={{ display: 'block', fontSize: 11, fontWeight: 500, color: 'hsl(var(--fg-2))', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Role</label>
-                <select
+                <SvSelect
                   value={newUser.role}
-                  onChange={(e) => setNewUser({ ...newUser, role: e.target.value as 'admin' | 'operator' })}
-                  className="sv-input"
-                  style={{ width: '100%' }}
-                >
-                  <option value="operator">Operator</option>
-                  <option value="admin">Admin</option>
-                </select>
+                  onChange={(v) => setNewUser({ ...newUser, role: v as 'admin' | 'operator' })}
+                  options={ROLE_OPTS}
+                />
               </div>
               <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
                 <button type="button" onClick={() => setIsAdding(false)} className="sv-btn-ghost" style={{ flex: 1, border: '1px solid hsl(var(--border-2))' }}>

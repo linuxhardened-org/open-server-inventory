@@ -13,7 +13,7 @@ router.use(sessionAuth, adminAuth);
 
 router.get('/', async (req, res) => {
   try {
-    const result = await db.query('SELECT id, username, real_name, role, totp_enabled, created_at FROM users');
+    const result = await db.query('SELECT id, username, real_name, profile_picture_url, role, totp_enabled, created_at FROM users');
     sendSuccess(res, result.rows);
   } catch (err: any) {
     sendError(res, err.message);
@@ -106,17 +106,27 @@ router.patch('/:id', async (req, res) => {
 
   const schema = z.object({
     real_name: z.string().max(255).nullable().optional(),
+    profile_picture_url: z
+      .string()
+      .trim()
+      .max(2048)
+      .refine(
+        (v) => v === '' || v.startsWith('/') || /^https?:\/\//i.test(v),
+        'Profile picture URL must be an absolute http(s) URL or app-relative path'
+      )
+      .nullable()
+      .optional(),
   });
 
   const parseResult = schema.safeParse(req.body);
   if (!parseResult.success) return sendError(res, 'Invalid input');
 
-  const { real_name } = parseResult.data;
+  const { real_name, profile_picture_url } = parseResult.data;
 
   try {
     const result = await db.query(
-      'UPDATE users SET real_name = $1 WHERE id = $2 RETURNING id, username, real_name, role',
-      [real_name ?? null, userId]
+      'UPDATE users SET real_name = $1, profile_picture_url = $2 WHERE id = $3 RETURNING id, username, real_name, profile_picture_url, role',
+      [real_name ?? null, profile_picture_url ?? null, userId]
     );
     if (result.rowCount && result.rowCount > 0) {
       sendSuccess(res, result.rows[0]);

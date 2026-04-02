@@ -1,9 +1,12 @@
 import express from 'express';
+import http from 'http';
 import session from 'express-session';
 import connectPgSimple from 'connect-pg-simple';
 import cors from 'cors';
 import morgan from 'morgan';
 import cron from 'node-cron';
+import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
 
 import { env } from './config/env';
 import authRoutes from './routes/auth';
@@ -26,23 +29,43 @@ import { bearerAuth } from './middleware/bearerAuth';
 import db, { initDB } from './db';
 import { attachClientSpa } from './spaStatic';
 import { runAutoSync } from './utils/cloudSync';
+import { emitRealtime, initRealtime } from './realtime';
 
 const PgSession = connectPgSimple(session);
 
 const app = express();
 const PORT = env.port;
+const httpServer = http.createServer(app);
 
-app.use(morgan('dev'));
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      imgSrc: ["'self'", "data:", "blob:", "https:"],
+      connectSrc: ["'self'", "ws:", "wss:", "https:"],
+      fontSrc: ["'self'", "data:"],
+      objectSrc: ["'none'"],
+      baseUri: ["'self'"],
+      frameAncestors: ["'none'"],
+      upgradeInsecureRequests: null, // disabled — app may run on HTTP
+    },
+  },
+  crossOriginEmbedderPolicy: false,
+}));
+app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 app.use(cors({
   origin: env.clientUrl,
   credentials: true
 }));
-app.use(express.json({ limit: '5mb' }));
+app.use(express.json({ limit: '1mb' }));
 
-app.use(session({
+const sessionMiddleware = session({
   store: new PgSession({
     pool: db.pool,
-    tableName: 'session'
+    tableName: 'session',
+    pruneSessionInterval: 60 * 15, // prune expired sessions every 15 min
   }),
   secret: env.sessionSecret,
   resave: false,
@@ -53,14 +76,69 @@ app.use(session({
     httpOnly: true,
     maxAge: 1000 * 60 * 60 * 24 // 24 hours
   }
-}));
+});
+app.use(sessionMiddleware);
+
+// CSRF: custom header check — browsers cannot set X-Requested-With cross-origin
+// without a CORS preflight, so its presence proves same-origin intent.
+// Bearer token clients are exempt (API consumers set Authorization header directly).
+app.use('/api', (req: express.Request, res: express.Response, next: express.NextFunction) => {
+  if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) return next();
+  if (req.headers.authorization) return next();
+  const xrw = req.headers['x-requested-with'];
+  if (!xrw || String(xrw).toLowerCase() !== 'xmlhttprequest') {
+    return res.status(403).json({ success: false, error: 'CSRF check failed' });
+  }
+  next();
+});
+
+// Mutation -> realtime invalidation bridge (keeps route handlers decoupled).
+app.use((req, res, next) => {
+  if (!req.originalUrl.startsWith('/api/')) return next();
+  if (!['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method)) return next();
+
+  res.on('finish', () => {
+    if (res.statusCode >= 400) return;
+    const [pathNoQuery] = req.originalUrl.split('?');
+    const parts = pathNoQuery.split('/').filter(Boolean); // ['api', 'servers', ':id']
+    const resource = parts[1] ?? 'unknown';
+    const targetId = parts[2];
+    const action =
+      req.method === 'POST'
+        ? 'created'
+        : req.method === 'DELETE'
+          ? 'deleted'
+          : 'updated';
+    emitRealtime({
+      resource,
+      action,
+      id: targetId,
+      at: new Date().toISOString(),
+      actor_user_id: req.session?.userId ?? req.userId ?? null,
+      meta: { path: pathNoQuery, status: res.statusCode },
+    });
+  });
+
+  next();
+});
+
+// Health check endpoint
+app.get('/health', (_req, res) => res.json({ status: 'ok', uptime: process.uptime() }));
+
+// Rate limiters
+const loginLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 20, standardHeaders: true, legacyHeaders: false });
+const apiLimiter = rateLimit({ windowMs: 60 * 1000, max: 120, standardHeaders: true, legacyHeaders: false });
 
 // Routes
+app.use('/api/auth/login', loginLimiter);
+app.use('/api/auth/2fa', loginLimiter);
+app.use('/api', apiLimiter);
 app.use('/api/auth', authRoutes);
 
 // Protected routes (Session or Bearer)
 const authMiddleware = (req: express.Request, res: express.Response, next: express.NextFunction) => {
-  if (req.headers.authorization) {
+  const auth = req.headers.authorization;
+  if (auth && /^[Bb]earer\s+sv_[a-f0-9]{64}$/.test(auth)) {
     return bearerAuth(req, res, next);
   }
   return sessionAuth(req, res, next);
@@ -83,20 +161,35 @@ attachClientSpa(app);
 
 // Error handling
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
-  console.error(err.stack);
-  res.status(500).json({ success: false, error: 'Internal Server Error' });
+  const safeMethod = String(req.method).replace(/[^\w]/g, '').slice(0, 10);
+  const safeUrl = String(req.originalUrl).replace(/[\r\n\t]/g, '').slice(0, 200);
+  console.error(`[${safeMethod}] ${safeUrl} →`, err?.message); // codeql[js/tainted-format-string] - values are sanitized above
+  const message = typeof err?.message === 'string' ? err.message.slice(0, 500) : 'Internal Server Error';
+  res.status(err?.status || 500).json({ success: false, error: message });
 });
 
 // Initialize Database before starting the server
 initDB().then(() => {
-  app.listen(PORT, () => {
+  initRealtime(httpServer, sessionMiddleware);
+  httpServer.listen(PORT, () => {
     console.log(`ServerVault Backend running on http://localhost:${PORT}`);
   });
 
-  // Schedule cloud provider auto-sync - runs every hour, syncs providers scheduled for that hour
-  cron.schedule('0 * * * *', runAutoSync);
-  console.log('Cloud auto-sync scheduler running (checks every hour)');
+  // Schedule cloud provider auto-sync - checks every 5 min, syncs per provider interval
+  cron.schedule('*/5 * * * *', runAutoSync);
+  console.log('Cloud auto-sync scheduler running (checks every 5 min, syncs per provider interval)');
 }).catch(err => {
   console.error('Failed to start server due to database initialization error:', err);
   process.exit(1);
 });
+
+// Graceful shutdown
+const shutdown = () => {
+  console.log('Shutting down gracefully...');
+  httpServer.close(() => {
+    db.pool.end(() => process.exit(0));
+  });
+  setTimeout(() => process.exit(1), 10000);
+};
+process.on('SIGTERM', shutdown);
+process.on('SIGINT', shutdown);

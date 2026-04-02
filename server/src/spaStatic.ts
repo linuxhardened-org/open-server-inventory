@@ -38,7 +38,14 @@ export function attachClientSpa(app: Express): void {
 
   const indexHtml = path.resolve(clientDist, 'index.html');
 
-  app.use(express.static(clientDist, { index: ['index.html'] }));
+  // Hashed assets (JS/CSS) — cache aggressively, they never change at the same URL
+  app.use('/assets', express.static(path.join(clientDist, 'assets'), {
+    maxAge: '1y',
+    immutable: true,
+  }));
+
+  // Everything else (images, fonts, favicon) — short cache
+  app.use(express.static(clientDist, { index: false, maxAge: '1h' }));
 
   app.use((req, res, next) => {
     // Only catch actual API routes (/api/...), not client routes like /api-settings
@@ -53,6 +60,8 @@ export function attachClientSpa(app: Express): void {
       next();
       return;
     }
+    // index.html must never be cached — it references hashed JS/CSS bundles
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
     res.sendFile(indexHtml, (err) => {
       if (err) next(err);
     });

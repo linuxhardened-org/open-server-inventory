@@ -3,6 +3,7 @@ import axios, { type AxiosInstance, type AxiosRequestConfig } from 'axios';
 const instance = axios.create({
   baseURL: '/api',
   withCredentials: true,
+  headers: { 'X-Requested-With': 'XMLHttpRequest' },
 });
 
 instance.interceptors.response.use(

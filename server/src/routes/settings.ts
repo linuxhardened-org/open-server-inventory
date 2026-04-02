@@ -45,7 +45,7 @@ router.get('/', async (_req, res) => {
     // Expose which DB backend is active (without revealing credentials)
     const dbUrl = env.databaseUrl;
     settings._db_provider = dbUrl
-      ? dbUrl.includes('supabase.com') ? 'supabase' : 'external'
+      ? ((() => { try { return new URL(dbUrl).hostname.endsWith('.supabase.com'); } catch { return false; } })() ? 'supabase' : 'external')
       : 'local';
     sendSuccess(res, settings);
   } catch (err: any) {
@@ -62,7 +62,7 @@ router.get('/db-status', async (_req, res) => {
     sendSuccess(res, {
       connected: true,
       provider: dbUrl
-        ? dbUrl.includes('supabase.com') ? 'supabase' : 'external'
+        ? ((() => { try { return new URL(dbUrl).hostname.endsWith('.supabase.com'); } catch { return false; } })() ? 'supabase' : 'external')
         : 'local',
       version: version.split(' ').slice(0, 2).join(' '),
     });
@@ -75,19 +75,34 @@ router.get('/db-status', async (_req, res) => {
 router.put('/', sessionAuth, adminAuth, async (req, res) => {
   const schema = z.object({
     app_name: z.string().trim().min(1).max(80).optional(),
+    app_logo_url: z
+      .string()
+      .trim()
+      .max(500000) // allow base64 image data URLs (up to ~375KB image)
+      .refine(
+        (v) => v === '' || v.startsWith('/') || /^https?:\/\//i.test(v) || /^data:image\/(png|jpeg|gif|webp);base64,/i.test(v),
+        'Logo must be an http(s) URL, app-relative path, or base64 PNG/JPEG/GIF/WebP data URI'
+      )
+      .optional(),
   });
   const parsed = schema.safeParse(req.body);
   if (!parsed.success) return sendError(res, 'Invalid input', 400);
 
   try {
-    const { app_name } = parsed.data;
+    const { app_name, app_logo_url } = parsed.data;
     if (app_name !== undefined) {
       await db.query(
         'INSERT INTO app_settings (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value',
         ['app_name', app_name]
       );
     }
-    sendSuccess(res, { app_name });
+    if (app_logo_url !== undefined) {
+      await db.query(
+        'INSERT INTO app_settings (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value',
+        ['app_logo_url', app_logo_url]
+      );
+    }
+    sendSuccess(res, { app_name, app_logo_url });
   } catch (err: any) {
     sendError(res, err.message || 'Failed to save settings');
   }

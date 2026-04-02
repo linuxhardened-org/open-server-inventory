@@ -43,6 +43,19 @@ function dedupeKey(serverId: number, addr: string): string {
   return `${serverId}\0${addr.trim().toLowerCase()}`;
 }
 
+interface LinodeNetworkExtras {
+  additional_public_ipv4?: string[];
+  additional_public_ipv6?: string[];
+  vpc_ipv4?: string[];
+  vpc_ipv6?: string[];
+  nat_1_1_ipv4?: string[];
+}
+
+function parseNetworkExtras(raw: string | null | undefined): LinodeNetworkExtras | null {
+  if (!raw) return null;
+  try { return typeof raw === 'string' ? JSON.parse(raw) : raw; } catch { return null; }
+}
+
 /**
  * Build list: catalog (server_ips) + IPs stored on servers.* columns, deduped by (server_id, ip_address).
  */
@@ -56,7 +69,7 @@ async function listAllIpsMerged(): Promise<MergedIpRow[]> {
       JOIN servers s ON s.id = ip.server_id
     `),
     db.query(`
-      SELECT id, name, hostname, ip_address, private_ip, ipv6_address, private_ipv6, created_at, updated_at
+      SELECT id, name, hostname, ip_address, private_ip, ipv6_address, private_ipv6, linode_network_extras, created_at, updated_at
       FROM servers
     `),
   ]);
@@ -83,6 +96,7 @@ async function listAllIpsMerged(): Promise<MergedIpRow[]> {
     private_ip: string | null;
     ipv6_address: string | null;
     private_ipv6: string | null;
+    linode_network_extras: string | null;
     created_at: string;
     updated_at: string;
   }[];
@@ -97,13 +111,7 @@ async function listAllIpsMerged(): Promise<MergedIpRow[]> {
     if (!a) return;
     if (catalogKeys.has(dedupeKey(s.id, a))) return;
     const ipType: MergedIpRow['ip_type'] =
-      kind === 'public'
-        ? 'public'
-        : kind === 'private'
-          ? 'private'
-          : kind === 'ipv6'
-            ? 'ipv6'
-            : 'private_ipv6';
+      kind === 'public' ? 'public' : kind === 'private' ? 'private' : kind === 'ipv6' ? 'ipv6' : 'private_ipv6';
     embedded.push({
       id: embeddedId(s.id, kind),
       server_id: s.id,
@@ -118,10 +126,19 @@ async function listAllIpsMerged(): Promise<MergedIpRow[]> {
   };
 
   for (const s of servers) {
-    pushIf(s, s.ip_address, 'public', 'Public IPv4 (server)');
-    pushIf(s, s.private_ip, 'private', 'Private IPv4 (server)');
-    pushIf(s, s.ipv6_address, 'ipv6', 'Public IPv6 (server)');
-    pushIf(s, s.private_ipv6, 'private_ipv6', 'Private IPv6 (server)');
+    pushIf(s, s.ip_address, 'public', 'Public IPv4');
+    pushIf(s, s.private_ip, 'private', 'Private IPv4');
+    pushIf(s, s.ipv6_address, 'ipv6', 'Public IPv6');
+    pushIf(s, s.private_ipv6, 'private_ipv6', 'Private IPv6');
+
+    const extras = parseNetworkExtras(s.linode_network_extras);
+    if (extras) {
+      (extras.additional_public_ipv4 ?? []).forEach((a) => pushIf(s, a, 'public', 'Additional Public IPv4'));
+      (extras.additional_public_ipv6 ?? []).forEach((a) => pushIf(s, a, 'ipv6', 'Additional Public IPv6'));
+      (extras.vpc_ipv4 ?? []).forEach((a) => pushIf(s, a, 'private', 'VPC IPv4'));
+      (extras.vpc_ipv6 ?? []).forEach((a) => pushIf(s, a, 'private_ipv6', 'VPC IPv6'));
+      (extras.nat_1_1_ipv4 ?? []).forEach((a) => pushIf(s, a, 'public', 'NAT 1:1 IPv4'));
+    }
   }
 
   const catalogMerged: MergedIpRow[] = catalog.map((r) => ({
@@ -154,7 +171,7 @@ async function listServerIpsMerged(serverId: number): Promise<MergedIpRow[]> {
       [serverId]
     ),
     db.query(
-      `SELECT id, name, hostname, ip_address, private_ip, ipv6_address, private_ipv6, created_at, updated_at FROM servers WHERE id = $1`,
+      `SELECT id, name, hostname, ip_address, private_ip, ipv6_address, private_ipv6, linode_network_extras, created_at, updated_at FROM servers WHERE id = $1`,
       [serverId]
     ),
   ]);
@@ -182,6 +199,7 @@ async function listServerIpsMerged(serverId: number): Promise<MergedIpRow[]> {
         private_ip: string | null;
         ipv6_address: string | null;
         private_ipv6: string | null;
+        linode_network_extras: string | null;
         created_at: string;
         updated_at: string;
       }
@@ -193,13 +211,7 @@ async function listServerIpsMerged(serverId: number): Promise<MergedIpRow[]> {
       if (!a) return;
       if (catalogKeys.has(dedupeKey(s.id, a))) return;
       const ipType: MergedIpRow['ip_type'] =
-        kind === 'public'
-          ? 'public'
-          : kind === 'private'
-            ? 'private'
-            : kind === 'ipv6'
-              ? 'ipv6'
-              : 'private_ipv6';
+        kind === 'public' ? 'public' : kind === 'private' ? 'private' : kind === 'ipv6' ? 'ipv6' : 'private_ipv6';
       embedded.push({
         id: embeddedId(s.id, kind),
         server_id: s.id,
@@ -212,10 +224,19 @@ async function listServerIpsMerged(serverId: number): Promise<MergedIpRow[]> {
         source: 'server',
       });
     };
-    pushIf(s.ip_address, 'public', 'Public IPv4 (server)');
-    pushIf(s.private_ip, 'private', 'Private IPv4 (server)');
-    pushIf(s.ipv6_address, 'ipv6', 'Public IPv6 (server)');
-    pushIf(s.private_ipv6, 'private_ipv6', 'Private IPv6 (server)');
+    pushIf(s.ip_address, 'public', 'Public IPv4');
+    pushIf(s.private_ip, 'private', 'Private IPv4');
+    pushIf(s.ipv6_address, 'ipv6', 'Public IPv6');
+    pushIf(s.private_ipv6, 'private_ipv6', 'Private IPv6');
+
+    const extras = parseNetworkExtras(s.linode_network_extras);
+    if (extras) {
+      (extras.additional_public_ipv4 ?? []).forEach((a) => pushIf(a, 'public', 'Additional Public IPv4'));
+      (extras.additional_public_ipv6 ?? []).forEach((a) => pushIf(a, 'ipv6', 'Additional Public IPv6'));
+      (extras.vpc_ipv4 ?? []).forEach((a) => pushIf(a, 'private', 'VPC IPv4'));
+      (extras.vpc_ipv6 ?? []).forEach((a) => pushIf(a, 'private_ipv6', 'VPC IPv6'));
+      (extras.nat_1_1_ipv4 ?? []).forEach((a) => pushIf(a, 'public', 'NAT 1:1 IPv4'));
+    }
   }
 
   const catalogMerged: MergedIpRow[] = catalog.map((r) => ({
@@ -236,10 +257,16 @@ async function listServerIpsMerged(serverId: number): Promise<MergedIpRow[]> {
 }
 
 // GET / - List all IPs (server record fields + server_ips catalog), deduped
-router.get('/', async (_req, res) => {
+router.get('/', async (req, res) => {
   try {
-    const rows = await listAllIpsMerged();
-    sendSuccess(res, rows);
+    const limit = Math.min(parseInt(String(req.query.limit ?? '5000'), 10) || 5000, 5000);
+    const offset = Math.max(parseInt(String(req.query.offset ?? '0'), 10) || 0, 0);
+
+    const allRows = await listAllIpsMerged();
+    const total = allRows.length;
+    const paginatedRows = allRows.slice(offset, offset + limit);
+
+    sendSuccess(res, { ips: paginatedRows, total });
   } catch (err: any) {
     sendError(res, err.message);
   }

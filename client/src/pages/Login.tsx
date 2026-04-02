@@ -12,6 +12,7 @@ type LoginResponse = {
     id: number;
     username: string;
     realName?: string;
+    profilePictureUrl?: string;
     role: string;
     totpEnabled: boolean;
     passwordChangeRequired?: boolean;
@@ -42,6 +43,7 @@ export const Login = () => {
           id: u.id,
           username: u.username,
           real_name: u.realName,
+          profile_picture_url: u.profilePictureUrl || null,
           role: u.role as 'admin' | 'operator',
           totp_enabled: u.totpEnabled,
           password_change_required: !!u.passwordChangeRequired,
@@ -117,10 +119,13 @@ export const Login = () => {
       >
         <div
           style={{
-            background: 'hsl(var(--surface))',
+            background: 'hsl(var(--surface) / 0.86)',
+            backdropFilter: 'blur(14px) saturate(150%)',
+            WebkitBackdropFilter: 'blur(14px) saturate(150%)',
             border: '1px solid hsl(var(--border))',
             borderRadius: 16,
             overflow: 'hidden',
+            boxShadow: '0 24px 64px -30px hsl(var(--primary) / 0.45), 0 1px 0 hsl(0 0% 100% / 0.1) inset',
           }}
         >
           {/* Top accent bar */}
@@ -159,6 +164,18 @@ export const Login = () => {
                     {'> _'}
                   </text>
                 </svg>
+                <span
+                  aria-hidden
+                  style={{
+                    position: 'absolute',
+                    inset: -6,
+                    borderRadius: 14,
+                    border: '1px solid hsl(var(--primary) / 0.3)',
+                    boxShadow: '0 0 24px hsl(var(--primary) / 0.32)',
+                    animation: 'sv-pulse 2.4s ease-in-out infinite',
+                    pointerEvents: 'none',
+                  }}
+                />
               </div>
               <div className="text-center">
                 <h1

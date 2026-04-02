@@ -21,3 +21,18 @@ Add screenshots here for the README. Recommended files:
 - Login: 600x400 (cropped view)
 
 Save as PNG with descriptive names matching the README references.
+
+## Playwright automation
+
+You can auto-capture screenshots with:
+
+```bash
+npm install
+npx playwright install chromium
+node scripts/playwright_capture_screenshots.mjs http://localhost:8080
+```
+
+Generated files:
+
+- `docs/screenshots/login_fresh.png`
+- `docs/screenshots/setup_fresh.png`

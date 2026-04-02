@@ -7,6 +7,7 @@ CREATE TABLE IF NOT EXISTS users (
   username VARCHAR(255) UNIQUE NOT NULL,
   password_hash TEXT NOT NULL,
   real_name VARCHAR(255),
+  profile_picture_url TEXT,
   role VARCHAR(50) DEFAULT 'operator',
   totp_secret TEXT,
   totp_enabling_secret TEXT, -- Temp storage for 2FA setup
@@ -20,6 +21,7 @@ CREATE TABLE IF NOT EXISTS api_tokens (
   user_id INTEGER NOT NULL,
   name VARCHAR(255) NOT NULL,
   token_hash TEXT UNIQUE NOT NULL,
+  expires_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
   last_used_at TIMESTAMPTZ,
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
@@ -50,9 +52,13 @@ CREATE TABLE IF NOT EXISTS servers (
   name VARCHAR(255) NOT NULL,
   hostname VARCHAR(255) NOT NULL,
   ip_address VARCHAR(50),
+  private_ip VARCHAR(50),
+  ipv6_address VARCHAR(100),
+  private_ipv6 VARCHAR(100),
   os VARCHAR(100),
   cpu_cores INTEGER,
   ram_gb INTEGER,
+  region VARCHAR(100),
   group_id INTEGER,
   ssh_key_id INTEGER,
   status VARCHAR(50) DEFAULT 'active',
@@ -62,6 +68,18 @@ CREATE TABLE IF NOT EXISTS servers (
   FOREIGN KEY (group_id) REFERENCES groups(id) ON DELETE SET NULL,
   FOREIGN KEY (ssh_key_id) REFERENCES ssh_keys(id) ON DELETE SET NULL
 );
+
+CREATE TABLE IF NOT EXISTS server_ips (
+  id SERIAL PRIMARY KEY,
+  server_id INTEGER NOT NULL,
+  ip_address VARCHAR(100) NOT NULL,
+  ip_type VARCHAR(20) NOT NULL DEFAULT 'public',
+  label VARCHAR(100),
+  created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (server_id) REFERENCES servers(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_server_ips_server_id ON server_ips(server_id);
 
 CREATE TABLE IF NOT EXISTS server_disks (
   id SERIAL PRIMARY KEY,
@@ -155,6 +173,7 @@ CREATE TABLE IF NOT EXISTS cloud_providers (
   provider VARCHAR(50) NOT NULL DEFAULT 'linode',
   api_token TEXT NOT NULL,
   auto_sync BOOLEAN DEFAULT TRUE,
+  sync_hour INTEGER DEFAULT 0,
   last_sync_at TIMESTAMPTZ,
   server_count INTEGER DEFAULT 0,
   created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
@@ -162,4 +181,5 @@ CREATE TABLE IF NOT EXISTS cloud_providers (
 
 ALTER TABLE servers ADD COLUMN IF NOT EXISTS cloud_provider_id INTEGER REFERENCES cloud_providers(id) ON DELETE SET NULL;
 ALTER TABLE servers ADD COLUMN IF NOT EXISTS cloud_instance_id VARCHAR(255);
+ALTER TABLE servers ADD COLUMN IF NOT EXISTS linode_network_extras TEXT;
 `;

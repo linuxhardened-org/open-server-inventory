@@ -1,51 +1,52 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { Cloud, RefreshCw, Plus, Trash2 } from 'lucide-react';
+import { Cloud, RefreshCw, Plus, Trash2, ShieldCheck, ShieldAlert, ShieldX, ChevronDown, ChevronUp } from 'lucide-react';
+import { SvSelect } from '../components/SvSelect';
 import { motion } from 'framer-motion';
 import axios, { getApiErrorMessage } from '../lib/api';
 import toast from 'react-hot-toast';
-import { LINODE_LOGO_URL } from '../lib/cloudAssets';
+import { getProviderLogo, SUPPORTED_PROVIDERS } from '../lib/cloudAssets';
+import { useRealtimeResource } from '../hooks/useRealtimeResource';
+import type { CloudProvider } from '../types';
 
-interface CloudProvider {
-  id: number;
-  name: string;
-  /** API column */
-  provider?: string;
-  provider_type?: string;
-  auto_sync: boolean;
-  sync_hour: number;
-  last_synced_at: string | null;
-  server_count?: number;
-}
-
-const COMING_SOON_PROVIDERS = [
-  { name: 'AWS', logo: '/images/aws-logo.svg' },
-  { name: 'GCP', logo: '/images/gcp-logo.svg' },
-  { name: 'DigitalOcean', logo: '/images/digitalocean-logo.svg' },
-  { name: 'Vultr', logo: '/images/vultr-logo.svg' },
-] as const;
-
-function formatHour(hour: number): string {
-  const h = hour % 12 || 12;
-  const ampm = hour < 12 ? 'AM' : 'PM';
-  return `${h}:00 ${ampm}`;
-}
-
-function providerKind(p: CloudProvider): string {
-  return p.provider ?? p.provider_type ?? '';
-}
+const INTERVAL_OPTIONS = [
+  { value: 15, label: 'Every 15 min' },
+  { value: 30, label: 'Every 30 min' },
+  { value: 60, label: 'Every hour' },
+  { value: 120, label: 'Every 2 hours' },
+  { value: 360, label: 'Every 6 hours' },
+  { value: 720, label: 'Every 12 hours' },
+  { value: 1440, label: 'Daily' },
+];
 
 export const CloudIntegrations = () => {
   const [providers, setProviders] = useState<CloudProvider[]>([]);
   const [loading, setLoading] = useState(true);
   const [addingProvider, setAddingProvider] = useState(false);
   const [syncingId, setSyncingId] = useState<number | null>(null);
-  const [newProvider, setNewProvider] = useState({ name: '', api_token: '', auto_sync: true, sync_hour: 0 });
+  const [bulkSyncing, setBulkSyncing] = useState(false);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
+  const [selectedProviderIds, setSelectedProviderIds] = useState<number[]>([]);
+  const [newProvider, setNewProvider] = useState({ name: '', provider: 'linode', api_token: '', ovh_app_key: '', ovh_app_secret: '', ovh_consumer_key: '', aws_access_key_id: '', aws_secret_access_key: '', aws_region: 'us-east-1', gcp_service_account_json: '', auto_sync: true, sync_interval_minutes: 60 });
+  const isOvhProvider = (p: string) => p === 'ovh-ca' || p === 'ovh-us' || p === 'ovh-eu';
+  const isAwsProvider = (p: string) => p === 'aws';
+  const isGcpProvider = (p: string) => p === 'gcp';
 
+  type Risk = 'critical' | 'high' | 'medium' | 'low' | 'ok';
+  interface AuditPermission { name: string; scope: string; present: boolean; required: boolean; risk: Risk; description: string; }
+  interface AuditResult { valid: boolean; overallRisk: Risk; unnecessaryCount: number; permissions: AuditPermission[]; }
+  const [auditing, setAuditing] = useState(false);
+  const [auditResult, setAuditResult] = useState<AuditResult | null>(null);
+  const [auditExpanded, setAuditExpanded] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const auditDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isAuditSupportedProvider = (provider: string) => provider === 'linode';
   const fetchProviders = useCallback(async () => {
     try {
       const res = (await axios.get('/cloud-providers')) as { success: boolean; data: CloudProvider[] };
-      setProviders(Array.isArray(res?.data) ? res.data : []);
+      const rows = Array.isArray(res?.data) ? res.data : [];
+      setProviders(rows);
+      setSelectedProviderIds((prev) => prev.filter((id) => rows.some((p) => p.id === id)));
     } catch (err: unknown) {
       toast.error(getApiErrorMessage(err, 'Could not load cloud providers'));
     } finally {
@@ -56,24 +57,78 @@ export const CloudIntegrations = () => {
   useEffect(() => {
     fetchProviders();
   }, [fetchProviders]);
+  useRealtimeResource('cloud-providers', () => void fetchProviders());
+  useRealtimeResource('servers', () => void fetchProviders());
 
   const handleAddProvider = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newProvider.name.trim() || !newProvider.api_token.trim()) return;
+    if (submitting) return;
+    const ovh = isOvhProvider(newProvider.provider);
+    const aws = isAwsProvider(newProvider.provider);
+    const gcp = isGcpProvider(newProvider.provider);
+    if (!newProvider.name.trim()) return;
+    if (ovh) {
+      if (!newProvider.ovh_app_key.trim() || !newProvider.ovh_app_secret.trim() || !newProvider.ovh_consumer_key.trim()) return;
+    } else if (aws) {
+      if (!newProvider.aws_access_key_id.trim() || !newProvider.aws_secret_access_key.trim()) return;
+    } else if (gcp) {
+      if (!newProvider.gcp_service_account_json.trim()) return;
+      try { JSON.parse(newProvider.gcp_service_account_json); } catch { toast.error('Invalid JSON in service account key'); return; }
+    } else if (!newProvider.api_token.trim()) return;
+    const apiToken = ovh
+      ? JSON.stringify({ appKey: newProvider.ovh_app_key.trim(), appSecret: newProvider.ovh_app_secret.trim(), consumerKey: newProvider.ovh_consumer_key.trim() })
+      : aws
+      ? JSON.stringify({ accessKeyId: newProvider.aws_access_key_id.trim(), secretAccessKey: newProvider.aws_secret_access_key.trim() })
+      : gcp
+      ? newProvider.gcp_service_account_json.trim()
+      : newProvider.api_token.trim();
+    setSubmitting(true);
     try {
-      await axios.post('/cloud-providers', {
+      const res = await axios.post('/cloud-providers', {
         name: newProvider.name.trim(),
-        provider: 'linode',
-        api_token: newProvider.api_token.trim(),
+        provider: newProvider.provider,
+        api_token: apiToken,
         auto_sync: newProvider.auto_sync,
-        sync_hour: newProvider.sync_hour,
-      });
-      toast.success('Cloud provider added');
+        sync_interval_minutes: newProvider.sync_interval_minutes,
+      }) as { success: boolean; data: { id: number } };
       setAddingProvider(false);
-      setNewProvider({ name: '', api_token: '', auto_sync: true, sync_hour: 0 });
+      setNewProvider({ name: '', provider: 'linode', api_token: '', ovh_app_key: '', ovh_app_secret: '', ovh_consumer_key: '', aws_access_key_id: '', aws_secret_access_key: '', aws_region: 'us-east-1', gcp_service_account_json: '', auto_sync: true, sync_interval_minutes: 60 });
+      setAuditResult(null);
+      await fetchProviders();
+      // Instantly sync the new provider in the background
+      toast.loading('Syncing servers...', { id: 'initial-sync' });
+      try {
+        await axios.post(`/cloud-providers/${res.data.id}/sync`);
+        toast.success('Provider added and synced', { id: 'initial-sync' });
+      } catch {
+        toast.error('Provider added but initial sync failed', { id: 'initial-sync' });
+      }
       await fetchProviders();
     } catch (err: unknown) {
       toast.error((err as { error?: string })?.error || 'Failed to add provider');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleAuditToken = async (tokenOverride?: string, providerOverride?: string) => {
+    const token = tokenOverride ?? newProvider.api_token.trim();
+    const provider = providerOverride ?? newProvider.provider;
+    if (!token) { toast.error('Enter an API token first'); return; }
+    if (!isAuditSupportedProvider(provider)) return;
+    setAuditing(true);
+    setAuditResult(null);
+    try {
+      const res = await axios.post('/cloud-providers/audit-token', {
+        provider,
+        api_token: token,
+      }) as { success: boolean; data: AuditResult };
+      setAuditResult(res.data);
+      setAuditExpanded(true);
+    } catch (err: unknown) {
+      toast.error((err as { error?: string })?.error || 'Audit failed');
+    } finally {
+      setAuditing(false);
     }
   };
 
@@ -100,11 +155,12 @@ export const CloudIntegrations = () => {
     }
   };
 
-  const handleUpdateSyncHour = async (id: number, syncHour: number) => {
+  const handleUpdateSyncInterval = async (id: number, minutes: number) => {
     try {
-      await axios.patch(`/cloud-providers/${id}`, { sync_hour: syncHour });
+      await axios.patch(`/cloud-providers/${id}`, { sync_interval_minutes: minutes });
       await fetchProviders();
-      toast.success(`Sync time updated to ${formatHour(syncHour)}`);
+      const label = INTERVAL_OPTIONS.find((o) => o.value === minutes)?.label ?? `${minutes} min`;
+      toast.success(`Sync interval updated: ${label}`);
     } catch (err: unknown) {
       toast.error((err as { error?: string })?.error || 'Failed to update');
     }
@@ -121,6 +177,52 @@ export const CloudIntegrations = () => {
     }
   };
 
+  const allSelected = providers.length > 0 && selectedProviderIds.length === providers.length;
+  const hasSelection = selectedProviderIds.length > 0;
+
+  const toggleSelected = (id: number) => {
+    setSelectedProviderIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  };
+
+  const toggleSelectAll = () => {
+    setSelectedProviderIds((prev) => (prev.length === providers.length ? [] : providers.map((p) => p.id)));
+  };
+
+  const handleBulkSync = async () => {
+    if (!hasSelection) return;
+    setBulkSyncing(true);
+    try {
+      const settled = await Promise.allSettled(
+        selectedProviderIds.map((id) => axios.post(`/cloud-providers/${id}/sync`))
+      );
+      const ok = settled.filter((r) => r.status === 'fulfilled').length;
+      const fail = settled.length - ok;
+      if (ok > 0) toast.success(`Synced ${ok} provider${ok !== 1 ? 's' : ''}`);
+      if (fail > 0) toast.error(`${fail} sync operation${fail !== 1 ? 's' : ''} failed`);
+      await fetchProviders();
+    } finally {
+      setBulkSyncing(false);
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (!hasSelection) return;
+    if (!confirm(`Delete ${selectedProviderIds.length} selected provider(s)? Imported servers will remain.`)) return;
+    setBulkDeleting(true);
+    try {
+      const settled = await Promise.allSettled(
+        selectedProviderIds.map((id) => axios.delete(`/cloud-providers/${id}`))
+      );
+      const ok = settled.filter((r) => r.status === 'fulfilled').length;
+      const fail = settled.length - ok;
+      if (ok > 0) toast.success(`Deleted ${ok} provider${ok !== 1 ? 's' : ''}`);
+      if (fail > 0) toast.error(`${fail} delete operation${fail !== 1 ? 's' : ''} failed`);
+      await fetchProviders();
+    } finally {
+      setBulkDeleting(false);
+    }
+  };
+
   return (
     <div className="page animate-in">
       <header className="page-header">
@@ -128,9 +230,9 @@ export const CloudIntegrations = () => {
           <h1>Cloud Integrations</h1>
           <p>Connect cloud providers to auto-import and sync servers.</p>
           <div style={{ marginTop: 8, display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-            {COMING_SOON_PROVIDERS.map((provider) => (
+            {SUPPORTED_PROVIDERS.filter((p) => !p.available).map((provider) => (
               <span
-                key={provider.name}
+                key={provider.value}
                 style={{
                   fontSize: 11,
                   padding: '3px 8px 3px 6px',
@@ -145,10 +247,10 @@ export const CloudIntegrations = () => {
               >
                 <img
                   src={provider.logo}
-                  alt={`${provider.name} logo`}
+                  alt={`${provider.label} logo`}
                   style={{ width: 14, height: 14, objectFit: 'contain' }}
                 />
-                {provider.name} (coming soon)
+                {provider.label} (coming soon)
               </span>
             ))}
           </div>
@@ -171,6 +273,39 @@ export const CloudIntegrations = () => {
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '6px 4px 2px' }}>
+              <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 12, color: 'hsl(var(--fg-2))' }}>
+                <input
+                  type="checkbox"
+                  checked={allSelected}
+                  onChange={toggleSelectAll}
+                  style={{ width: 15, height: 15, accentColor: 'hsl(var(--primary))' }}
+                />
+                Select all
+              </label>
+              <span style={{ fontSize: 12, color: 'hsl(var(--fg-3))' }}>
+                {selectedProviderIds.length} selected
+              </span>
+              <button
+                type="button"
+                onClick={handleBulkSync}
+                disabled={!hasSelection || bulkSyncing || bulkDeleting}
+                className="sv-btn-primary"
+                style={{ marginLeft: 'auto', padding: '6px 12px', fontSize: 12, gap: 5 }}
+              >
+                <RefreshCw style={{ width: 13, height: 13, animation: bulkSyncing ? 'spin 1s linear infinite' : 'none' }} />
+                {bulkSyncing ? 'Syncing selected...' : 'Sync selected'}
+              </button>
+              <button
+                type="button"
+                onClick={handleBulkDelete}
+                disabled={!hasSelection || bulkSyncing || bulkDeleting}
+                className="sv-btn-ghost"
+                style={{ padding: '6px 10px', color: 'hsl(var(--danger))', border: '1px solid hsl(var(--border-2))' }}
+              >
+                {bulkDeleting ? 'Deleting...' : 'Delete selected'}
+              </button>
+            </div>
             {providers.map((provider) => (
               <div
                 key={provider.id}
@@ -185,6 +320,13 @@ export const CloudIntegrations = () => {
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                  <input
+                    type="checkbox"
+                    checked={selectedProviderIds.includes(provider.id)}
+                    onChange={() => toggleSelected(provider.id)}
+                    style={{ width: 15, height: 15, accentColor: 'hsl(var(--primary))' }}
+                    aria-label={`Select ${provider.name}`}
+                  />
                   <div
                     style={{
                       width: 42,
@@ -197,9 +339,9 @@ export const CloudIntegrations = () => {
                       padding: 6,
                     }}
                   >
-                    {providerKind(provider) === 'linode' ? (
+                    {getProviderLogo(provider.provider) ? (
                       <img
-                        src={LINODE_LOGO_URL}
+                        src={getProviderLogo(provider.provider)!}
                         alt=""
                         style={{ width: '100%', height: '100%', objectFit: 'contain' }}
                         referrerPolicy="no-referrer"
@@ -212,7 +354,7 @@ export const CloudIntegrations = () => {
                     <div style={{ fontSize: 15, fontWeight: 600, color: 'hsl(var(--fg))' }}>{provider.name}</div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 4 }}>
                       <span style={{ fontSize: 11, padding: '3px 8px', borderRadius: 5, background: 'hsl(var(--surface-3))', color: 'hsl(var(--fg-2))', textTransform: 'uppercase', fontWeight: 600, letterSpacing: '0.03em' }}>
-                        {providerKind(provider)}
+                        {provider.provider}
                       </span>
                       {provider.server_count !== undefined && (
                         <span style={{ fontSize: 12, color: 'hsl(var(--fg-2))' }}>
@@ -220,9 +362,9 @@ export const CloudIntegrations = () => {
                         </span>
                       )}
                     </div>
-                    {provider.last_synced_at && (
+                    {provider.last_sync_at && (
                       <div style={{ fontSize: 11, color: 'hsl(var(--fg-3))', marginTop: 4 }}>
-                        Last synced: {new Date(provider.last_synced_at).toLocaleString()}
+                        Last synced: {new Date(provider.last_sync_at).toLocaleString()}
                       </div>
                     )}
                   </div>
@@ -238,17 +380,12 @@ export const CloudIntegrations = () => {
                     Auto-sync
                   </label>
                   {provider.auto_sync && (
-                    <select
-                      value={provider.sync_hour}
-                      onChange={(e) => handleUpdateSyncHour(provider.id, parseInt(e.target.value, 10))}
-                      className="sv-input"
-                      style={{ padding: '4px 8px', fontSize: 11, width: 'auto', minWidth: 90 }}
-                      title="Daily sync time"
-                    >
-                      {Array.from({ length: 24 }, (_, i) => (
-                        <option key={i} value={i}>{formatHour(i)}</option>
-                      ))}
-                    </select>
+                    <SvSelect
+                      value={String(provider.sync_interval_minutes ?? 60)}
+                      onChange={(v) => handleUpdateSyncInterval(provider.id, parseInt(v, 10))}
+                      options={INTERVAL_OPTIONS.map((o) => ({ value: String(o.value), label: o.label }))}
+                      compact
+                    />
                   )}
                   <button
                     type="button"
@@ -298,6 +435,9 @@ export const CloudIntegrations = () => {
             style={{
               width: '90%',
               maxWidth: 420,
+              maxHeight: '90vh',
+              display: 'flex',
+              flexDirection: 'column',
               background: 'hsl(var(--surface))',
               border: '1px solid hsl(var(--border))',
               borderRadius: 12,
@@ -311,7 +451,7 @@ export const CloudIntegrations = () => {
                 Add Cloud Provider
               </h2>
             </div>
-            <form onSubmit={handleAddProvider} style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <form onSubmit={handleAddProvider} style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 14, overflowY: 'auto', flex: 1 }}>
               <div>
                 <label style={{ display: 'block', fontSize: 11, fontWeight: 500, color: 'hsl(var(--fg-2))', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                   Name <span style={{ color: 'hsl(var(--danger))' }}>*</span>
@@ -328,12 +468,131 @@ export const CloudIntegrations = () => {
               </div>
               <div>
                 <label style={{ display: 'block', fontSize: 11, fontWeight: 500, color: 'hsl(var(--fg-2))', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                  Provider
+                  Provider <span style={{ color: 'hsl(var(--danger))' }}>*</span>
                 </label>
-                <div style={{ padding: '10px 12px', background: 'hsl(var(--surface-2))', border: '1px solid hsl(var(--border))', borderRadius: 6, fontSize: 13, color: 'hsl(var(--fg-2))' }}>
-                  Linode (more providers coming soon)
-                </div>
+                <SvSelect
+                  value={newProvider.provider}
+                  onChange={(v) => {
+                    setNewProvider({ ...newProvider, provider: v });
+                    setAuditResult(null);
+                  }}
+                  options={SUPPORTED_PROVIDERS.map((p) => ({
+                    value: p.value,
+                    label: p.label,
+                    icon: p.logo,
+                    disabled: !p.available,
+                    badge: !p.available ? 'soon' : undefined,
+                  }))}
+                />
               </div>
+              {isAwsProvider(newProvider.provider) ? (
+                <>
+                  {[
+                    { key: 'aws_access_key_id' as const, label: 'Access Key ID', placeholder: 'AKIAIOSFODNN7EXAMPLE' },
+                    { key: 'aws_secret_access_key' as const, label: 'Secret Access Key', placeholder: '40-character secret' },
+                  ].map(({ key, label, placeholder }) => (
+                    <div key={key}>
+                      <label style={{ display: 'block', fontSize: 11, fontWeight: 500, color: 'hsl(var(--fg-2))', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                        {label} <span style={{ color: 'hsl(var(--danger))' }}>*</span>
+                      </label>
+                      <input
+                        type="password"
+                        value={newProvider[key]}
+                        onChange={(e) => setNewProvider({ ...newProvider, [key]: e.target.value })}
+                        className="sv-input"
+                        style={{ width: '100%' }}
+                        placeholder={placeholder}
+                        required
+                      />
+                    </div>
+                  ))}
+                  <p style={{ fontSize: 11, color: 'hsl(var(--fg-3))', marginTop: -6 }}>
+                    Syncs all enabled regions automatically. IAM policy needs <strong>ec2:DescribeRegions</strong>, <strong>ec2:DescribeInstances</strong>, and <strong>ec2:DescribeInstanceTypes</strong>.
+                  </p>
+                </>
+              ) : isGcpProvider(newProvider.provider) ? (
+                <>
+                  <div>
+                    <label style={{ display: 'block', fontSize: 11, fontWeight: 500, color: 'hsl(var(--fg-2))', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                      Service Account Key (JSON) <span style={{ color: 'hsl(var(--danger))' }}>*</span>
+                    </label>
+                    <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+                      <label
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 6,
+                          fontSize: 12,
+                          padding: '6px 12px',
+                          borderRadius: 6,
+                          border: '1px solid hsl(var(--border-2))',
+                          background: 'hsl(var(--surface-2))',
+                          color: 'hsl(var(--fg-2))',
+                          cursor: 'pointer',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        Upload JSON file
+                        <input
+                          type="file"
+                          accept=".json,application/json"
+                          style={{ display: 'none' }}
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (!file) return;
+                            const reader = new FileReader();
+                            reader.onload = (ev) => {
+                              const text = ev.target?.result as string;
+                              setNewProvider({ ...newProvider, gcp_service_account_json: text });
+                            };
+                            reader.readAsText(file);
+                            e.target.value = '';
+                          }}
+                        />
+                      </label>
+                      <span style={{ fontSize: 12, color: 'hsl(var(--fg-3))', alignSelf: 'center' }}>or paste below</span>
+                    </div>
+                    <textarea
+                      value={newProvider.gcp_service_account_json}
+                      onChange={(e) => setNewProvider({ ...newProvider, gcp_service_account_json: e.target.value })}
+                      className="sv-input"
+                      style={{ width: '100%', minHeight: 120, fontFamily: 'monospace', fontSize: 11, resize: 'vertical' }}
+                      placeholder={'{\n  "type": "service_account",\n  "project_id": "...",\n  "private_key": "...",\n  "client_email": "..."\n}'}
+                      required
+                      spellCheck={false}
+                    />
+                  </div>
+                  <p style={{ fontSize: 11, color: 'hsl(var(--fg-3))', marginTop: -6 }}>
+                    Create a service account in IAM with <strong>Compute Viewer</strong> role, then generate a JSON key. All zones are discovered automatically.
+                  </p>
+                </>
+              ) : isOvhProvider(newProvider.provider) ? (
+                <>
+                  {[
+                    { key: 'ovh_app_key' as const, label: 'Application Key', placeholder: 'e.g. e753a62e99788f8a' },
+                    { key: 'ovh_app_secret' as const, label: 'Application Secret', placeholder: '32-character secret' },
+                    { key: 'ovh_consumer_key' as const, label: 'Consumer Key', placeholder: '32-character consumer key' },
+                  ].map(({ key, label, placeholder }) => (
+                    <div key={key}>
+                      <label style={{ display: 'block', fontSize: 11, fontWeight: 500, color: 'hsl(var(--fg-2))', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                        {label} <span style={{ color: 'hsl(var(--danger))' }}>*</span>
+                      </label>
+                      <input
+                        type="password"
+                        value={newProvider[key]}
+                        onChange={(e) => setNewProvider({ ...newProvider, [key]: e.target.value })}
+                        className="sv-input"
+                        style={{ width: '100%' }}
+                        placeholder={placeholder}
+                        required
+                      />
+                    </div>
+                  ))}
+                  <p style={{ fontSize: 11, color: 'hsl(var(--fg-3))', marginTop: -6 }}>
+                    Create credentials at api.ovh.com/createApp — request only GET access to /cloud/project
+                  </p>
+                </>
+              ) : (
               <div>
                 <label style={{ display: 'block', fontSize: 11, fontWeight: 500, color: 'hsl(var(--fg-2))', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                   API Token <span style={{ color: 'hsl(var(--danger))' }}>*</span>
@@ -341,16 +600,101 @@ export const CloudIntegrations = () => {
                 <input
                   type="password"
                   value={newProvider.api_token}
-                  onChange={(e) => setNewProvider({ ...newProvider, api_token: e.target.value })}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setNewProvider({ ...newProvider, api_token: val });
+                    setAuditResult(null);
+                    if (auditDebounceRef.current) clearTimeout(auditDebounceRef.current);
+                    if (val.trim() && !submitting && isAuditSupportedProvider(newProvider.provider)) {
+                      const capturedProvider = newProvider.provider;
+                      auditDebounceRef.current = setTimeout(() => handleAuditToken(val.trim(), capturedProvider), 800);
+                    }
+                  }}
                   className="sv-input"
                   style={{ width: '100%' }}
-                  placeholder="Linode Personal Access Token"
+                  placeholder={newProvider.provider === 'vultr' ? 'Vultr API key' : 'Linode Personal Access Token'}
                   required
                 />
-                <p style={{ fontSize: 11, color: 'hsl(var(--fg-3))', marginTop: 6 }}>
-                  Generate a read-only token at cloud.linode.com/profile/tokens
+                <p style={{ fontSize: 11, color: 'hsl(var(--fg-3))', marginTop: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  {newProvider.provider === 'vultr'
+                    ? 'Generate an API key at my.vultr.com/settings/#settingsapi'
+                    : 'Generate a read-only token at cloud.linode.com/profile/tokens'}
+                  {auditing && <span style={{ color: 'hsl(var(--fg-3))', fontStyle: 'italic' }}>· checking permissions...</span>}
                 </p>
+
+                {/* Audit Result Panel */}
+                {auditResult && (() => {
+                  const riskColor: Record<string, string> = {
+                    critical: 'hsl(var(--danger))',
+                    high: '#f97316',
+                    medium: '#eab308',
+                    low: '#3b82f6',
+                    ok: 'hsl(var(--primary))',
+                  };
+                  const RiskIcon = auditResult.overallRisk === 'ok' ? ShieldCheck
+                    : auditResult.overallRisk === 'critical' || auditResult.overallRisk === 'high' ? ShieldX
+                    : ShieldAlert;
+
+                  return (
+                    <div style={{ marginTop: 10, borderRadius: 8, border: `1px solid ${riskColor[auditResult.overallRisk]}33`, background: `${riskColor[auditResult.overallRisk]}0d`, overflow: 'hidden' }}>
+                      <button
+                        type="button"
+                        onClick={() => setAuditExpanded(x => !x)}
+                        style={{
+                          width: '100%',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 8,
+                          padding: '8px 10px',
+                          background: 'transparent',
+                          border: 'none',
+                          cursor: 'pointer',
+                          color: riskColor[auditResult.overallRisk],
+                          fontSize: 12,
+                          fontWeight: 600,
+                        }}
+                      >
+                        <RiskIcon style={{ width: 14, height: 14, flexShrink: 0 }} />
+                        {auditResult.overallRisk === 'ok'
+                          ? 'Token looks good — minimal permissions'
+                          : `${auditResult.unnecessaryCount} unnecessary permission${auditResult.unnecessaryCount !== 1 ? 's' : ''} detected`}
+                        <span style={{ marginLeft: 'auto', textTransform: 'uppercase', fontSize: 10, letterSpacing: '0.05em', padding: '2px 6px', borderRadius: 4, background: `${riskColor[auditResult.overallRisk]}22` }}>
+                          {auditResult.overallRisk}
+                        </span>
+                        {auditExpanded ? <ChevronUp style={{ width: 12, height: 12 }} /> : <ChevronDown style={{ width: 12, height: 12 }} />}
+                      </button>
+
+                      {auditExpanded && (
+                        <div style={{ padding: '0 10px 10px', display: 'flex', flexDirection: 'column', gap: 4 }}>
+                          {auditResult.permissions.filter(p => p.present || p.required).map(p => {
+                            const color = !p.present && p.required ? riskColor.critical
+                              : p.present && !p.required ? riskColor[p.risk]
+                              : 'hsl(var(--fg-3))';
+                            const statusLabel = !p.present && p.required ? 'MISSING'
+                              : p.present && !p.required ? 'UNNECESSARY'
+                              : p.present ? 'PRESENT' : 'NOT GRANTED';
+                            return (
+                              <div key={p.scope} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '5px 6px', borderRadius: 5, background: 'hsl(var(--surface) / 0.6)' }}>
+                                <span style={{ fontSize: 10, fontWeight: 700, color, marginTop: 1, minWidth: 90, flexShrink: 0 }}>{statusLabel}</span>
+                                <div>
+                                  <div style={{ fontSize: 11, fontWeight: 600, color: 'hsl(var(--fg))', fontFamily: 'monospace' }}>{p.scope}</div>
+                                  <div style={{ fontSize: 10, color: 'hsl(var(--fg-3))', marginTop: 1 }}>{p.description}</div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                          {auditResult.overallRisk !== 'ok' && (
+                            <p style={{ fontSize: 11, color: '#f97316', marginTop: 6, lineHeight: 1.4 }}>
+                              We recommend generating a new token with only <strong>linodes:read_only</strong> scope to follow the principle of least privilege.
+                            </p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
               </div>
+              )}
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <input
                   type="checkbox"
@@ -360,32 +704,30 @@ export const CloudIntegrations = () => {
                   style={{ width: 16, height: 16, accentColor: 'hsl(var(--primary))' }}
                 />
                 <label htmlFor="auto-sync-checkbox" style={{ fontSize: 13, color: 'hsl(var(--fg))' }}>
-                  Enable automatic daily sync
+                  Enable automatic sync
                 </label>
               </div>
               {newProvider.auto_sync && (
                 <div>
                   <label style={{ display: 'block', fontSize: 11, fontWeight: 500, color: 'hsl(var(--fg-2))', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                    Sync Time
+                    Sync Interval
                   </label>
-                  <select
-                    value={newProvider.sync_hour}
-                    onChange={(e) => setNewProvider({ ...newProvider, sync_hour: parseInt(e.target.value, 10) })}
-                    className="sv-input"
-                    style={{ width: '100%' }}
-                  >
-                    {Array.from({ length: 24 }, (_, i) => (
-                      <option key={i} value={i}>{formatHour(i)}</option>
-                    ))}
-                  </select>
+                  <SvSelect
+                    value={String(newProvider.sync_interval_minutes)}
+                    onChange={(v) => setNewProvider({ ...newProvider, sync_interval_minutes: parseInt(v, 10) })}
+                    options={INTERVAL_OPTIONS.map((o) => ({ value: String(o.value), label: o.label }))}
+                  />
+                  <p style={{ fontSize: 11, color: 'hsl(var(--fg-3))', marginTop: 6 }}>
+                    Sync only runs when data has actually changed (delta detection).
+                  </p>
                 </div>
               )}
               <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
                 <button type="button" onClick={() => setAddingProvider(false)} className="sv-btn-ghost" style={{ flex: 1, border: '1px solid hsl(var(--border-2))' }}>
                   Cancel
                 </button>
-                <button type="submit" className="sv-btn-primary" style={{ flex: 1 }}>
-                  Add Provider
+                <button type="submit" className="sv-btn-primary" style={{ flex: 1 }} disabled={submitting}>
+                  {submitting ? 'Adding...' : 'Add Provider'}
                 </button>
               </div>
             </form>
