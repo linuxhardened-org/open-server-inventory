@@ -21,6 +21,23 @@ make build          # Compile TypeScript (server) + Vite (client)
 make start          # docker-compose up --build
 ```
 
+### Docker (remote server: 142.44.210.103)
+```bash
+# Pull, rebuild, restart
+git -C /home/rushikesh.sakharle/projects/open-server-inventory-1 pull
+docker compose -f /home/rushikesh.sakharle/projects/open-server-inventory-1/docker-compose.yml up --build -d
+
+# Push to DockerHub (linuxhardened/open-server-inventory:latest)
+docker tag open-server-inventory-1-server:latest linuxhardened/open-server-inventory:latest
+docker push linuxhardened/open-server-inventory:latest
+```
+
+**Important:** The postgres volume does NOT auto-create the `servervault` database. On a fresh volume, run:
+```bash
+docker exec servervault-db psql -U postgres -c 'CREATE DATABASE servervault;'
+docker compose restart server
+```
+
 ### Per-directory dev
 ```bash
 cd server && npm run dev    # ts-node-dev with auto-reload on :3001
@@ -90,9 +107,16 @@ Client: `client/src/lib/realtime.ts` — singleton Socket.IO client. Events are 
 Optional Redis adapter: set `REDIS_URL` to enable multi-instance pub/sub. Falls back to in-memory if Redis is unavailable.
 
 ### Cloud Provider Sync
-Supported providers: Linode, DigitalOcean, OVH CA, OVH US. Provider sync functions are registered in `server/src/utils/providers/registry.ts` and called by `runAutoSync()` in `server/src/utils/cloudSync.ts`.
+Supported providers: Linode, DigitalOcean, OVH (CA/US/EU), AWS, GCP, Vultr. Provider sync functions live in `server/src/utils/providers/` and are registered in `server/src/utils/cloudSync.ts` via `registerProvider()`.
+
+- **OVH** (`ovh.ts`): single file for all 3 endpoints (CA/US/EU), each just calls `syncOvhProviderByBaseUrl` with a different base URL. Fetches Cloud instances, VPS (OS from `/vps/{name}/distribution`), and Dedicated servers in parallel.
+- **AWS** (`aws.ts`): credentials stored as JSON `{accessKeyId, secretAccessKey}`. Auto-discovers all enabled regions via `DescribeRegions`, fetches instances from all in parallel with `Promise.allSettled`.
+- **GCP** (`gcp.ts`): credentials = service account JSON stored as `api_token`. Auth via `google-auth-library` JWT. Uses `aggregated/instances` API to get all zones in one call.
+- **Vultr** (`vultr.ts`): plain API key, cursor-based pagination on `/v2/instances`.
 
 Auto-sync runs every 5 minutes via `node-cron`, but each provider syncs at its own configurable interval (default 60 min). Delta detection via SHA-256 hash of instance IDs+statuses skips DB writes when nothing changed. Synced servers are upserted by `cloud_instance_id` and grouped under an auto-created group named after the provider.
+
+**Note:** `cloud-providers` route uses `sessionAuth` only — Bearer tokens cannot access it. All other data routes support Bearer tokens.
 
 ### Database Schema (key tables)
 - `servers` — core inventory; related `server_disks`, `server_interfaces`, `server_tags`, `server_custom_values`, `server_history`, `server_ips`
@@ -110,3 +134,7 @@ Mutations to servers use **PostgreSQL transactions** to atomically update custom
 - Server history (`server_history`) is append-only audit log — never mutated
 - Export/import is JSON-based; full backup (admin only) includes SSH keys and tokens
 - Schema additions use additive-only migrations (`ADD COLUMN IF NOT EXISTS`) — never drops or renames existing columns
+- Cloud provider credentials for multi-field providers (OVH, AWS, GCP) are stored as JSON in the `api_token` column; single-key providers (Linode, DO, Vultr) store plaintext
+
+### Go SDK
+A boto3-style Go SDK lives in `sdk/go/`. Entry point: `New(baseURL, token)` or `NewFromEnv()` (reads `SERVERVAULT_BASE_URL` + `SERVERVAULT_TOKEN`). Service objects: `sv.Servers`, `sv.Groups`, `sv.Tags`, `sv.SSHKeys`, `sv.IPs`, `sv.Tokens`, `sv.Stats`. Stdlib only, no external deps.
