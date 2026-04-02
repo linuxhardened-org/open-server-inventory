@@ -1,4 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 40" width="120" height="40">
-  <rect width="120" height="40" rx="4" fill="#123F6D"/>
-  <text x="60" y="27" font-family="Arial,sans-serif" font-size="20" font-weight="700" fill="#ffffff" text-anchor="middle" letter-spacing="2">OVH</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 52">
+  <rect width="160" height="52" rx="8" fill="#123F6D"/>
+  <text x="24" y="37" font-family="Arial Black,Arial,sans-serif" font-size="28" font-weight="900" fill="#FFFFFF" text-anchor="middle">O</text>
+  <text x="80" y="37" font-family="Arial Black,Arial,sans-serif" font-size="28" font-weight="900" fill="#6EC6F5" text-anchor="middle">V</text>
+  <text x="136" y="37" font-family="Arial Black,Arial,sans-serif" font-size="28" font-weight="900" fill="#FFFFFF" text-anchor="middle">H</text>
 </svg>

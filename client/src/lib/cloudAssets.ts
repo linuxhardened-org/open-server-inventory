@@ -1,9 +1,9 @@
 /** Provider logos — files live in `client/public/images/` (copied to dist root by Vite). */
 export const LINODE_LOGO_URL = '/images/linode-logo.png';
 export const AWS_LOGO_URL = '/images/aws-logo.svg';
-export const GCP_LOGO_URL = '/images/gcp-logo.svg';
-export const DIGITALOCEAN_LOGO_URL = '/images/digitalocean-logo.svg';
-export const VULTR_LOGO_URL = '/images/vultr-logo.svg';
+export const GCP_LOGO_URL = '/images/gcp-logo.png';
+export const DIGITALOCEAN_LOGO_URL = '/images/digitalocean-logo.png';
+export const VULTR_LOGO_URL = '/images/vultr-logo.png';
 export const OVH_LOGO_URL = '/images/ovh-logo.svg';
 export const SUPABASE_LOGO_URL = '/images/supabase-logo.svg';
 export const POSTGRESQL_LOGO_URL = '/images/postgresql-logo.svg';
