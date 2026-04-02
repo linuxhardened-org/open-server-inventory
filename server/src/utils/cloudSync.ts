@@ -4,6 +4,7 @@ import { emitRealtime } from '../realtime';
 import { registerProvider, getSyncFn, type SyncResult } from './providers/registry';
 import { syncDigitalOceanProvider } from './providers/digitalocean';
 import { syncOvhCaProvider, syncOvhUsProvider } from './providers/ovh';
+import { syncAwsProvider } from './providers/aws';
 
 /**
  * Format Linode image string to human-readable OS name
@@ -707,5 +708,6 @@ registerProvider('linode', syncLinodeProvider);
 registerProvider('digitalocean', syncDigitalOceanProvider);
 registerProvider('ovh-ca', syncOvhCaProvider);
 registerProvider('ovh-us', syncOvhUsProvider);
+registerProvider('aws', syncAwsProvider);
 
 export { getSyncFn };

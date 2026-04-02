@@ -104,19 +104,22 @@ export const Sidebar = ({ isOpen }: { isOpen?: boolean; onClose?: () => void }) 
             type="button"
             onClick={() => setTheme('light')}
             style={{
+              minWidth: 0,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              gap: 6,
+              gap: 4,
               minHeight: 32,
-              padding: '7px 8px',
+              padding: '6px 6px',
               borderRadius: 8,
               border: '1px solid hsl(var(--border))',
               background: theme === 'light' ? 'hsl(var(--primary) / 0.14)' : 'hsl(var(--surface-2))',
               color: theme === 'light' ? 'hsl(var(--fg))' : 'hsl(var(--fg-2))',
-              fontSize: 11,
+              fontSize: 10.5,
               fontWeight: 500,
               cursor: 'pointer',
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
             }}
             title="Light theme"
           >
@@ -127,19 +130,22 @@ export const Sidebar = ({ isOpen }: { isOpen?: boolean; onClose?: () => void }) 
             type="button"
             onClick={() => setTheme('dark')}
             style={{
+              minWidth: 0,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              gap: 6,
+              gap: 4,
               minHeight: 32,
-              padding: '7px 8px',
+              padding: '6px 6px',
               borderRadius: 8,
               border: '1px solid hsl(var(--border))',
               background: theme === 'dark' ? 'hsl(var(--primary) / 0.14)' : 'hsl(var(--surface-2))',
               color: theme === 'dark' ? 'hsl(var(--fg))' : 'hsl(var(--fg-2))',
-              fontSize: 11,
+              fontSize: 10.5,
               fontWeight: 500,
               cursor: 'pointer',
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
             }}
             title="Dark theme"
           >
@@ -150,19 +156,22 @@ export const Sidebar = ({ isOpen }: { isOpen?: boolean; onClose?: () => void }) 
             type="button"
             onClick={() => setTheme('system')}
             style={{
+              minWidth: 0,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              gap: 6,
+              gap: 4,
               minHeight: 32,
-              padding: '7px 8px',
+              padding: '6px 6px',
               borderRadius: 8,
               border: '1px solid hsl(var(--border))',
               background: theme === 'system' ? 'hsl(var(--primary) / 0.14)' : 'hsl(var(--surface-2))',
               color: theme === 'system' ? 'hsl(var(--fg))' : 'hsl(var(--fg-2))',
-              fontSize: 11,
+              fontSize: 10.5,
               fontWeight: 500,
               cursor: 'pointer',
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
             }}
             title="Use system preference"
           >
