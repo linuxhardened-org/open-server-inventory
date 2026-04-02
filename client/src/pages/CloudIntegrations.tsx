@@ -27,9 +27,10 @@ export const CloudIntegrations = () => {
   const [bulkSyncing, setBulkSyncing] = useState(false);
   const [bulkDeleting, setBulkDeleting] = useState(false);
   const [selectedProviderIds, setSelectedProviderIds] = useState<number[]>([]);
-  const [newProvider, setNewProvider] = useState({ name: '', provider: 'linode', api_token: '', ovh_app_key: '', ovh_app_secret: '', ovh_consumer_key: '', aws_access_key_id: '', aws_secret_access_key: '', aws_region: 'us-east-1', auto_sync: true, sync_interval_minutes: 60 });
+  const [newProvider, setNewProvider] = useState({ name: '', provider: 'linode', api_token: '', ovh_app_key: '', ovh_app_secret: '', ovh_consumer_key: '', aws_access_key_id: '', aws_secret_access_key: '', aws_region: 'us-east-1', gcp_service_account_json: '', auto_sync: true, sync_interval_minutes: 60 });
   const isOvhProvider = (p: string) => p === 'ovh-ca' || p === 'ovh-us';
   const isAwsProvider = (p: string) => p === 'aws';
+  const isGcpProvider = (p: string) => p === 'gcp';
 
   type Risk = 'critical' | 'high' | 'medium' | 'low' | 'ok';
   interface AuditPermission { name: string; scope: string; present: boolean; required: boolean; risk: Risk; description: string; }
@@ -64,16 +65,22 @@ export const CloudIntegrations = () => {
     if (submitting) return;
     const ovh = isOvhProvider(newProvider.provider);
     const aws = isAwsProvider(newProvider.provider);
+    const gcp = isGcpProvider(newProvider.provider);
     if (!newProvider.name.trim()) return;
     if (ovh) {
       if (!newProvider.ovh_app_key.trim() || !newProvider.ovh_app_secret.trim() || !newProvider.ovh_consumer_key.trim()) return;
     } else if (aws) {
       if (!newProvider.aws_access_key_id.trim() || !newProvider.aws_secret_access_key.trim()) return;
+    } else if (gcp) {
+      if (!newProvider.gcp_service_account_json.trim()) return;
+      try { JSON.parse(newProvider.gcp_service_account_json); } catch { toast.error('Invalid JSON in service account key'); return; }
     } else if (!newProvider.api_token.trim()) return;
     const apiToken = ovh
       ? JSON.stringify({ appKey: newProvider.ovh_app_key.trim(), appSecret: newProvider.ovh_app_secret.trim(), consumerKey: newProvider.ovh_consumer_key.trim() })
       : aws
       ? JSON.stringify({ accessKeyId: newProvider.aws_access_key_id.trim(), secretAccessKey: newProvider.aws_secret_access_key.trim() })
+      : gcp
+      ? newProvider.gcp_service_account_json.trim()
       : newProvider.api_token.trim();
     setSubmitting(true);
     try {
@@ -85,7 +92,7 @@ export const CloudIntegrations = () => {
         sync_interval_minutes: newProvider.sync_interval_minutes,
       }) as { success: boolean; data: { id: number } };
       setAddingProvider(false);
-      setNewProvider({ name: '', provider: 'linode', api_token: '', ovh_app_key: '', ovh_app_secret: '', ovh_consumer_key: '', aws_access_key_id: '', aws_secret_access_key: '', aws_region: 'us-east-1', auto_sync: true, sync_interval_minutes: 60 });
+      setNewProvider({ name: '', provider: 'linode', api_token: '', ovh_app_key: '', ovh_app_secret: '', ovh_consumer_key: '', aws_access_key_id: '', aws_secret_access_key: '', aws_region: 'us-east-1', gcp_service_account_json: '', auto_sync: true, sync_interval_minutes: 60 });
       setAuditResult(null);
       await fetchProviders();
       // Instantly sync the new provider in the background
@@ -503,6 +510,62 @@ export const CloudIntegrations = () => {
                     Syncs all enabled regions automatically. IAM policy needs <strong>ec2:DescribeRegions</strong>, <strong>ec2:DescribeInstances</strong>, and <strong>ec2:DescribeInstanceTypes</strong>.
                   </p>
                 </>
+              ) : isGcpProvider(newProvider.provider) ? (
+                <>
+                  <div>
+                    <label style={{ display: 'block', fontSize: 11, fontWeight: 500, color: 'hsl(var(--fg-2))', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                      Service Account Key (JSON) <span style={{ color: 'hsl(var(--danger))' }}>*</span>
+                    </label>
+                    <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+                      <label
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 6,
+                          fontSize: 12,
+                          padding: '6px 12px',
+                          borderRadius: 6,
+                          border: '1px solid hsl(var(--border-2))',
+                          background: 'hsl(var(--surface-2))',
+                          color: 'hsl(var(--fg-2))',
+                          cursor: 'pointer',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        Upload JSON file
+                        <input
+                          type="file"
+                          accept=".json,application/json"
+                          style={{ display: 'none' }}
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (!file) return;
+                            const reader = new FileReader();
+                            reader.onload = (ev) => {
+                              const text = ev.target?.result as string;
+                              setNewProvider({ ...newProvider, gcp_service_account_json: text });
+                            };
+                            reader.readAsText(file);
+                            e.target.value = '';
+                          }}
+                        />
+                      </label>
+                      <span style={{ fontSize: 12, color: 'hsl(var(--fg-3))', alignSelf: 'center' }}>or paste below</span>
+                    </div>
+                    <textarea
+                      value={newProvider.gcp_service_account_json}
+                      onChange={(e) => setNewProvider({ ...newProvider, gcp_service_account_json: e.target.value })}
+                      className="sv-input"
+                      style={{ width: '100%', minHeight: 120, fontFamily: 'monospace', fontSize: 11, resize: 'vertical' }}
+                      placeholder={'{\n  "type": "service_account",\n  "project_id": "...",\n  "private_key": "...",\n  "client_email": "..."\n}'}
+                      required
+                      spellCheck={false}
+                    />
+                  </div>
+                  <p style={{ fontSize: 11, color: 'hsl(var(--fg-3))', marginTop: -6 }}>
+                    Create a service account in IAM with <strong>Compute Viewer</strong> role, then generate a JSON key. All zones are discovered automatically.
+                  </p>
+                </>
               ) : isOvhProvider(newProvider.provider) ? (
                 <>
                   {[
@@ -549,11 +612,13 @@ export const CloudIntegrations = () => {
                   }}
                   className="sv-input"
                   style={{ width: '100%' }}
-                  placeholder="Linode Personal Access Token"
+                  placeholder={newProvider.provider === 'vultr' ? 'Vultr API key' : 'Linode Personal Access Token'}
                   required
                 />
                 <p style={{ fontSize: 11, color: 'hsl(var(--fg-3))', marginTop: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
-                  Generate a read-only token at cloud.linode.com/profile/tokens
+                  {newProvider.provider === 'vultr'
+                    ? 'Generate an API key at my.vultr.com/settings/#settingsapi'
+                    : 'Generate a read-only token at cloud.linode.com/profile/tokens'}
                   {auditing && <span style={{ color: 'hsl(var(--fg-3))', fontStyle: 'italic' }}>· checking permissions...</span>}
                 </p>
 

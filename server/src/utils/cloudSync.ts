@@ -5,6 +5,8 @@ import { registerProvider, getSyncFn, type SyncResult } from './providers/regist
 import { syncDigitalOceanProvider } from './providers/digitalocean';
 import { syncOvhCaProvider, syncOvhUsProvider } from './providers/ovh';
 import { syncAwsProvider } from './providers/aws';
+import { syncGcpProvider } from './providers/gcp';
+import { syncVultrProvider } from './providers/vultr';
 
 /**
  * Format Linode image string to human-readable OS name
@@ -709,5 +711,7 @@ registerProvider('digitalocean', syncDigitalOceanProvider);
 registerProvider('ovh-ca', syncOvhCaProvider);
 registerProvider('ovh-us', syncOvhUsProvider);
 registerProvider('aws', syncAwsProvider);
+registerProvider('gcp', syncGcpProvider);
+registerProvider('vultr', syncVultrProvider);
 
 export { getSyncFn };

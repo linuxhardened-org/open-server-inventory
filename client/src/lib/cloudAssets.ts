@@ -16,6 +16,7 @@ const PROVIDER_LOGOS: Record<string, string> = {
   vultr: VULTR_LOGO_URL,
   'ovh-ca': OVH_LOGO_URL,
   'ovh-us': OVH_LOGO_URL,
+  'ovh': OVH_LOGO_URL,
 };
 
 export function getProviderLogo(provider: string): string | null {
@@ -28,6 +29,6 @@ export const SUPPORTED_PROVIDERS = [
   { value: 'ovh-ca', label: 'OVHcloud CA', logo: OVH_LOGO_URL, available: true },
   { value: 'ovh-us', label: 'OVHcloud US', logo: OVH_LOGO_URL, available: true },
   { value: 'aws', label: 'Amazon Web Services', logo: AWS_LOGO_URL, available: true },
-  { value: 'gcp', label: 'Google Cloud Platform', logo: GCP_LOGO_URL, available: false },
-  { value: 'vultr', label: 'Vultr', logo: VULTR_LOGO_URL, available: false },
+  { value: 'gcp', label: 'Google Cloud Platform', logo: GCP_LOGO_URL, available: true },
+  { value: 'vultr', label: 'Vultr', logo: VULTR_LOGO_URL, available: true },
 ];
