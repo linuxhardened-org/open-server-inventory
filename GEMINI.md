@@ -34,6 +34,21 @@ This document provides foundational context and instructions for AI agents worki
 
 ## Building and Running
 
+### Mandatory Rule
+**CRITICAL:** This project requires a full container rebuild after every `git pull`. Always run `docker-compose down && docker-compose up --build -d` to apply changes.
+
+### Automation Tool
+A script `./sync-and-rebuild.sh` is available to automate the following steps:
+1. `git fetch upstream`
+2. `git merge upstream/main`
+3. `git push origin main`
+4. `docker-compose down && docker-compose up --build -d`
+
+Usage:
+```bash
+./sync-and-rebuild.sh
+```
+
 ### Prerequisites
 - Node.js 18+
 - PostgreSQL 15+ (or Docker)
