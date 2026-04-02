@@ -26,8 +26,10 @@ services:
       dockerfile: server/Dockerfile
     ports:
       - "8080:8080"
+    # Optional overrides (DATABASE_URL, REDIS_URL, etc.). Copy server/.env.example → server/.env when needed.
     env_file:
-      - ./server/.env
+      - path: ./server/.env
+        required: false
     environment:
       - PORT=8080
       - NODE_ENV=production
