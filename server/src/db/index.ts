@@ -47,14 +47,24 @@ export async function seedDefaultAdmin(p: Pool): Promise<void> {
 }
 
 export const initDB = async () => {
-  try {
-    console.log(env.databaseUrl ? 'Using DATABASE_URL (SSL)' : 'Using local PostgreSQL');
-    await pool.query(schema);
-    await runMigrations(pool);
-    console.log('Database initialized successfully');
-  } catch (error) {
-    console.error('Failed to initialize database:', error);
-    process.exit(1);
+  console.log(env.databaseUrl ? 'Using DATABASE_URL (SSL)' : 'Using local PostgreSQL');
+  const maxRetries = 15;
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      await pool.query(schema);
+      await runMigrations(pool);
+      console.log('Database initialized successfully');
+      return;
+    } catch (error: any) {
+      const isNotReady = error?.code === '3D000' || error?.message?.includes('does not exist') || error?.code === 'ECONNREFUSED';
+      if (isNotReady && attempt < maxRetries) {
+        console.log(`Database not ready (attempt ${attempt}/${maxRetries}), retrying in 2s...`);
+        await new Promise((r) => setTimeout(r, 2000));
+      } else {
+        console.error('Failed to initialize database:', error);
+        process.exit(1);
+      }
+    }
   }
 };
 
