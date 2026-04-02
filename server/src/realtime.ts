@@ -61,7 +61,7 @@ function checkAuthed(socket: Socket): boolean {
 
 export function initRealtime(server: HttpServer, sessionMiddleware: RequestHandler): Server {
   const io = new Server(server, {
-    cors: { origin: env.clientUrl, credentials: true },
+    cors: { origin: env.corsAllowedOrigins, credentials: true },
     transports: ['websocket', 'polling'],
   });
 

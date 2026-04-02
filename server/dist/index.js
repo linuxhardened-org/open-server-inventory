@@ -88,8 +88,8 @@ app.use((0, helmet_1.default)({
 }));
 app.use((0, morgan_1.default)(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 app.use((0, cors_1.default)({
-    origin: env_1.env.clientUrl,
-    credentials: true
+    origin: env_1.env.corsAllowedOrigins,
+    credentials: true,
 }));
 app.use(express_1.default.json({ limit: '1mb' }));
 const sessionMiddleware = (0, express_session_1.default)({

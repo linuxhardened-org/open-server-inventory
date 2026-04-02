@@ -56,8 +56,8 @@ app.use(helmet({
 }));
 app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 app.use(cors({
-  origin: env.clientUrl,
-  credentials: true
+  origin: env.corsAllowedOrigins,
+  credentials: true,
 }));
 app.use(express.json({ limit: '1mb' }));
 
