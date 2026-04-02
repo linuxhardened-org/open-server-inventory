@@ -128,14 +128,12 @@ export const ApiSettings = () => {
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             onClick={(e) => e.stopPropagation()}
+            className="sv-card"
             style={{
               width: '90%',
               maxWidth: 420,
-              background: 'hsl(var(--surface))',
-              border: '1px solid hsl(var(--border))',
-              borderRadius: 12,
+              padding: 0,
               overflow: 'hidden',
-              boxShadow: '0 16px 48px hsl(var(--bg) / 0.4)',
             }}
           >
             <div style={{ padding: '14px 16px', borderBottom: '1px solid hsl(var(--border))', background: 'hsl(var(--surface-2))', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>

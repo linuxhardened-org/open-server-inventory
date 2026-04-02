@@ -31,11 +31,10 @@ export const ServerTable = ({
     <div
       className="overflow-x-auto overflow-y-auto rounded-xl"
       style={{
-        border: '1px solid hsl(var(--border))',
-        background: 'hsl(var(--surface) / 0.75)',
-        boxShadow: '0 18px 40px -28px hsl(var(--primary) / 0.45)',
-        backdropFilter: 'blur(8px)',
         maxHeight: 520,
+        border: '1px solid hsl(var(--border))',
+        background: 'hsl(var(--surface) / 0.6)',
+        backdropFilter: 'blur(8px)',
       }}
     >
       <table className="w-full text-left" style={{ borderCollapse: 'separate', borderSpacing: 0 }}>

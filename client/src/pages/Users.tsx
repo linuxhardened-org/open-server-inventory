@@ -143,47 +143,104 @@ export const Users = () => {
         </button>
       </header>
 
-      <div className="flex items-center gap-3">
-        <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 12, color: 'hsl(var(--fg-2))' }}>
-          <input
-            type="checkbox"
-            checked={allSelected}
-            onChange={toggleSelectAll}
-            style={{ width: 14, height: 14, accentColor: 'hsl(var(--primary))' }}
-          />
-          Select all
-        </label>
-        <span style={{ fontSize: 12, color: 'hsl(var(--fg-3))' }}>{selectedUserIds.length} selected</span>
-        <button
-          type="button"
-          className="sv-btn-ghost"
-          style={{ border: '1px solid hsl(var(--border-2))', color: 'hsl(var(--danger))', marginLeft: 'auto' }}
-          disabled={selectedUserIds.length === 0 || bulkDeleting}
-          onClick={handleBulkDelete}
+      <div className="sv-card" style={{ padding: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+        <div
+          className="flex items-center gap-3 flex-wrap"
+          style={{
+            padding: '12px 16px',
+            borderBottom: '1px solid hsl(var(--border))',
+            background: 'hsl(var(--surface) / 0.5)',
+          }}
         >
-          {bulkDeleting ? 'Deleting...' : 'Delete selected'}
-        </button>
-      </div>
+          <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 12, color: 'hsl(var(--fg-2))' }}>
+            <input
+              type="checkbox"
+              checked={allSelected}
+              onChange={toggleSelectAll}
+              style={{ width: 14, height: 14, accentColor: 'hsl(var(--primary))' }}
+            />
+            Select all
+          </label>
+          <span style={{ fontSize: 12, color: 'hsl(var(--fg-3))' }}>{selectedUserIds.length} selected</span>
+          <button
+            type="button"
+            className="sv-btn-ghost"
+            style={{ border: '1px solid hsl(var(--border-2))', color: 'hsl(var(--danger))', marginLeft: 'auto' }}
+            disabled={selectedUserIds.length === 0 || bulkDeleting}
+            onClick={handleBulkDelete}
+          >
+            {bulkDeleting ? 'Deleting...' : 'Delete selected'}
+          </button>
+        </div>
 
-      <div style={{ borderRadius: 10, border: '1px solid hsl(var(--border))', overflow: 'hidden' }}>
         <div style={{ overflowX: 'auto' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 480 }}>
+        <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: 0, minWidth: 480 }}>
           <thead>
-            <tr style={{ background: 'hsl(var(--surface-3))', borderBottom: '1px solid hsl(var(--border))', position: 'sticky', top: 0, zIndex: 2 }}>
-              <th style={{ padding: '12px 10px', textAlign: 'left', fontSize: 11, fontWeight: 500, color: 'hsl(var(--fg-3))', textTransform: 'uppercase', letterSpacing: '0.04em', width: 36 }} />
-              <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: 11, fontWeight: 500, color: 'hsl(var(--fg-3))', textTransform: 'uppercase', letterSpacing: '0.04em' }}>User</th>
-              <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: 11, fontWeight: 500, color: 'hsl(var(--fg-3))', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Role</th>
-              <th style={{ padding: '12px 16px', textAlign: 'right', fontSize: 11, fontWeight: 500, color: 'hsl(var(--fg-3))', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Actions</th>
+            <tr style={{ position: 'sticky', top: 0, zIndex: 2 }}>
+              <th
+                style={{
+                  padding: '12px 10px',
+                  textAlign: 'left',
+                  fontSize: 11,
+                  fontWeight: 600,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.05em',
+                  color: 'hsl(var(--fg-2))',
+                  background: 'hsl(var(--surface-3))',
+                  borderBottom: '1px solid hsl(var(--border))',
+                  width: 36,
+                }}
+              />
+              <th
+                style={{
+                  padding: '12px 16px',
+                  textAlign: 'left',
+                  fontSize: 11,
+                  fontWeight: 600,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.05em',
+                  color: 'hsl(var(--fg-2))',
+                  background: 'hsl(var(--surface-3))',
+                  borderBottom: '1px solid hsl(var(--border))',
+                }}
+              >
+                User
+              </th>
+              <th
+                style={{
+                  padding: '12px 16px',
+                  textAlign: 'left',
+                  fontSize: 11,
+                  fontWeight: 600,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.05em',
+                  color: 'hsl(var(--fg-2))',
+                  background: 'hsl(var(--surface-3))',
+                  borderBottom: '1px solid hsl(var(--border))',
+                }}
+              >
+                Role
+              </th>
+              <th
+                style={{
+                  padding: '12px 16px',
+                  textAlign: 'right',
+                  fontSize: 11,
+                  fontWeight: 600,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.05em',
+                  color: 'hsl(var(--fg-2))',
+                  background: 'hsl(var(--surface-3))',
+                  borderBottom: '1px solid hsl(var(--border))',
+                }}
+              >
+                Actions
+              </th>
             </tr>
           </thead>
           <tbody>
             {users.map((u) => (
-              <tr
-                key={u.id}
-                style={{ borderBottom: '1px solid hsl(var(--border))', transition: 'background 75ms' }}
-                onMouseEnter={(e) => { e.currentTarget.style.background = 'hsl(var(--surface-2))'; }}
-                onMouseLeave={(e) => { e.currentTarget.style.background = ''; }}
-              >
+              <tr key={u.id} style={{ borderBottom: '1px solid hsl(var(--border))' }}>
                 <td style={{ padding: '12px 10px' }}>
                   <input
                     type="checkbox"
@@ -271,14 +328,12 @@ export const Users = () => {
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             onClick={(e) => e.stopPropagation()}
+            className="sv-card"
             style={{
               width: '90%',
               maxWidth: 380,
-              background: 'hsl(var(--surface))',
-              border: '1px solid hsl(var(--border))',
-              borderRadius: 12,
+              padding: 0,
               overflow: 'hidden',
-              boxShadow: '0 16px 48px hsl(var(--bg) / 0.4)',
             }}
           >
             <div style={{ padding: '14px 16px', borderBottom: '1px solid hsl(var(--border))', background: 'hsl(var(--surface-2))' }}>

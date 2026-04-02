@@ -6,6 +6,10 @@ export default {
   theme: {
     extend: {
       colors: {
+        /* Semantic aliases (shadcn-style names) — map to CSS tokens in :root / .dark */
+        foreground: 'hsl(var(--fg) / <alpha-value>)',
+        secondary: 'hsl(var(--fg-2) / <alpha-value>)',
+        'surface-lighter': 'hsl(var(--surface-2) / <alpha-value>)',
         bg: 'hsl(var(--bg) / <alpha-value>)',
         surface: 'hsl(var(--surface) / <alpha-value>)',
         'surface-2': 'hsl(var(--surface-2) / <alpha-value>)',

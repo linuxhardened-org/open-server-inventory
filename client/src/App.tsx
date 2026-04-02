@@ -121,7 +121,7 @@ function App() {
           className: '!bg-surface !border !border-border !shadow-lg !text-foreground',
           style: {
             background: 'hsl(var(--surface))',
-            color: 'hsl(var(--foreground))',
+            color: 'hsl(var(--fg))',
           },
         }}
       />

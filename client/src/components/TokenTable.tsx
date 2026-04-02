@@ -24,24 +24,47 @@ function getExpiryStatus(expiresAt: string | null): { label: string; isExpired: 
   return { label: `Expires ${expiry.toLocaleDateString()}`, isExpired: false, isExpiringSoon: false };
 }
 
+/** Renders inside a parent `.sv-card` so global table polish in index.css applies. */
 export default function TokenTable({ tokens, onRevoke, onRegenerate }: TokenTableProps) {
   return (
-    <div className="overflow-hidden rounded-xl border border-border bg-surface">
-      <div className="overflow-x-auto">
-      <table className="w-full text-left" style={{ minWidth: 560 }}>
-        <thead className="bg-surface-lighter text-xs uppercase tracking-wider text-secondary" style={{ position: 'sticky', top: 0, zIndex: 2 }}>
-          <tr>
-            <th className="px-6 py-4">Token Name</th>
-            <th className="px-6 py-4">Expiration</th>
-            <th className="px-6 py-4">Last Used</th>
-            <th className="px-6 py-4 text-right">Actions</th>
+    <div className="overflow-x-auto -mx-5">
+      <table
+        className="w-full text-left"
+        style={{ minWidth: 560, borderCollapse: 'separate', borderSpacing: 0 }}
+      >
+        <thead>
+          <tr style={{ position: 'sticky', top: 0, zIndex: 2 }}>
+            <th
+              className="px-6 py-4 text-xs font-semibold uppercase tracking-wider text-fg-2"
+              style={{ background: 'hsl(var(--surface-3))', borderBottom: '1px solid hsl(var(--border))' }}
+            >
+              Token Name
+            </th>
+            <th
+              className="px-6 py-4 text-xs font-semibold uppercase tracking-wider text-fg-2"
+              style={{ background: 'hsl(var(--surface-3))', borderBottom: '1px solid hsl(var(--border))' }}
+            >
+              Expiration
+            </th>
+            <th
+              className="px-6 py-4 text-xs font-semibold uppercase tracking-wider text-fg-2"
+              style={{ background: 'hsl(var(--surface-3))', borderBottom: '1px solid hsl(var(--border))' }}
+            >
+              Last Used
+            </th>
+            <th
+              className="px-6 py-4 text-right text-xs font-semibold uppercase tracking-wider text-fg-2"
+              style={{ background: 'hsl(var(--surface-3))', borderBottom: '1px solid hsl(var(--border))' }}
+            >
+              Actions
+            </th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-border">
+        <tbody>
           {tokens.map((token) => {
             const expiry = getExpiryStatus(token.expires_at);
             return (
-            <tr key={token.id} className="group transition-colors hover:bg-foreground/[0.02]">
+            <tr key={token.id} style={{ borderBottom: '1px solid hsl(var(--border))' }}>
               <td className="px-6 py-4">
                 <div className="flex items-center gap-3">
                   <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
@@ -103,7 +126,6 @@ export default function TokenTable({ tokens, onRevoke, onRegenerate }: TokenTabl
           )}
         </tbody>
       </table>
-      </div>
     </div>
   );
 }
