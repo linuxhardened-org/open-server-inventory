@@ -3,6 +3,7 @@ import {
   EC2Client,
   DescribeInstancesCommand,
   DescribeInstanceTypesCommand,
+  DescribeRegionsCommand,
   type Instance,
 } from '@aws-sdk/client-ec2';
 import db from '../../db';
@@ -12,7 +13,6 @@ import type { SyncResult } from './registry';
 interface AwsCredentials {
   accessKeyId: string;
   secretAccessKey: string;
-  region: string;
 }
 
 function parseAwsToken(apiToken: string): AwsCredentials {
@@ -20,23 +20,40 @@ function parseAwsToken(apiToken: string): AwsCredentials {
   try {
     parsed = JSON.parse(apiToken);
   } catch {
-    throw new Error('AWS credentials must be a JSON object with accessKeyId, secretAccessKey, and region');
+    throw new Error('AWS credentials must be a JSON object with accessKeyId and secretAccessKey');
   }
-  if (!parsed.accessKeyId || !parsed.secretAccessKey || !parsed.region) {
-    throw new Error('AWS credentials must contain accessKeyId, secretAccessKey, and region');
+  if (!parsed.accessKeyId || !parsed.secretAccessKey) {
+    throw new Error('AWS credentials must contain accessKeyId and secretAccessKey');
   }
   return parsed as unknown as AwsCredentials;
 }
 
-/** Fetch all non-terminated EC2 instances across all pages. */
-async function fetchAllInstances(ec2: EC2Client): Promise<Instance[]> {
+function makeClient(creds: AwsCredentials, region: string): EC2Client {
+  return new EC2Client({
+    region,
+    credentials: {
+      accessKeyId: creds.accessKeyId,
+      secretAccessKey: creds.secretAccessKey,
+    },
+  });
+}
+
+/** Fetch all enabled regions for this account. */
+async function fetchAllRegions(creds: AwsCredentials): Promise<string[]> {
+  // us-east-1 is always available and can call DescribeRegions globally
+  const ec2 = makeClient(creds, 'us-east-1');
+  const resp = await ec2.send(new DescribeRegionsCommand({ AllRegions: false }));
+  return (resp.Regions ?? []).map((r) => r.RegionName!).filter(Boolean);
+}
+
+/** Fetch all non-terminated EC2 instances in a single region, across all pages. */
+async function fetchInstancesInRegion(ec2: EC2Client): Promise<Instance[]> {
   const all: Instance[] = [];
   let nextToken: string | undefined;
 
   do {
     const resp = await ec2.send(new DescribeInstancesCommand({
       Filters: [
-        // Exclude terminated — they are gone from billing and irrelevant for inventory
         { Name: 'instance-state-name', Values: ['pending', 'running', 'stopping', 'stopped', 'shutting-down'] },
       ],
       NextToken: nextToken,
@@ -79,7 +96,7 @@ function getInstanceName(instance: Instance): string {
   return tag?.Value?.trim() || (instance.InstanceId ?? 'unknown');
 }
 
-/** Determine OS from platform details string or Platform field. */
+/** Determine OS from PlatformDetails or Platform field. */
 function getInstanceOs(instance: Instance): string {
   const platformDetails = instance.PlatformDetails?.toLowerCase() ?? '';
   const platform = instance.Platform?.toLowerCase() ?? '';
@@ -95,7 +112,7 @@ function getInstanceOs(instance: Instance): string {
   return 'Linux';
 }
 
-/** Stable hash of instance IDs + states for delta detection. */
+/** Stable hash of (instanceId:state) across all regions for delta detection. */
 function hashInstances(instances: Instance[]): string {
   const sorted = [...instances].sort((a, b) =>
     (a.InstanceId ?? '').localeCompare(b.InstanceId ?? '')
@@ -115,8 +132,9 @@ async function getOrCreateGroup(client: any, groupName: string): Promise<number>
 }
 
 /**
- * Sync EC2 instances from a single AWS region into the server inventory.
- * Credentials are stored as a JSON string: { accessKeyId, secretAccessKey, region }.
+ * Sync EC2 instances from ALL enabled AWS regions into the server inventory.
+ * Credentials are stored as JSON: { accessKeyId, secretAccessKey }.
+ * Regions are discovered dynamically via DescribeRegions — no region config needed.
  * Uses delta hash to skip DB writes when nothing has changed.
  */
 export async function syncAwsProvider(
@@ -127,16 +145,34 @@ export async function syncAwsProvider(
 ): Promise<SyncResult> {
   const creds = parseAwsToken(apiToken);
 
-  const ec2 = new EC2Client({
-    region: creds.region,
-    credentials: {
-      accessKeyId: creds.accessKeyId,
-      secretAccessKey: creds.secretAccessKey,
-    },
-  });
+  // Discover all enabled regions for this account
+  const regions = await fetchAllRegions(creds);
+  console.log(`[AWS] ${providerName}: syncing ${regions.length} regions: ${regions.join(', ')}`);
 
-  const instances = await fetchAllInstances(ec2);
-  const hash = hashInstances(instances);
+  // Fetch instances from all regions in parallel
+  const regionalResults = await Promise.allSettled(
+    regions.map(async (region) => {
+      const ec2 = makeClient(creds, region);
+      const instances = await fetchInstancesInRegion(ec2);
+      return { region, instances, ec2 };
+    })
+  );
+
+  // Collect all instances; log and skip failed regions (access may be restricted)
+  const allInstances: Instance[] = [];
+  const regionClients = new Map<string, EC2Client>();
+
+  for (const result of regionalResults) {
+    if (result.status === 'fulfilled') {
+      allInstances.push(...result.value.instances);
+      regionClients.set(result.value.region, result.value.ec2);
+    } else {
+      const err = result.reason as Error;
+      console.warn(`[AWS] ${providerName}: skipped a region — ${err?.message}`);
+    }
+  }
+
+  const hash = hashInstances(allInstances);
 
   if (storedHash && hash === storedHash) {
     await db.query(
@@ -150,21 +186,30 @@ export async function syncAwsProvider(
       id: providerId,
       meta: { providerName, skipped: true },
     });
-    return { count: instances.length, hash, skipped: true };
+    return { count: allInstances.length, hash, skipped: true };
   }
 
-  // Fetch specs for all unique instance types before the DB transaction
-  const uniqueTypes = [
-    ...new Set(instances.map((i) => i.InstanceType).filter(Boolean) as string[]),
-  ];
-  const typeSpecs = await fetchInstanceTypeSpecs(ec2, uniqueTypes);
+  // Fetch instance type specs per-region (instance types are region-scoped)
+  const specsByRegion = new Map<string, Map<string, { vcpus: number; memoryGb: number }>>();
+  await Promise.all(
+    [...regionClients.entries()].map(async ([region, ec2]) => {
+      const instancesInRegion = allInstances.filter(
+        (i) => i.Placement?.AvailabilityZone?.startsWith(region)
+      );
+      const uniqueTypes = [
+        ...new Set(instancesInRegion.map((i) => i.InstanceType).filter(Boolean) as string[]),
+      ];
+      const specs = await fetchInstanceTypeSpecs(ec2, uniqueTypes);
+      specsByRegion.set(region, specs);
+    })
+  );
 
   const client = await db.pool.connect();
   try {
     await client.query('BEGIN');
     const groupId = await getOrCreateGroup(client, providerName);
 
-    for (const instance of instances) {
+    for (const instance of allInstances) {
       const cloudInstanceId = instance.InstanceId!;
       const name = getInstanceName(instance);
       const hostname =
@@ -174,7 +219,6 @@ export async function syncAwsProvider(
       const publicIpv4 = instance.PublicIpAddress ?? null;
       const privateIpv4 = instance.PrivateIpAddress ?? null;
 
-      // First IPv6 address found across all network interfaces
       let publicIpv6: string | null = null;
       for (const iface of instance.NetworkInterfaces ?? []) {
         const v6 = iface.Ipv6Addresses?.[0]?.Ipv6Address;
@@ -182,9 +226,11 @@ export async function syncAwsProvider(
       }
 
       const os = getInstanceOs(instance);
-      const specs = typeSpecs.get(instance.InstanceType ?? '') ?? { vcpus: 0, memoryGb: 0 };
-      // AvailabilityZone is more precise than region; still useful for inventory
-      const region = instance.Placement?.AvailabilityZone ?? creds.region;
+      const az = instance.Placement?.AvailabilityZone ?? '';
+      // Derive region from AZ (e.g. "us-east-1a" → "us-east-1")
+      const instanceRegion = az.replace(/[a-z]$/, '') || az;
+      const regionSpecs = specsByRegion.get(instanceRegion) ?? new Map();
+      const specs = regionSpecs.get(instance.InstanceType ?? '') ?? { vcpus: 0, memoryGb: 0 };
       const status = instance.State?.Name === 'running' ? 'active' : 'inactive';
       const notes = `Type: ${instance.InstanceType ?? 'Unknown'}`;
 
@@ -205,7 +251,7 @@ export async function syncAwsProvider(
           [
             name, hostname,
             publicIpv4, privateIpv4, publicIpv6,
-            os, specs.vcpus, specs.memoryGb, region, status, notes,
+            os, specs.vcpus, specs.memoryGb, az, status, notes,
             groupId, existing.rows[0].id,
           ]
         );
@@ -219,7 +265,7 @@ export async function syncAwsProvider(
           [
             name, hostname,
             publicIpv4, privateIpv4, publicIpv6,
-            os, specs.vcpus, specs.memoryGb, region, status, notes,
+            os, specs.vcpus, specs.memoryGb, az, status, notes,
             providerId, cloudInstanceId, groupId,
           ]
         );
@@ -230,7 +276,7 @@ export async function syncAwsProvider(
       `UPDATE cloud_providers
          SET last_sync_at = CURRENT_TIMESTAMP, server_count = $1, instance_hash = $2
        WHERE id = $3`,
-      [instances.length, hash, providerId]
+      [allInstances.length, hash, providerId]
     );
 
     await client.query('COMMIT');
@@ -239,17 +285,17 @@ export async function syncAwsProvider(
       resource: 'servers',
       action: 'sync',
       at: new Date().toISOString(),
-      meta: { providerId, providerName, syncedCount: instances.length },
+      meta: { providerId, providerName, syncedCount: allInstances.length },
     });
     emitRealtime({
       resource: 'cloud-providers',
       action: 'updated',
       at: new Date().toISOString(),
       id: providerId,
-      meta: { providerName, syncedCount: instances.length },
+      meta: { providerName, syncedCount: allInstances.length },
     });
 
-    return { count: instances.length, hash, skipped: false };
+    return { count: allInstances.length, hash, skipped: false };
   } catch (err) {
     await client.query('ROLLBACK');
     throw err;

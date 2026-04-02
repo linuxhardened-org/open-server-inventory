@@ -73,7 +73,7 @@ export const CloudIntegrations = () => {
     const apiToken = ovh
       ? JSON.stringify({ appKey: newProvider.ovh_app_key.trim(), appSecret: newProvider.ovh_app_secret.trim(), consumerKey: newProvider.ovh_consumer_key.trim() })
       : aws
-      ? JSON.stringify({ accessKeyId: newProvider.aws_access_key_id.trim(), secretAccessKey: newProvider.aws_secret_access_key.trim(), region: newProvider.aws_region })
+      ? JSON.stringify({ accessKeyId: newProvider.aws_access_key_id.trim(), secretAccessKey: newProvider.aws_secret_access_key.trim() })
       : newProvider.api_token.trim();
     setSubmitting(true);
     try {
@@ -499,44 +499,8 @@ export const CloudIntegrations = () => {
                       />
                     </div>
                   ))}
-                  <div>
-                    <label style={{ display: 'block', fontSize: 11, fontWeight: 500, color: 'hsl(var(--fg-2))', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                      Region <span style={{ color: 'hsl(var(--danger))' }}>*</span>
-                    </label>
-                    <SvSelect
-                      value={newProvider.aws_region}
-                      onChange={(v) => setNewProvider({ ...newProvider, aws_region: v })}
-                      options={[
-                        { value: 'us-east-1', label: 'US East (N. Virginia)' },
-                        { value: 'us-east-2', label: 'US East (Ohio)' },
-                        { value: 'us-west-1', label: 'US West (N. California)' },
-                        { value: 'us-west-2', label: 'US West (Oregon)' },
-                        { value: 'eu-west-1', label: 'Europe (Ireland)' },
-                        { value: 'eu-west-2', label: 'Europe (London)' },
-                        { value: 'eu-west-3', label: 'Europe (Paris)' },
-                        { value: 'eu-central-1', label: 'Europe (Frankfurt)' },
-                        { value: 'eu-north-1', label: 'Europe (Stockholm)' },
-                        { value: 'eu-south-1', label: 'Europe (Milan)' },
-                        { value: 'ap-southeast-1', label: 'Asia Pacific (Singapore)' },
-                        { value: 'ap-southeast-2', label: 'Asia Pacific (Sydney)' },
-                        { value: 'ap-northeast-1', label: 'Asia Pacific (Tokyo)' },
-                        { value: 'ap-northeast-2', label: 'Asia Pacific (Seoul)' },
-                        { value: 'ap-northeast-3', label: 'Asia Pacific (Osaka)' },
-                        { value: 'ap-south-1', label: 'Asia Pacific (Mumbai)' },
-                        { value: 'ap-south-2', label: 'Asia Pacific (Hyderabad)' },
-                        { value: 'ap-east-1', label: 'Asia Pacific (Hong Kong)' },
-                        { value: 'ca-central-1', label: 'Canada (Central)' },
-                        { value: 'ca-west-1', label: 'Canada (Calgary)' },
-                        { value: 'sa-east-1', label: 'South America (São Paulo)' },
-                        { value: 'me-south-1', label: 'Middle East (Bahrain)' },
-                        { value: 'me-central-1', label: 'Middle East (UAE)' },
-                        { value: 'af-south-1', label: 'Africa (Cape Town)' },
-                        { value: 'il-central-1', label: 'Israel (Tel Aviv)' },
-                      ]}
-                    />
-                  </div>
                   <p style={{ fontSize: 11, color: 'hsl(var(--fg-3))', marginTop: -6 }}>
-                    Use an IAM user with <strong>ec2:DescribeInstances</strong> and <strong>ec2:DescribeInstanceTypes</strong> permissions only. Add one provider per region.
+                    Syncs all enabled regions automatically. IAM policy needs <strong>ec2:DescribeRegions</strong>, <strong>ec2:DescribeInstances</strong>, and <strong>ec2:DescribeInstanceTypes</strong>.
                   </p>
                 </>
               ) : isOvhProvider(newProvider.provider) ? (
