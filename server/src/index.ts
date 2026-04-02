@@ -171,8 +171,8 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
 // Initialize Database before starting the server
 initDB().then(() => {
   initRealtime(httpServer, sessionMiddleware);
-  httpServer.listen(PORT, () => {
-    console.log(`ServerVault Backend running on http://localhost:${PORT}`);
+  httpServer.listen(PORT, env.listenHost, () => {
+    console.log(`ServerVault Backend running on http://${env.listenHost}:${PORT}`);
   });
 
   // Schedule cloud provider auto-sync - checks every 5 min, syncs per provider interval

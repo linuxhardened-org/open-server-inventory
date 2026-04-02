@@ -51,15 +51,27 @@ function seedDefaultAdmin(p) {
     });
 }
 const initDB = () => __awaiter(void 0, void 0, void 0, function* () {
-    try {
-        console.log(env_1.env.databaseUrl ? 'Using DATABASE_URL (SSL)' : 'Using local PostgreSQL');
-        yield pool.query(schema_1.schema);
-        yield (0, migrations_1.runMigrations)(pool);
-        console.log('Database initialized successfully');
-    }
-    catch (error) {
-        console.error('Failed to initialize database:', error);
-        process.exit(1);
+    var _a;
+    console.log(env_1.env.databaseUrl ? 'Using DATABASE_URL (SSL)' : 'Using local PostgreSQL');
+    const maxRetries = 15;
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+            yield pool.query(schema_1.schema);
+            yield (0, migrations_1.runMigrations)(pool);
+            console.log('Database initialized successfully');
+            return;
+        }
+        catch (error) {
+            const isNotReady = (error === null || error === void 0 ? void 0 : error.code) === '3D000' || ((_a = error === null || error === void 0 ? void 0 : error.message) === null || _a === void 0 ? void 0 : _a.includes('does not exist')) || (error === null || error === void 0 ? void 0 : error.code) === 'ECONNREFUSED';
+            if (isNotReady && attempt < maxRetries) {
+                console.log(`Database not ready (attempt ${attempt}/${maxRetries}), retrying in 2s...`);
+                yield new Promise((r) => setTimeout(r, 2000));
+            }
+            else {
+                console.error('Failed to initialize database:', error);
+                process.exit(1);
+            }
+        }
     }
 });
 exports.initDB = initDB;

@@ -26,10 +26,12 @@ services:
       dockerfile: server/Dockerfile
     ports:
       - "8080:8080"
-    # No env_file — avoids "server/.env not found" on fresh clones. Optional vars use Compose substitution;
-    # put DATABASE_URL / REDIS_URL / SESSION_SECRET in a project-root `.env` (same folder as this file), or export them before `docker compose up`.
+    # Tracked `server/compose.env` — avoids missing `server/.env` on clone. Optional secrets: project-root `.env`.
+    env_file:
+      - ./server/compose.env
     environment:
       - PORT=8080
+      - HOST=0.0.0.0
       - NODE_ENV=production
       - CLIENT_URL=http://localhost:8080
       - SESSION_SECRET=${SESSION_SECRET:-servervault-docker-session-secret-change-in-production}

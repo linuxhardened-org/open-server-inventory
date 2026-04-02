@@ -84,6 +84,9 @@ router.get('/', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
         const limit = Math.min(parseInt(String((_a = req.query.limit) !== null && _a !== void 0 ? _a : '5000'), 10) || 5000, 5000);
         const offset = Math.max(parseInt(String((_b = req.query.offset) !== null && _b !== void 0 ? _b : '0'), 10) || 0, 0);
+        // Fetch total count for pagination
+        const countRes = yield db_1.default.query('SELECT COUNT(*)::int AS count FROM servers');
+        const total = countRes.rows[0].count;
         const serversResult = yield db_1.default.query(`
       SELECT s.*, g.name as group_name, k.name as ssh_key_name
       FROM servers s
@@ -95,7 +98,7 @@ router.get('/', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
         const rows = serversResult.rows;
         const ids = rows.map((s) => s.id);
         if (ids.length === 0) {
-            return (0, response_1.sendSuccess)(res, []);
+            return (0, response_1.sendSuccess)(res, { servers: [], total });
         }
         const [disksRes, interfacesRes, tagsRes] = yield Promise.all([
             db_1.default.query('SELECT * FROM server_disks WHERE server_id = ANY($1::int[])', [ids]),
@@ -121,7 +124,7 @@ router.get('/', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
             const id = s.id;
             return Object.assign(Object.assign({}, s), { disks: (_a = disksBy.get(String(id))) !== null && _a !== void 0 ? _a : [], interfaces: (_b = ifBy.get(String(id))) !== null && _b !== void 0 ? _b : [], tags: (_c = tagsByServer.get(id)) !== null && _c !== void 0 ? _c : [], custom_values: (_d = customMap.get(id)) !== null && _d !== void 0 ? _d : {} });
         });
-        (0, response_1.sendSuccess)(res, results);
+        (0, response_1.sendSuccess)(res, { servers: results, total });
     }
     catch (err) {
         (0, response_1.sendError)(res, err.message);

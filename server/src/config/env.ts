@@ -27,9 +27,14 @@ function requireSessionSecret(): string {
 /** Set `COOKIE_SECURE=true` only when the app is served over HTTPS (reverse proxy TLS). */
 const cookieSecure = process.env.COOKIE_SECURE === 'true';
 
+const listenHostRaw = (process.env.HOST || '0.0.0.0').trim();
+/** HTTP/WebSocket bind address (default all interfaces — needed for Docker and LAN access). */
+const listenHost = listenHostRaw || '0.0.0.0';
+
 export const env = {
   isProduction,
   port: parseInt(process.env.PORT || '3001', 10),
+  listenHost,
   clientUrl: process.env.CLIENT_URL || 'http://localhost:5173',
   sessionSecret: requireSessionSecret(),
   /** If false, session cookies work on plain HTTP (Docker/local). */
