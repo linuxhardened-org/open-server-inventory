@@ -48,7 +48,7 @@ cd client && npm run dev    # Vite dev server on :5173
 
 ## Environment Setup
 
-Create `server/.env`:
+**Docker Compose** does not require `server/.env`; optional `DATABASE_URL` / `REDIS_URL` / `SESSION_SECRET` can live in a **project-root** `.env` (Compose interpolation). For **local `make dev`**, create `server/.env`:
 ```env
 POSTGRES_HOST=localhost
 POSTGRES_PORT=5432

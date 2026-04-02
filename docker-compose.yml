@@ -26,24 +26,23 @@ services:
       dockerfile: server/Dockerfile
     ports:
       - "8080:8080"
-    # Optional overrides (DATABASE_URL, REDIS_URL, etc.). Copy server/.env.example → server/.env when needed.
-    env_file:
-      - path: ./server/.env
-        required: false
+    # No env_file — avoids "server/.env not found" on fresh clones. Optional vars use Compose substitution;
+    # put DATABASE_URL / REDIS_URL / SESSION_SECRET in a project-root `.env` (same folder as this file), or export them before `docker compose up`.
     environment:
       - PORT=8080
       - NODE_ENV=production
       - CLIENT_URL=http://localhost:8080
       - SESSION_SECRET=${SESSION_SECRET:-servervault-docker-session-secret-change-in-production}
-      # ── Option A: Local PostgreSQL (default when DATABASE_URL is not set) ──
+      # ── Option A: Local PostgreSQL (default when DATABASE_URL is empty) ──
       - POSTGRES_HOST=db
       - POSTGRES_PORT=5432
       - POSTGRES_USER=${POSTGRES_USER:-postgres}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
       - POSTGRES_DATABASE=${POSTGRES_DATABASE:-servervault}
-      # ── Option B: Supabase ─────────────────────────────────────────────────
-      # Set DATABASE_URL in server/.env — it overrides POSTGRES_* above.
-      # DATABASE_URL=postgresql://postgres.[ref]:[pw]@aws-0-[region].pooler.supabase.com:5432/postgres
+      # ── Option B: Supabase / external DB — set DATABASE_URL in project-root `.env` or export it ──
+      - DATABASE_URL=${DATABASE_URL:-}
+      # ── Optional: Redis for Socket.IO adapter (multi-instance) ──
+      - REDIS_URL=${REDIS_URL:-}
     depends_on:
       db:
         condition: service_healthy

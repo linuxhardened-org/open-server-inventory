@@ -105,16 +105,17 @@ Empty fields are hidden instead of displaying placeholder values.
 
 ### Option 1: Docker (Recommended)
 
+You do **not** need `server/.env` for the default stack (bundled PostgreSQL). Clone and run:
+
 ```bash
-# Clone the repository
 git clone https://github.com/linuxhardened-org/open-server-inventory.git
 cd open-server-inventory
 
-# Start with Docker Compose
 docker compose up --build
-
-# Access at http://localhost:8080
+# App: http://localhost:8080
 ```
+
+Optional overrides (Supabase `DATABASE_URL`, `REDIS_URL`, custom `SESSION_SECRET`): add a **project-root** `.env` next to `docker-compose.yml` — Docker Compose loads it for variable substitution — or `export` those variables before `docker compose up`. For local **non-Docker** development, use `cp server/.env.example server/.env` as described below.
 
 ### Option 2: Manual Installation
 
@@ -150,7 +151,9 @@ After initial setup, log in with the default admin account:
 
 ## Configuration
 
-Create `server/.env` with these variables:
+**Docker:** defaults are set in `docker-compose.yml`. Optional secrets and `DATABASE_URL` / `REDIS_URL` can be set via a **`.env` file in the project root** (same directory as `docker-compose.yml`) or environment variables — you do not need `server/.env` unless you prefer it for `docker compose` overrides.
+
+**Manual / `make dev`:** create `server/.env` with these variables:
 
 ```env
 # Database
