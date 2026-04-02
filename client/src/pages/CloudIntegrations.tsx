@@ -28,7 +28,7 @@ export const CloudIntegrations = () => {
   const [bulkDeleting, setBulkDeleting] = useState(false);
   const [selectedProviderIds, setSelectedProviderIds] = useState<number[]>([]);
   const [newProvider, setNewProvider] = useState({ name: '', provider: 'linode', api_token: '', ovh_app_key: '', ovh_app_secret: '', ovh_consumer_key: '', aws_access_key_id: '', aws_secret_access_key: '', aws_region: 'us-east-1', gcp_service_account_json: '', auto_sync: true, sync_interval_minutes: 60 });
-  const isOvhProvider = (p: string) => p === 'ovh-ca' || p === 'ovh-us';
+  const isOvhProvider = (p: string) => p === 'ovh-ca' || p === 'ovh-us' || p === 'ovh-eu';
   const isAwsProvider = (p: string) => p === 'aws';
   const isGcpProvider = (p: string) => p === 'gcp';
 

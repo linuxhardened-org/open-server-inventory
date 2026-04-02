@@ -453,3 +453,12 @@ export async function syncOvhUsProvider(
 ): Promise<SyncResult> {
   return syncOvhProviderByBaseUrl(providerId, apiToken, providerName, storedHash, 'https://api.us.ovhcloud.com/1.0');
 }
+
+export async function syncOvhEuProvider(
+  providerId: number,
+  apiToken: string,
+  providerName: string,
+  storedHash: string | null = null
+): Promise<SyncResult> {
+  return syncOvhProviderByBaseUrl(providerId, apiToken, providerName, storedHash, 'https://eu.api.ovh.com/1.0');
+}

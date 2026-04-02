@@ -16,6 +16,7 @@ const PROVIDER_LOGOS: Record<string, string> = {
   vultr: VULTR_LOGO_URL,
   'ovh-ca': OVH_LOGO_URL,
   'ovh-us': OVH_LOGO_URL,
+  'ovh-eu': OVH_LOGO_URL,
   'ovh': OVH_LOGO_URL,
 };
 
@@ -26,6 +27,7 @@ export function getProviderLogo(provider: string): string | null {
 export const SUPPORTED_PROVIDERS = [
   { value: 'linode', label: 'Linode / Akamai Cloud', logo: LINODE_LOGO_URL, available: true },
   { value: 'digitalocean', label: 'DigitalOcean', logo: DIGITALOCEAN_LOGO_URL, available: true },
+  { value: 'ovh-eu', label: 'OVHcloud EU', logo: OVH_LOGO_URL, available: true },
   { value: 'ovh-ca', label: 'OVHcloud CA', logo: OVH_LOGO_URL, available: true },
   { value: 'ovh-us', label: 'OVHcloud US', logo: OVH_LOGO_URL, available: true },
   { value: 'aws', label: 'Amazon Web Services', logo: AWS_LOGO_URL, available: true },
