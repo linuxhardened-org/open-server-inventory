@@ -41,6 +41,12 @@ type OvhVps = {
   model?: { name?: string; offer?: string };
 };
 
+type OvhVpsDistribution = {
+  name?: string;
+  version?: string;
+  familyName?: string;
+};
+
 type OvhDedicatedServer = {
   name?: string;
   ip?: string;
@@ -232,9 +238,11 @@ async function fetchVpsRecords(baseUrl: string, creds: OvhCredentials, timestamp
 
   const records = await Promise.all(
     serviceNames.map(async (serviceName): Promise<OvhServerRecord | null> => {
-      const [vps, rawIps] = await Promise.all([
-        fetchJson<OvhVps>(baseUrl, `/vps/${encodeURIComponent(serviceName)}`, creds, timestamp),
-        fetchJson<string[]>(baseUrl, `/vps/${encodeURIComponent(serviceName)}/ips`, creds, timestamp),
+      const encoded = encodeURIComponent(serviceName);
+      const [vps, rawIps, distribution] = await Promise.all([
+        fetchJson<OvhVps>(baseUrl, `/vps/${encoded}`, creds, timestamp),
+        fetchJson<string[]>(baseUrl, `/vps/${encoded}/ips`, creds, timestamp),
+        fetchJson<OvhVpsDistribution>(baseUrl, `/vps/${encoded}/distribution`, creds, timestamp),
       ]);
       if (!vps) return null;
 
@@ -261,7 +269,7 @@ async function fetchVpsRecords(baseUrl: string, creds: OvhCredentials, timestamp
         publicIpv6,
         cpuCores: vps.vcore ?? null,
         ramGb,
-        os: null, // VPS OS not available in main endpoint
+        os: distribution?.name ?? distribution?.familyName ?? null,
         region,
         status: normalizeStatus(vps.state),
         notes: `OVHcloud VPS · ${vps.model?.offer ?? vps.model?.name ?? serviceName}`,
