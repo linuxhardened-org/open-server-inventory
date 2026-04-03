@@ -206,16 +206,7 @@ export const Sidebar = ({ isOpen }: { isOpen?: boolean; onClose?: () => void }) 
         <button
           type="button"
           onClick={() => { logout(); navigate('/login'); }}
-          className="app-nav-link"
-          style={{ width: '100%', background: 'none', border: 'none', cursor: 'pointer' }}
-          onMouseEnter={(e) => {
-            (e.currentTarget as HTMLButtonElement).style.color = 'hsl(var(--danger))';
-            (e.currentTarget as HTMLButtonElement).style.background = 'hsl(var(--danger) / 0.07)';
-          }}
-          onMouseLeave={(e) => {
-            (e.currentTarget as HTMLButtonElement).style.color = '';
-            (e.currentTarget as HTMLButtonElement).style.background = '';
-          }}
+          className="app-nav-link app-sidebar-signout"
         >
           <LogOut size={15} strokeWidth={1.75} aria-hidden />
           Sign out

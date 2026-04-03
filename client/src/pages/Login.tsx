@@ -1,15 +1,16 @@
 import { useState, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Eye, EyeOff, LogIn, Sparkles } from 'lucide-react';
+import { Eye, EyeOff, LogIn, Shield } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '../store/useAuthStore';
 import { useSettingsStore } from '../store/useSettingsStore';
-import api from '../lib/api';
+import api, { getApiErrorMessage } from '../lib/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { AnimatedAuthShell } from '@/components/ui/animated-characters-login-page';
+import { AuthFormSurface, AuthMobileBrand } from '@/components/ui/auth-form-surface';
 
 type LoginResponse = {
   success: boolean;
@@ -27,6 +28,8 @@ type LoginResponse = {
 export const Login = () => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [totpToken, setTotpToken] = useState('');
+  const [showTotpField, setShowTotpField] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -55,6 +58,7 @@ export const Login = () => {
         username: username.trim(),
         password,
         rememberMe,
+        ...(totpToken.trim() ? { totpToken: totpToken.trim() } : {}),
       })) as LoginResponse;
       const u = res.data;
       setAuth(
@@ -78,25 +82,23 @@ export const Login = () => {
         navigate('/servers');
       }
     } catch (err: unknown) {
-      const e = err as { error?: string };
-      toast.error(e?.error || 'Invalid username or password');
+      const msg = getApiErrorMessage(err, 'Invalid username or password');
+      if (/totp/i.test(msg)) {
+        setShowTotpField(true);
+      }
+      toast.error(msg);
     } finally {
       setSubmitting(false);
     }
   };
 
   const formContent = (
-    <div className="w-full max-w-[420px]">
-      <div className="mb-10 flex items-center justify-center gap-2 text-lg font-semibold lg:hidden">
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
-          <Sparkles className="h-4 w-4 text-primary" />
-        </div>
-        <span>{appName}</span>
-      </div>
+    <AuthFormSurface>
+      <AuthMobileBrand appName={appName} className="mb-0 sm:mb-2" />
 
-      <div className="mb-10 text-center">
-        <h1 className="mb-2 text-3xl font-bold tracking-tight text-foreground">Welcome back</h1>
-        <p className="text-sm text-muted-foreground">Sign in to your inventory workspace</p>
+      <div className="mb-8 text-center">
+        <h1 className="mb-2 text-2xl font-bold tracking-tight text-foreground sm:text-3xl">Welcome back</h1>
+        <p className="text-sm leading-relaxed text-muted-foreground">Sign in to your inventory workspace</p>
       </div>
 
       <form onSubmit={handleLogin} className="space-y-5">
@@ -114,7 +116,7 @@ export const Login = () => {
             onFocus={onFieldFocus}
             onBlur={onFieldBlur}
             required
-            className="h-12 border-border/60 bg-background focus-visible:border-primary"
+            className="h-12 border border-border bg-surface-2 text-foreground placeholder:text-muted-foreground focus-visible:border-primary"
           />
         </div>
 
@@ -133,12 +135,12 @@ export const Login = () => {
               onBlur={onFieldBlur}
               required
               autoComplete="current-password"
-              className="h-12 bg-background pr-10 border-border/60 focus-visible:border-primary"
+              className="h-12 border border-border bg-surface-2 pr-10 text-foreground placeholder:text-muted-foreground focus-visible:border-primary"
             />
             <button
               type="button"
               onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              className="absolute right-3 top-1/2 -translate-y-1/2 rounded-md text-muted-foreground outline-none ring-offset-background transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
               aria-label={showPassword ? 'Hide password' : 'Show password'}
             >
               {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
@@ -146,7 +148,44 @@ export const Login = () => {
           </div>
         </div>
 
-        <div className="flex items-center justify-between gap-4">
+        {!showTotpField && totpToken.length === 0 && (
+          <div className="flex justify-end">
+            <button
+              type="button"
+              onClick={() => setShowTotpField(true)}
+              className="text-xs font-medium text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline"
+            >
+              Use authenticator code
+            </button>
+          </div>
+        )}
+
+        {(showTotpField || totpToken.length > 0) && (
+          <div className="space-y-2 rounded-lg border border-border bg-surface-2/90 p-3 dark:bg-surface-3/50">
+            <Label htmlFor="login-totp" className="flex items-center gap-2 text-sm font-medium">
+              <Shield className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
+              Authenticator code
+            </Label>
+            <Input
+              id="login-totp"
+              type="text"
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              placeholder="6-digit code"
+              value={totpToken}
+              onChange={(e) => setTotpToken(e.target.value.replace(/\s/g, ''))}
+              onFocus={onFieldFocus}
+              onBlur={onFieldBlur}
+              maxLength={12}
+              className="h-11 border border-border bg-bg font-mono text-base tracking-widest text-foreground focus-visible:border-primary dark:bg-surface-2"
+            />
+            <p className="text-xs leading-snug text-muted-foreground">
+              Two-factor authentication is enabled on your account.
+            </p>
+          </div>
+        )}
+
+        <div className="flex items-center justify-between gap-4 pt-0.5">
           <div className="flex items-center space-x-2">
             <Checkbox
               id="remember"
@@ -164,7 +203,7 @@ export const Login = () => {
           {!submitting && <LogIn className="ml-2 h-4 w-4" />}
         </Button>
       </form>
-    </div>
+    </AuthFormSurface>
   );
 
   return (

@@ -20,7 +20,7 @@ export function resolveThemeMode(mode: ThemeMode): 'light' | 'dark' {
   return isDark ? 'dark' : 'light';
 }
 
-export function applyDomTheme(mode: ThemeMode, accent: AccentColor = 'emerald') {
+export function applyDomTheme(mode: ThemeMode, accent: AccentColor = 'blue') {
   const root = document.documentElement;
   const resolved = resolveThemeMode(mode);
   
@@ -46,7 +46,7 @@ export const useThemeStore = create<{
   persist(
     (set, get) => ({
       theme: 'light' as ThemeMode,
-      accent: 'emerald' as AccentColor,
+      accent: 'blue' as AccentColor,
       setTheme: (theme) => {
         set({ theme });
         applyDomTheme(theme, get().accent);
@@ -68,7 +68,7 @@ export const useThemeStore = create<{
       name: 'sv-theme',
       partialize: (s) => ({ theme: s.theme, accent: s.accent }),
       onRehydrateStorage: () => (state) => {
-        if (state) applyDomTheme(state.theme || 'light', state.accent || 'emerald');
+        if (state) applyDomTheme(state.theme || 'light', state.accent || 'blue');
       },
     }
   )
@@ -80,9 +80,9 @@ export function initThemeFromStorage() {
     const parsed = raw ? JSON.parse(raw) : null;
     const stored = parsed?.state?.theme;
     const theme: ThemeMode = stored === 'dark' || stored === 'light' || stored === 'system' ? stored : 'light';
-    const accent = parsed?.state?.accent || 'emerald';
+    const accent = parsed?.state?.accent || 'blue';
     applyDomTheme(theme, accent);
   } catch {
-    applyDomTheme('light', 'emerald');
+    applyDomTheme('light', 'blue');
   }
 }

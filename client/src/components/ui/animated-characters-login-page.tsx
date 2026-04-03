@@ -494,18 +494,18 @@ export interface AnimatedAuthShellProps extends AnimatedCharactersPanelProps {
 /** Two-column layout: animated characters (lg+) + form area. */
 export function AnimatedAuthShell({ appName, password, showPassword, isTyping, children }: AnimatedAuthShellProps) {
   return (
-    <div className="min-h-screen bg-background lg:grid lg:grid-cols-2">
+    <div className="min-h-[100dvh] bg-bg lg:grid lg:min-h-screen lg:grid-cols-2">
       <AnimatedCharactersPanel
         appName={appName}
         password={password}
         showPassword={showPassword}
         isTyping={isTyping}
       />
-      <div className="relative flex min-h-screen items-center justify-center overflow-hidden p-8">
-        <div className="pointer-events-none absolute inset-0 z-0 opacity-[0.09]">
-          <CpuArchitecture text="CPU" animateText={false} className="h-full min-h-[280px] w-full text-muted-foreground/50" />
+      <div className="relative flex min-h-[100dvh] flex-col items-center justify-center overflow-x-hidden overflow-y-auto bg-bg px-4 py-10 sm:px-8 sm:py-12 lg:min-h-0 lg:py-14">
+        <div className="pointer-events-none absolute inset-0 z-0 opacity-[0.09] dark:opacity-[0.14]">
+          <CpuArchitecture text="CPU" animateText={false} className="h-full min-h-[280px] w-full text-muted-foreground/50 dark:text-muted-foreground/35" />
         </div>
-        <div className="relative z-10 w-full">{children}</div>
+        <div className="relative z-10 flex w-full max-w-[440px] flex-col items-center justify-center gap-0">{children}</div>
       </div>
     </div>
   );

@@ -20,12 +20,12 @@
     --fg:           223 38% 12%;
     --fg-2:         221 16% 42%;
     --fg-3:         221 12% 58%;
-    --primary:      152 62% 38%;
+    --primary:      217 91% 55%;
     --primary-dark: 0 0% 100%;
     --danger:       0 84% 60%;
     --warning:      38 95% 55%;
     --info:         210 90% 60%;
-    --glow:         152 76% 44%;
+    --glow:         217 91% 50%;
   }
 
   /* Dark mode — cooler slate, slightly higher contrast */
@@ -39,12 +39,12 @@
     --fg:           210 25% 97%;
     --fg-2:         215 14% 62%;
     --fg-3:         215 10% 42%;
-    --primary:      152 72% 52%;
+    --primary:      217 91% 60%;
     --primary-dark: 222 24% 6%;
     --danger:       0 84% 60%;
     --warning:      38 95% 55%;
     --info:         210 90% 60%;
-    --glow:         152 80% 56%;
+    --glow:         217 91% 58%;
   }
 
   *, *::before, *::after { box-sizing: border-box; }
@@ -313,6 +313,26 @@ html.dark.accent-cyan { --primary: 188 94% 48%; }
   flex-shrink: 0;
   padding: 8px;
   border-top: 1px solid hsl(var(--border));
+}
+
+/* Sign out is a <button>, not <a> — override generic .app-nav-link:hover (uses --fg, reads as white on dark) */
+button.app-nav-link.app-sidebar-signout {
+  width: 100%;
+  margin: 0;
+  padding: 0 10px;
+  height: 32px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+  color: hsl(var(--fg-2));
+}
+
+button.app-nav-link.app-sidebar-signout:hover {
+  color: hsl(var(--danger));
+  background: hsl(var(--danger) / 0.09);
+  transform: translateX(2px);
 }
 
 /* ─── Components ─── */
@@ -698,4 +718,11 @@ html.dark.accent-cyan { --primary: 188 94% 48%; }
   100% {
     offset-distance: 100%;
   }
+}
+
+/* react-hot-toast — keep surfaces readable in dark mode (portal still inherits html.dark) */
+.react-hot-toast > div {
+  background: hsl(var(--surface)) !important;
+  color: hsl(var(--fg)) !important;
+  border: 1px solid hsl(var(--border)) !important;
 }

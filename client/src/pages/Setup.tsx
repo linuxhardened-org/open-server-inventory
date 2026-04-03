@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { ArrowRight, Building2, Database, Server, CheckCircle2, XCircle, Loader2 } from 'lucide-react';
 import { useAuthStore } from '../store/useAuthStore';
+import { applyDomTheme, useThemeStore } from '../store/useThemeStore';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
@@ -36,6 +37,15 @@ export const Setup = () => {
   const [appName, setAppName] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [restarting, setRestarting] = useState(false);
+
+  /** First-run setup is always shown in light mode with blue accent; restore previous DOM theme on exit. */
+  useEffect(() => {
+    const { theme: prevTheme, accent: prevAccent } = useThemeStore.getState();
+    applyDomTheme('light', 'blue');
+    return () => {
+      applyDomTheme(prevTheme, prevAccent);
+    };
+  }, []);
 
   // Reset test when URL changes
   useEffect(() => { setDbTest(null); }, [databaseUrl]);

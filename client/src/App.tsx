@@ -116,12 +116,34 @@ function App() {
       <ThemeSync />
       <Toaster
         position="top-right"
+        containerClassName="!z-[10050]"
         toastOptions={{
           duration: 5000,
-          className: '!bg-surface !border !border-border !shadow-lg !text-foreground',
+          className: '!font-sans',
           style: {
             background: 'hsl(var(--surface))',
             color: 'hsl(var(--fg))',
+            border: '1px solid hsl(var(--border))',
+            borderRadius: '10px',
+            boxShadow: '0 12px 40px -12px rgba(0, 0, 0, 0.45)',
+            maxWidth: 'min(100vw - 24px, 380px)',
+          },
+          success: {
+            iconTheme: {
+              primary: 'hsl(var(--primary))',
+              secondary: 'hsl(0 0% 100%)',
+            },
+          },
+          error: {
+            iconTheme: {
+              primary: 'hsl(var(--danger))',
+              secondary: 'hsl(0 0% 100%)',
+            },
+            style: {
+              background: 'hsl(var(--surface))',
+              color: 'hsl(var(--fg))',
+              border: '1px solid hsl(var(--border))',
+            },
           },
         }}
       />
